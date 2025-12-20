@@ -184,7 +184,7 @@ export default function AdminPelengkapRaportPage() {
             await generateKeteranganMasukPage(doc, siswa, marginSettings);
 
             // Save PDF
-            const fileName = `Identitas_${siswa.nm_siswa.replace(/\s+/g, '_')}.pdf`;
+            const fileName = `Pelengkap_Siswa_${siswa.nm_siswa.replace(/\s+/g, '_')}.pdf`;
             doc.save(fileName);
 
             toast.success(`PDF untuk ${siswa.nm_siswa} berhasil diunduh`);

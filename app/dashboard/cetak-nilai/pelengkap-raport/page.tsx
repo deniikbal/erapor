@@ -35,7 +35,7 @@ export default function PelengkapRaportPage() {
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [generatingBulk, setGeneratingBulk] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentStudent: '' });
-  
+
   // Margin settings state
   const [marginSettings, setMarginSettings] = useState({
     margin_top: 20,
@@ -53,7 +53,7 @@ export default function PelengkapRaportPage() {
         setLoading(false);
         return;
       }
-      
+
       if (user.level !== 'Guru') {
         setError('Hanya guru yang dapat mengakses halaman ini');
         setLoading(false);
@@ -201,7 +201,7 @@ export default function PelengkapRaportPage() {
       await generateKeteranganMasukPage(doc, siswa, marginSettings);
 
       // Save PDF
-      const fileName = `Identitas_${siswa.nm_siswa.replace(/\s+/g, '_')}.pdf`;
+      const fileName = `Pelengkap_Siswa_${siswa.nm_siswa.replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
 
       toast.success(`PDF untuk ${siswa.nm_siswa} berhasil diunduh`);

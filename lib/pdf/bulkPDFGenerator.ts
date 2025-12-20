@@ -30,15 +30,15 @@ export async function generateBulkPDFs(
   onProgress?: BulkProgressCallback
 ): Promise<Blob[]> {
   const pdfBlobs: Blob[] = [];
-  
+
   for (let i = 0; i < students.length; i++) {
     const student = students[i];
-    
+
     // Update progress
     if (onProgress) {
       onProgress(i + 1, students.length, student.nm_siswa);
     }
-    
+
     try {
       // Create PDF instance
       const doc = new jsPDF();
@@ -74,7 +74,7 @@ export async function generateBulkPDFs(
       throw new Error(`Gagal membuat PDF untuk ${student.nm_siswa}: ${(error as Error).message}`);
     }
   }
-  
+
   return pdfBlobs;
 }
 
@@ -89,17 +89,17 @@ export async function generateBulkPDFsAsZip(
   // This requires jszip library which may need to be installed
   // For now, we'll return the individual blobs approach
   const pdfBlobs = await generateBulkPDFs(students, schoolData, logos, marginSettings, onProgress);
-  
+
   // In a more complete implementation, we would create a ZIP file here
   // For now, we'll return the first PDF as a demonstration
   // The UI will handle the multiple files differently
-  
+
   // For this implementation, we'll return the first PDF as a single blob
   // A more complete solution would use a library like JSZip
   if (pdfBlobs.length > 0) {
     return pdfBlobs[0]; // This is just a placeholder - in reality, we'd need JSZip
   }
-  
+
   throw new Error('No PDFs were generated');
 }
 
@@ -161,7 +161,9 @@ export async function generateSinglePDFWithAllStudents(
   }
 
   // Save the single PDF with a descriptive filename
-  const fileName = `Identitas_Semua_Siswa_${new Date().getFullYear()}.pdf`;
+  // Get class name from first student (assumes all from same filter)
+  const kelasName = students[0]?.nm_kelas || 'Semua';
+  const fileName = `Pelengkap_Siswa_${kelasName.replace(/\s+/g, '_')}.pdf`;
   doc.save(fileName);
 }
 
@@ -209,7 +211,7 @@ export async function downloadBulkPDFs(
       await generateKeteranganMasukPage(doc, student, marginSettings);
 
       // Save PDF with student-specific filename
-      const fileName = `Identitas_${student.nm_siswa.replace(/\s+/g, '_')}.pdf`;
+      const fileName = `Pelengkap_Siswa_${student.nm_siswa.replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error(`Error generating PDF for student ${student.nm_siswa}:`, error);
