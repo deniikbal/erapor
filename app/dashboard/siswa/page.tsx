@@ -87,7 +87,7 @@ export default function DataSiswaPage() {
   };
 
   // Get unique kelas list dengan natural sort
-  const kelasList = Array.from(new Set(siswaList.map(s => s.nm_kelas).filter(Boolean))).sort(naturalSort);
+  const kelasList = Array.from(new Set(siswaList.map(s => s.nm_kelas).filter(Boolean) as string[])).sort(naturalSort);
 
   // Filter siswa berdasarkan kelas dan search
   const filteredSiswa = siswaList.filter(siswa => {

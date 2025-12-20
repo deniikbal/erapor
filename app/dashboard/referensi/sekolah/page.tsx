@@ -197,7 +197,7 @@ export default function DataSekolahPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <InfoItem label="Nama Sekolah" value={sekolah.nama} />
             <InfoItem label="NPSN" value={sekolah.npsn} />
-            <InfoItem label="NSS" value={sekolah.nss?.trim()} />
+            <InfoItem label="NSS" value={sekolah.nss ? sekolah.nss.trim() : null} />
             <InfoItem label="Jenjang" value={sekolah.jenjang} />
           </div>
         </CardContent>
