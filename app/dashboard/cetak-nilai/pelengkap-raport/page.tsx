@@ -16,7 +16,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Siswa, User, MarginSettings } from '@/lib/db';
-import { FileText, Settings as SettingsIcon, Loader2, Download } from 'lucide-react';
+import { FileText, Settings as SettingsIcon, Loader2, Download, DownloadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCurrentUser } from '@/lib/auth-client';
 import { jsPDF } from 'jspdf';
@@ -25,6 +25,7 @@ import { generateSchoolInfoPage } from '@/lib/pdf/schoolInfoPage';
 import { generateIdentityPage } from '@/lib/pdf/identityPage';
 import { generateKeteranganPindahPage } from '@/lib/pdf/keteranganPindahPage';
 import { generateKeteranganMasukPage } from '@/lib/pdf/keteranganMasukPage';
+import { downloadBulkPDFs, generateSinglePDFWithAllStudents } from '@/lib/pdf/bulkPDFGenerator';
 
 export default function PelengkapRaportPage() {
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);
@@ -32,6 +33,8 @@ export default function PelengkapRaportPage() {
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [generatingBulk, setGeneratingBulk] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentStudent: '' });
   
   // Margin settings state
   const [marginSettings, setMarginSettings] = useState({
@@ -140,73 +143,134 @@ export default function PelengkapRaportPage() {
 
   const handleGeneratePDF = async (siswa: Siswa) => {
     setGeneratingPdf(siswa.peserta_didik_id);
-    
+
     try {
       toast.info('Membuat PDF...');
 
       // Fetch logo data
       const logoResponse = await fetch('/api/logo');
       const logoData = await logoResponse.json();
-      
+
       console.log('Logo data received:', logoData);
-      
+
       // Logo paths are stored as file paths (e.g., "logos/filename.png")
       // Need to prepend with base URL
       const logos = {
-        logo_pemda: logoData.logo?.logo_pemda 
-          ? `/${logoData.logo.logo_pemda}` 
+        logo_pemda: logoData.logo?.logo_pemda
+          ? `/${logoData.logo.logo_pemda}`
           : null,
-        logo_sek: logoData.logo?.logo_sek 
-          ? `/${logoData.logo.logo_sek}` 
+        logo_sek: logoData.logo?.logo_sek
+          ? `/${logoData.logo.logo_sek}`
           : null
       };
-      
+
       console.log('Logo URLs:', logos);
 
       // Fetch school data
       const sekolahResponse = await fetch('/api/sekolah');
       const sekolahData = await sekolahResponse.json();
-      
+
       if (!sekolahResponse.ok || sekolahData.error) {
         throw new Error('Gagal mengambil data sekolah');
       }
 
       // Create PDF instance
       const doc = new jsPDF();
-      
+
       // Page 1: Cover Page
       await generateCoverPage(doc, {
         nm_siswa: siswa.nm_siswa,
         nis: siswa.nis,
         nisn: siswa.nisn
       }, logos, marginSettings);
-      
+
       // Page 2: School Info Page
       doc.addPage();
       await generateSchoolInfoPage(doc, sekolahData.sekolah, marginSettings);
-      
+
       // Page 3: Identity Page
       doc.addPage();
       await generateIdentityPage(doc, siswa, sekolahData.sekolah, marginSettings);
-      
+
       // Page 4: Keterangan Pindah Page
       doc.addPage();
       await generateKeteranganPindahPage(doc, siswa, marginSettings);
-      
+
       // Page 5: Keterangan Masuk Page
       doc.addPage();
       await generateKeteranganMasukPage(doc, siswa, marginSettings);
-      
+
       // Save PDF
       const fileName = `Identitas_${siswa.nm_siswa.replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
-      
+
       toast.success(`PDF untuk ${siswa.nm_siswa} berhasil diunduh`);
     } catch (err) {
       console.error('Error generating PDF:', err);
       toast.error('Gagal generate PDF: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setGeneratingPdf(null);
+    }
+  };
+
+  const handleGenerateBulkPDFs = async () => {
+    if (siswaList.length === 0) {
+      toast.error('Tidak ada siswa untuk di-generate');
+      return;
+    }
+
+    setGeneratingBulk(true);
+    setBulkProgress({ current: 0, total: siswaList.length, currentStudent: '' });
+
+    try {
+      toast.info('Mempersiapkan PDF untuk semua siswa...');
+
+      // Fetch logo data
+      const logoResponse = await fetch('/api/logo');
+      const logoData = await logoResponse.json();
+
+      console.log('Logo data received:', logoData);
+
+      // Logo paths are stored as file paths (e.g., "logos/filename.png")
+      // Need to prepend with base URL
+      const logos = {
+        logo_pemda: logoData.logo?.logo_pemda
+          ? `/${logoData.logo.logo_pemda}`
+          : null,
+        logo_sek: logoData.logo?.logo_sek
+          ? `/${logoData.logo.logo_sek}`
+          : null
+      };
+
+      console.log('Logo URLs:', logos);
+
+      // Fetch school data
+      const sekolahResponse = await fetch('/api/sekolah');
+      const sekolahData = await sekolahResponse.json();
+
+      if (!sekolahResponse.ok || sekolahData.error) {
+        throw new Error('Gagal mengambil data sekolah');
+      }
+
+      // Generate single PDF for all students
+      await generateSinglePDFWithAllStudents(
+        siswaList,
+        sekolahData.sekolah,
+        logos,
+        marginSettings,
+        (current: number, total: number, currentStudentName?: string) => {
+          setBulkProgress({ current, total, currentStudent: currentStudentName || '' });
+          toast.info(`Menambahkan siswa ke PDF: ${currentStudentName || ''} (${current} dari ${total})`);
+        }
+      );
+
+      toast.success(`PDF untuk ${siswaList.length} siswa berhasil diunduh`);
+    } catch (err) {
+      console.error('Error generating bulk PDFs:', err);
+      toast.error('Gagal generate PDF massal: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setGeneratingBulk(false);
+      setBulkProgress({ current: 0, total: 0, currentStudent: '' });
     }
   };
 
@@ -330,11 +394,43 @@ export default function PelengkapRaportPage() {
       {/* Student List Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            <CardTitle>Daftar Siswa</CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <CardTitle>Daftar Siswa</CardTitle>
+              </div>
+              <CardDescription>Klik tombol "Cetak PDF" untuk generate dokumen identitas siswa</CardDescription>
+            </div>
+
+            {/* Bulk Generate Button */}
+            <div className="flex flex-col items-end gap-2">
+              <Button
+                onClick={handleGenerateBulkPDFs}
+                size="sm"
+                variant="default"
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={generatingBulk || siswaList.length === 0}
+              >
+                {generatingBulk ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Membuat ({bulkProgress.current} dari {bulkProgress.total})
+                  </>
+                ) : (
+                  <>
+                    <DownloadCloud className="h-4 w-4 mr-2" />
+                    Cetak PDF Semua Siswa
+                  </>
+                )}
+              </Button>
+              {generatingBulk && bulkProgress.total > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  Membuat PDF untuk: {bulkProgress.currentStudent || 'Memulai...'}
+                </div>
+              )}
+            </div>
           </div>
-          <CardDescription>Klik tombol "Cetak PDF" untuk generate dokumen identitas siswa</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -368,7 +464,7 @@ export default function PelengkapRaportPage() {
                           size="sm"
                           variant="default"
                           className="bg-red-600 hover:bg-red-700"
-                          disabled={generatingPdf === siswa.peserta_didik_id}
+                          disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
                         >
                           {generatingPdf === siswa.peserta_didik_id ? (
                             <>
@@ -392,13 +488,6 @@ export default function PelengkapRaportPage() {
         </CardContent>
       </Card>
 
-      {/* Note for PDF Implementation */}
-      <Alert>
-        <AlertDescription>
-          <strong>Catatan Pengembangan:</strong> Implementasi PDF generation memerlukan library jsPDF dan font DejaVu Sans.
-          Silakan integrasikan dengan template PDF dari generator.blade.php untuk hasil yang sesuai.
-        </AlertDescription>
-      </Alert>
     </div>
   );
 }
