@@ -27,6 +27,7 @@ import {
   Calendar,
   ClipboardEdit,
   Printer,
+  RefreshCw,
 } from 'lucide-react';
 import { removeCurrentUser, getCurrentUser } from '@/lib/auth-client';
 import type { User } from '@/lib/db';
@@ -63,6 +64,7 @@ const menuItems: MenuItem[] = [
       { title: 'Data Kelas', href: '/dashboard/referensi/kelas', icon: BookOpen },
       { title: 'Data Logo', href: '/dashboard/referensi/logo', icon: ImageIcon },
       { title: 'Data Tanggal Rapor', href: '/dashboard/referensi/tanggalrapor', icon: Calendar },
+      { title: 'Sync Data', href: '/dashboard/sync', icon: RefreshCw }, // Add sync menu item
     ],
   },
 
