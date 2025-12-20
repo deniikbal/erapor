@@ -39,21 +39,21 @@ export default function DataSiswaPage() {
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Filter & Search
   const [selectedKelas, setSelectedKelas] = useState<string>('all');
   const [searchNama, setSearchNama] = useState('');
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState('');
   const [selectedSiswa, setSelectedSiswa] = useState<Siswa | null>(null);
-  
+
   // Form state - Data Siswa
   const [formDataSiswa, setFormDataSiswa] = useState({
     nm_siswa: '',
@@ -135,7 +135,7 @@ export default function DataSiswaPage() {
 
   const handleEditClick = (siswa: Siswa) => {
     setSelectedSiswa(siswa);
-    
+
     // Set form data siswa
     setFormDataSiswa({
       nm_siswa: siswa.nm_siswa || '',
@@ -205,7 +205,7 @@ export default function DataSiswaPage() {
       // Refresh data
       await fetchSiswa();
       setIsModalOpen(false);
-      
+
       toast.success('Data siswa berhasil diupdate', {
         description: `${formDataSiswa.nm_siswa} - ${formDataSiswa.nis}`,
       });
@@ -313,7 +313,6 @@ export default function DataSiswaPage() {
                   <TableHead className="w-[60px]">No</TableHead>
                   <TableHead>Nama Siswa</TableHead>
                   <TableHead>NIS</TableHead>
-                  <TableHead>NISN</TableHead>
                   <TableHead className="text-center">JK</TableHead>
                   <TableHead>TTL</TableHead>
                   <TableHead>Agama</TableHead>
@@ -325,7 +324,7 @@ export default function DataSiswaPage() {
               <TableBody>
                 {currentItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground">
                       Tidak ada data siswa
                     </TableCell>
                   </TableRow>
@@ -335,15 +334,14 @@ export default function DataSiswaPage() {
                       <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
                       <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
                       <TableCell>{siswa.nis}</TableCell>
-                      <TableCell>{siswa.nisn || '-'}</TableCell>
                       <TableCell className="text-center">{siswa.jenis_kelamin || '-'}</TableCell>
                       <TableCell>{formatTTL(siswa.tempat_lahir, siswa.tanggal_lahir)}</TableCell>
                       <TableCell>{siswa.agama || '-'}</TableCell>
                       <TableCell className="text-center">{siswa.tingkat_pendidikan_id || '-'}</TableCell>
                       <TableCell>{siswa.nm_kelas || '-'}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          onClick={() => handleEditClick(siswa)} 
+                        <Button
+                          onClick={() => handleEditClick(siswa)}
                           size="sm"
                           style={{ backgroundColor: '#059669', color: 'white' }}
                           className="hover:bg-emerald-700"
@@ -374,7 +372,7 @@ export default function DataSiswaPage() {
                 >
                   Previous
                 </Button>
-                
+
                 <div className="flex gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
                     if (
@@ -423,7 +421,7 @@ export default function DataSiswaPage() {
               Update data siswa: {selectedSiswa?.nm_siswa}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* Data Siswa Section */}
             <div className="space-y-4">

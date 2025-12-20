@@ -42,7 +42,13 @@ export default function DataKelasPage() {
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
+  // Pagination for each tab
+  const [currentPageReguler, setCurrentPageReguler] = useState(1);
+  const [currentPagePilihan, setCurrentPagePilihan] = useState(1);
+  const [currentPageEkskul, setCurrentPageEkskul] = useState(1);
+  const [itemsPerPage] = useState(10);
+
   // Modal Anggota
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingAnggota, setLoadingAnggota] = useState(false);
@@ -83,7 +89,7 @@ export default function DataKelasPage() {
     try {
       const url = `/api/kelas/${rombongan_belajar_id}/anggota`;
       console.log('Fetching anggota from:', url);
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
@@ -132,11 +138,11 @@ export default function DataKelasPage() {
       }
 
       toast.success('Siswa berhasil dihapus dari kelas');
-      
+
       // Refresh anggota list
       if (selectedKelas) {
         fetchAnggota(selectedKelas.rombongan_belajar_id);
-        
+
         // Also refresh kelas list to update jumlah_siswa
         fetchKelas();
       }
@@ -160,53 +166,128 @@ export default function DataKelasPage() {
 
   console.log('Filtered - Reguler:', kelasReguler.length, 'Pilihan:', kelasPilihan.length, 'Ekskul:', kelasEkskul.length);
 
-  const renderKelasTable = (kelas: Kelas[]) => (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[60px]">No</TableHead>
-            <TableHead>Nama Kelas</TableHead>
-            <TableHead className="text-center">Jenis Rombel</TableHead>
-            <TableHead className="text-center">Tingkat</TableHead>
-            <TableHead>Nama Wali Kelas</TableHead>
-            <TableHead className="text-center">Jumlah Siswa</TableHead>
-            <TableHead className="text-right">Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {kelas.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">
-                Tidak ada data kelas
-              </TableCell>
-            </TableRow>
-          ) : (
-            kelas.map((item, index) => (
-              <TableRow key={item.rombongan_belajar_id}>
-                <TableCell className="font-medium">{index + 1}</TableCell>
-                <TableCell className="font-medium">{item.nm_kelas}</TableCell>
-                <TableCell className="text-center">{item.jenis_rombel}</TableCell>
-                <TableCell className="text-center">{item.tingkat_pendidikan_id || '-'}</TableCell>
-                <TableCell>{item.nama_wali_kelas || '-'}</TableCell>
-                <TableCell className="text-center">{item.jumlah_siswa || 0}</TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    onClick={() => handleAnggotaClick(item)} 
+  // Pagination helpers
+  const getPaginatedData = (data: Kelas[], currentPage: number) => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    return {
+      items: data.slice(indexOfFirstItem, indexOfLastItem),
+      totalPages: Math.ceil(data.length / itemsPerPage),
+      indexOfFirstItem,
+      indexOfLastItem: Math.min(indexOfLastItem, data.length),
+    };
+  };
+
+  const renderPagination = (totalPages: number, currentPage: number, setCurrentPage: (page: number) => void, totalItems: number, indexOfFirstItem: number, indexOfLastItem: number) => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-between px-2 py-4">
+        <div className="text-sm text-muted-foreground">
+          Menampilkan {indexOfFirstItem + 1} - {indexOfLastItem} dari {totalItems} data
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+
+          <div className="flex gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+              if (
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
                     size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => setCurrentPage(page)}
+                    className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : ""}
                   >
-                    <Users className="h-3 w-3 mr-1" />
-                    Anggota
+                    {page}
                   </Button>
-                </TableCell>
+                );
+              } else if (page === currentPage - 2 || page === currentPage + 2) {
+                return <span key={page} className="px-2">...</span>;
+              }
+              return null;
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderKelasTable = (kelas: Kelas[], currentPage: number, setCurrentPage: (page: number) => void) => {
+    const { items, totalPages, indexOfFirstItem, indexOfLastItem } = getPaginatedData(kelas, currentPage);
+
+    return (
+      <>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60px]">No</TableHead>
+                <TableHead>Nama Kelas</TableHead>
+                <TableHead className="text-center">Jenis Rombel</TableHead>
+                <TableHead className="text-center">Tingkat</TableHead>
+                <TableHead>Nama Wali Kelas</TableHead>
+                <TableHead className="text-center">Jumlah Siswa</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
+            </TableHeader>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    Tidak ada data kelas
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item, index) => (
+                  <TableRow key={item.rombongan_belajar_id}>
+                    <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
+                    <TableCell className="font-medium">{item.nm_kelas}</TableCell>
+                    <TableCell className="text-center">{item.jenis_rombel}</TableCell>
+                    <TableCell className="text-center">{item.tingkat_pendidikan_id || '-'}</TableCell>
+                    <TableCell>{item.nama_wali_kelas || '-'}</TableCell>
+                    <TableCell className="text-center">{item.jumlah_siswa || 0}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        onClick={() => handleAnggotaClick(item)}
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <Users className="h-3 w-3 mr-1" />
+                        Anggota
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        {renderPagination(totalPages, currentPage, setCurrentPage, kelas.length, indexOfFirstItem, indexOfLastItem)}
+      </>
+    );
+  };
 
   if (loading) {
     return (
@@ -265,17 +346,17 @@ export default function DataKelasPage() {
               <TabsTrigger value="pilihan">Pilihan ({kelasPilihan.length})</TabsTrigger>
               <TabsTrigger value="ekskul">Ekskul ({kelasEkskul.length})</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="reguler" className="mt-4">
-              {renderKelasTable(kelasReguler)}
+              {renderKelasTable(kelasReguler, currentPageReguler, setCurrentPageReguler)}
             </TabsContent>
-            
+
             <TabsContent value="pilihan" className="mt-4">
-              {renderKelasTable(kelasPilihan)}
+              {renderKelasTable(kelasPilihan, currentPagePilihan, setCurrentPagePilihan)}
             </TabsContent>
-            
+
             <TabsContent value="ekskul" className="mt-4">
-              {renderKelasTable(kelasEkskul)}
+              {renderKelasTable(kelasEkskul, currentPageEkskul, setCurrentPageEkskul)}
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -290,7 +371,7 @@ export default function DataKelasPage() {
               Daftar siswa di kelas: {selectedKelas?.nm_kelas}
             </DialogDescription>
           </DialogHeader>
-          
+
           {loadingAnggota ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -322,8 +403,8 @@ export default function DataKelasPage() {
                         <TableCell>{siswa.nisn || '-'}</TableCell>
                         <TableCell>{siswa.nm_kelas}</TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            onClick={() => handleDeleteAnggota(siswa)} 
+                          <Button
+                            onClick={() => handleDeleteAnggota(siswa)}
                             size="sm"
                             variant="destructive"
                             disabled={deletingId === siswa.anggota_rombel_id}

@@ -64,10 +64,17 @@ const menuItems: MenuItem[] = [
       { title: 'Data Kelas', href: '/dashboard/referensi/kelas', icon: BookOpen },
       { title: 'Data Logo', href: '/dashboard/referensi/logo', icon: ImageIcon },
       { title: 'Data Tanggal Rapor', href: '/dashboard/referensi/tanggalrapor', icon: Calendar },
-      { title: 'Sync Data', href: '/dashboard/sync', icon: RefreshCw }, // Add sync menu item
     ],
   },
 
+  {
+    title: 'Cetak Nilai',
+    icon: Printer,
+    allowedLevels: ['Admin'],
+    submenu: [
+      { title: 'Pelengkap Raport', href: '/dashboard/admin-cetak-nilai/pelengkap-raport', icon: FileText },
+    ],
+  },
   {
     title: 'Input Kelengkapan',
     icon: ClipboardEdit,
@@ -94,18 +101,9 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    title: 'Analytics',
-    icon: BarChart,
-    allowedLevels: ['Admin'],
-    submenu: [
-      { title: 'Overview', href: '/dashboard/analytics/overview', icon: BarChart },
-      { title: 'Reports', href: '/dashboard/analytics/reports', icon: FileText },
-    ],
-  },
-  {
-    title: 'Settings',
-    href: '/dashboard/settings',
-    icon: Settings,
+    title: 'Sync Data',
+    href: '/dashboard/sync',
+    icon: RefreshCw,
     allowedLevels: ['Admin'],
   },
 ];
@@ -121,9 +119,9 @@ export function Sidebar() {
     const loadUser = async () => {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-      
+
       if (currentUser) {
-        const filtered = menuItems.filter((item) => 
+        const filtered = menuItems.filter((item) =>
           !item.allowedLevels || item.allowedLevels.includes(currentUser.level)
         );
         setFilteredMenuItems(filtered);

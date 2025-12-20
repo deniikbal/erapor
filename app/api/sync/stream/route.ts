@@ -75,9 +75,6 @@ export async function POST(request: Request) {
                     return;
                 }
 
-                // Tables that need selective sync (student tables - don't overwrite if edited)
-                const selectiveSyncTables = ['tabel_siswa', 'tabel_siswa_pelengkap'];
-
                 // Collect all selected tables from all selected schemas
                 const allTables: Array<{ schema: string; table: string }> = [];
 
@@ -92,7 +89,7 @@ export async function POST(request: Request) {
 
                 console.log(`Found ${allTables.length} tables to sync:`, allTables);
 
-                // Sync each table according to its sync policy
+                // Sync each table with forced sync (truncate and insert)
                 let totalRecordsProcessed = 0;
 
                 for (const tableInfo of allTables) {
@@ -108,15 +105,8 @@ export async function POST(request: Request) {
                     });
 
                     try {
-                        let recordCount = 0;
-
-                        if (selectiveSyncTables.includes(tableName)) {
-                            // Selective sync for student tables
-                            recordCount = await syncSelectiveTable(localDb, neonDb, tableName, schema);
-                        } else {
-                            // Forced sync for all other tables
-                            recordCount = await syncForcedTable(localDb, neonDb, tableName, schema);
-                        }
+                        // Always use forced sync: truncate and insert fresh data
+                        const recordCount = await syncForcedTable(localDb, neonDb, tableName, schema);
 
                         totalRecordsProcessed += recordCount;
 
@@ -191,6 +181,10 @@ async function syncSelectiveTable(localDb: Pool, neonDb: any, tableName: string,
     // Add sync tracking columns if they don't exist
     await ensureSyncColumns(neonDb, tableName);
 
+    // Get primary key from LOCAL database (not Neon)
+    const primaryKey = await getPrimaryKeyFromLocal(localDb, tableName, schema);
+    console.log(`Using primary key column: ${primaryKey} for table ${tableName}`);
+
     // Get all data from local database
     const localDataResult = await localDb.query(`SELECT * FROM "${schema}"."${tableName}"`);
     const localData = localDataResult.rows;
@@ -201,12 +195,14 @@ async function syncSelectiveTable(localDb: Pool, neonDb: any, tableName: string,
     }
 
     // Process each record selectively
+    let syncedCount = 0;
     for (const record of localData) {
-        await syncSingleRecord(neonDb, tableName, record);
+        const synced = await syncSingleRecord(neonDb, tableName, record, primaryKey);
+        if (synced) syncedCount++;
     }
 
-    console.log(`Successfully synced ${localData.length} records in ${schema}.${tableName}`);
-    return localData.length;
+    console.log(`Successfully synced ${syncedCount} out of ${localData.length} records in ${schema}.${tableName}`);
+    return syncedCount;
 }
 
 // Function to sync tables with forced policy (all other tables)
@@ -214,15 +210,31 @@ async function syncForcedTable(localDb: Pool, neonDb: any, tableName: string, sc
     console.log(`Starting forced sync for table: ${schema}.${tableName}`);
 
     try {
+        // Check if table exists in Neon database first
+        const tableExistsResult = await neonDb.query(`
+            SELECT COUNT(*) as count FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = $1
+        `, [tableName]);
+
+        const tableExists = parseInt(tableExistsResult[0]?.count || '0') > 0;
+        console.log(`Check: Table "${tableName}" exists in Neon: ${tableExists}`);
+
+        if (!tableExists) {
+            console.warn(`⚠️  Table "${tableName}" does not exist in Neon database`);
+            console.log(`📝 Auto-creating table "${tableName}" from local database structure...`);
+
+            // Auto-create the table based on local database structure
+            await createTableFromLocal(localDb, neonDb, tableName, schema);
+
+            console.log(`✅ Table "${tableName}" created successfully in Neon`);
+        }
+
         // Get all data from local database
         const localDataResult = await localDb.query(`SELECT * FROM "${schema}"."${tableName}"`);
         const localData = localDataResult.rows;
 
         if (localData.length === 0) {
-            console.log(`No data found in local ${schema}.${tableName}, clearing Neon table...`);
-            // Delete using raw SQL - table name is safe as it comes from database metadata
-            const deleteResult = await neonDb.query(`DELETE FROM "${tableName}"`, []);
-            console.log('Delete result:', deleteResult);
+            console.log(`No data found in local ${schema}.${tableName}, table exists but is empty`);
             return 0;
         }
 
@@ -241,6 +253,106 @@ async function syncForcedTable(localDb: Pool, neonDb: any, tableName: string, sc
         console.error(`Error syncing forced table ${schema}.${tableName}:`, error);
         throw error;
     }
+}
+
+// Function to create table in Neon based on local database structure
+async function createTableFromLocal(localDb: Pool, neonDb: any, tableName: string, schema: string = 'public') {
+    console.log(`Fetching table structure for "${schema}"."${tableName}" from local database...`);
+
+    // Get column information from local database
+    const columnsResult = await localDb.query(`
+        SELECT 
+            column_name,
+            data_type,
+            character_maximum_length,
+            numeric_precision,
+            numeric_scale,
+            is_nullable,
+            column_default
+        FROM information_schema.columns
+        WHERE table_schema = $1 AND table_name = $2
+        ORDER BY ordinal_position
+    `, [schema, tableName]);
+
+    if (columnsResult.rows.length === 0) {
+        throw new Error(`No columns found for table ${schema}.${tableName}`);
+    }
+
+    // Build CREATE TABLE statement
+    const columnDefinitions = columnsResult.rows.map((col: any) => {
+        let def = `"${col.column_name}" ${mapDataType(col)}`;
+
+        if (col.is_nullable === 'NO') {
+            def += ' NOT NULL';
+        }
+
+        // Skip default values - they cause SQL syntax errors with functions
+        // if (col.column_default) {
+        //     let defaultVal = col.column_default.replace(/::[\w\s()]+/g, '');
+        //     def += ` DEFAULT ${defaultVal}`;
+        // }
+
+        return def;
+    });
+
+    const createTableSQL = `CREATE TABLE "${tableName}" (${columnDefinitions.join(', ')})`;
+
+    console.log(`Executing: ${createTableSQL.substring(0, 150)}...`);
+
+    try {
+        await neonDb.query(createTableSQL, []);
+        console.log(`✅ Table "${tableName}" created with ${columnsResult.rows.length} columns`);
+    } catch (createError: any) {
+        console.error('Error creating table:', createError.message);
+        throw new Error(`Failed to create table ${tableName}: ${createError.message}`);
+    }
+}
+
+// Map PostgreSQL data types from local to Neon-compatible types
+function mapDataType(column: any): string {
+    const dataType = column.data_type.toLowerCase();
+
+    // Handle character types with length
+    if (dataType === 'character varying' || dataType === 'varchar') {
+        return column.character_maximum_length
+            ? `VARCHAR(${column.character_maximum_length})`
+            : 'TEXT';
+    }
+
+    if (dataType === 'character' || dataType === 'char') {
+        return column.character_maximum_length
+            ? `CHAR(${column.character_maximum_length})`
+            : 'CHAR(1)';
+    }
+
+    // Handle numeric types with precision
+    if (dataType === 'numeric' || dataType === 'decimal') {
+        if (column.numeric_precision && column.numeric_scale) {
+            return `NUMERIC(${column.numeric_precision},${column.numeric_scale})`;
+        }
+        return 'NUMERIC';
+    }
+
+    // Common type mappings
+    const typeMap: Record<string, string> = {
+        'integer': 'INTEGER',
+        'bigint': 'BIGINT',
+        'smallint': 'SMALLINT',
+        'boolean': 'BOOLEAN',
+        'text': 'TEXT',
+        'date': 'DATE',
+        'timestamp without time zone': 'TIMESTAMP',
+        'timestamp with time zone': 'TIMESTAMPTZ',
+        'time without time zone': 'TIME',
+        'uuid': 'UUID',
+        'json': 'JSON',
+        'jsonb': 'JSONB',
+        'real': 'REAL',
+        'double precision': 'DOUBLE PRECISION',
+        'bytea': 'BYTEA'
+    };
+
+    return typeMap[dataType] || dataType.toUpperCase();
 }
 
 async function ensureSyncColumns(neonDb: any, tableName: string) {
@@ -266,14 +378,12 @@ async function ensureSyncColumns(neonDb: any, tableName: string) {
     }
 }
 
-async function syncSingleRecord(neonDb: any, tableName: string, localRecord: any) {
-    // Get primary key for the table
-    const primaryKey = await getPrimaryKey(neonDb, tableName);
+async function syncSingleRecord(neonDb: any, tableName: string, localRecord: any, primaryKey: string) {
     const primaryKeyValue = localRecord[primaryKey];
 
     if (!primaryKeyValue) {
-        console.log(`Skipping record without primary key in ${tableName}`);
-        return;
+        console.log(`Skipping record without primary key '${primaryKey}' in ${tableName}`);
+        return false;
     }
 
     // Get the record from Neon if it exists - use .query() for parameterized statements
@@ -282,7 +392,8 @@ async function syncSingleRecord(neonDb: any, tableName: string, localRecord: any
 
     if (neonRecordResult.length === 0) {
         // Record doesn't exist in Neon, insert it
-        await insertRecord(neonDb, tableName, localRecord);
+        await insertRecord(neonDb, tableName, localRecord, primaryKey);
+        return true;
     } else {
         // Record exists, check if it was edited locally in Neon
         const neonRecord = neonRecordResult[0];
@@ -292,14 +403,16 @@ async function syncSingleRecord(neonDb: any, tableName: string, localRecord: any
             // Update the sync timestamp but don't overwrite the data
             const updateQuery = `UPDATE "${tableName}" SET last_local_sync = CURRENT_TIMESTAMP WHERE "${primaryKey}" = $1`;
             await neonDb.query(updateQuery, [primaryKeyValue]);
+            return false;
         } else {
             // Record wasn't edited in Neon, safe to sync from local
-            await updateRecord(neonDb, tableName, primaryKeyValue, localRecord);
+            await updateRecord(neonDb, tableName, primaryKeyValue, localRecord, primaryKey);
+            return true;
         }
     }
 }
 
-async function insertRecord(neonDb: any, tableName: string, record: any) {
+async function insertRecord(neonDb: any, tableName: string, record: any, primaryKey: string) {
     const columns = Object.keys(record);
     const values = Object.values(record);
 
@@ -310,11 +423,10 @@ async function insertRecord(neonDb: any, tableName: string, record: any) {
     await executeDynamicInsert(neonDb, tableName, insertColumns, insertValues);
 }
 
-async function updateRecord(neonDb: any, tableName: string, primaryKeyValue: any, record: any) {
+async function updateRecord(neonDb: any, tableName: string, primaryKeyValue: any, record: any, primaryKey: string) {
     const columns = Object.keys(record);
 
     // Build SET clause for all columns except primary key and sync columns
-    const primaryKey = await getPrimaryKey(neonDb, tableName);
     const updateColumns = columns
         .filter(col => col !== primaryKey && col !== 'is_locally_edited' && col !== 'last_local_sync');
 
@@ -347,6 +459,7 @@ async function executeDynamicInsert(neonDb: any, tableName: string, columns: str
     return result;
 }
 
+// Get primary key from Neon database (legacy function, kept for compatibility)
 async function getPrimaryKey(neonDb: any, tableName: string) {
     const result = await neonDb.query(`SELECT kcu.column_name
     FROM information_schema.table_constraints tc
@@ -359,6 +472,41 @@ async function getPrimaryKey(neonDb: any, tableName: string) {
         return result[0].column_name;
     }
 
+    return 'id';
+}
+
+// Get primary key from LOCAL database (source of truth)
+async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: string = 'public') {
+    const result = await localDb.query(`
+        SELECT kcu.column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu 
+          ON tc.constraint_name = kcu.constraint_name
+        WHERE tc.table_schema = $1
+          AND tc.table_name = $2
+          AND tc.constraint_type = 'PRIMARY KEY'
+        LIMIT 1
+    `, [schema, tableName]);
+
+    if (result.rows.length > 0) {
+        return result.rows[0].column_name;
+    }
+
+    // Fallback: try common primary key column names
+    const fallbackColumns = ['peserta_didik_id', 'nis', 'nisn', 'id'];
+    const checkResult = await localDb.query(`SELECT * FROM "${schema}"."${tableName}" LIMIT 1`);
+
+    if (checkResult.rows.length > 0) {
+        const record = checkResult.rows[0];
+        for (const col of fallbackColumns) {
+            if (record.hasOwnProperty(col) && record[col] !== null && record[col] !== undefined) {
+                console.log(`Using fallback primary key column: ${col} for table ${tableName}`);
+                return col;
+            }
+        }
+    }
+
+    console.warn(`No primary key found for ${tableName}, defaulting to 'id'`);
     return 'id';
 }
 
@@ -382,9 +530,51 @@ async function insertAllData(neonDb: any, tableName: string, data: any[]) {
         return filteredRow;
     });
 
-    for (const row of filteredData) {
-        const rowColumns = Object.keys(row);
-        const rowValues = Object.values(row);
-        await executeDynamicInsert(neonDb, tableName, rowColumns, rowValues);
+    // Batch insert for better performance
+    const BATCH_SIZE = 500; // Insert 250 records at a time (increased from 100 for speed)
+    const batches = [];
+
+    for (let i = 0; i < filteredData.length; i += BATCH_SIZE) {
+        batches.push(filteredData.slice(i, i + BATCH_SIZE));
     }
+
+    console.log(`Inserting ${filteredData.length} records in ${batches.length} batches of up to ${BATCH_SIZE} records each`);
+
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+
+        if (batch.length === 0) continue;
+
+        // Get columns from first row (all rows should have same columns)
+        const rowColumns = Object.keys(batch[0]);
+        const columnsList = rowColumns.map(col => `"${col}"`).join(', ');
+
+        // Build multi-row VALUES clause
+        const placeholders: string[] = [];
+        const allValues: any[] = [];
+        let paramIndex = 1;
+
+        for (const row of batch) {
+            const rowPlaceholders = rowColumns.map(() => `$${paramIndex++}`);
+            placeholders.push(`(${rowPlaceholders.join(', ')})`);
+
+            // Add values in same order as columns
+            rowColumns.forEach(col => {
+                allValues.push(row[col]);
+            });
+        }
+
+        // Execute batch insert with multi-row VALUES
+        const query = `INSERT INTO "${tableName}" (${columnsList}) VALUES ${placeholders.join(', ')}`;
+
+        try {
+            await neonDb.query(query, allValues);
+            console.log(`Batch ${batchIndex + 1}/${batches.length}: Inserted ${batch.length} records`);
+        } catch (error) {
+            console.error(`Error inserting batch ${batchIndex + 1}:`, error);
+            throw error;
+        }
+    }
+
+    console.log(`✓ Successfully inserted all ${filteredData.length} records into ${tableName}`);
 }

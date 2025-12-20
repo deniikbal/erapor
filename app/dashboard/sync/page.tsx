@@ -60,11 +60,20 @@ export default function SyncPage() {
       });
 
       let data;
+      // Clone the response so we can read it multiple times if needed
+      const clonedResponse = response.clone();
       try {
         data = await response.json();
       } catch (parseError) {
-        console.error('Failed to parse response as JSON:', await response.text().catch(() => 'Could not read response text'));
-        throw new Error(`Response is not valid JSON. Status: ${response.status}`);
+        // Use cloned response to get text since original was consumed
+        let responseText = 'Could not read response text';
+        try {
+          responseText = await clonedResponse.text();
+        } catch (textError) {
+          console.error('Error reading response text:', textError);
+        }
+        console.error('Failed to parse response as JSON:', responseText);
+        throw new Error(`Response is not valid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
       }
 
       if (!response.ok) {
