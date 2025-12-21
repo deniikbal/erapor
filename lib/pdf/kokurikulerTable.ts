@@ -18,8 +18,13 @@ export async function generateKokurikulerTable(
 
     let yPos = startY;
 
-    // Check if header fits, if not add new page
-    if (yPos + 12 > pageHeight - margins.margin_bottom) {
+
+    // Check if header + content area fits (header 8mm + content 18mm = 26mm minimum)
+    const headerHeight = 8;
+    const minContentHeight = 18;
+    const minRequiredSpace = headerHeight + minContentHeight;
+
+    if (yPos + minRequiredSpace > pageHeight - margins.margin_bottom) {
         doc.addPage();
         yPos = margins.margin_top;
     }
@@ -29,7 +34,6 @@ export async function generateKokurikulerTable(
     doc.setFontSize(9);
     doc.setLineWidth(0.3);
 
-    const headerHeight = 8;
     doc.setFillColor(240, 240, 240); // Light gray background
     doc.rect(leftMargin, yPos, tableWidth, headerHeight, 'FD');
 

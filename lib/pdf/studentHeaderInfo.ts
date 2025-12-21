@@ -96,9 +96,9 @@ export async function generateStudentHeaderInfo(
 
     yPos += 3;
 
-    // Garis pemisah (same as page 1)
+    // Garis pemisah (fixed 170mm width)
     doc.setLineWidth(0.5);
-    doc.line(leftCol, yPos, pageWidth - margins.margin_right, yPos);
+    doc.line(leftCol, yPos, leftCol + 170, yPos);
 
     yPos += 4; // Reduced spacing to eliminate gap with table
 

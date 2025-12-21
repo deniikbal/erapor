@@ -30,9 +30,9 @@ export function generateNilaiRaporFooter(
     const footerY = pageHeight - margins.margin_bottom + 14;
     const lineY = footerY - 6;
 
-    // Draw horizontal line
+    // Draw horizontal line (fixed 170mm width)
     doc.setLineWidth(0.5);
-    doc.line(margins.margin_left, lineY, pageWidth - margins.margin_right, lineY);
+    doc.line(margins.margin_left, lineY, margins.margin_left + 170, lineY);
 
     // Set font to Courier Bold (monospace) for darker/clearer text
     doc.setFont('courier', 'bold');
@@ -42,7 +42,7 @@ export function generateNilaiRaporFooter(
     const leftText = `${footerData.nm_kelas.toUpperCase()} | ${footerData.nm_siswa.toUpperCase()} | ${footerData.nis}`;
     doc.text(leftText, margins.margin_left, footerY);
 
-    // Right side: "Halaman : 1"
+    // Right side: "Halaman : 1" (aligned to right edge of 170mm)
     const rightText = `Halaman : ${footerData.pageNumber}`;
-    doc.text(rightText, pageWidth - margins.margin_right, footerY, { align: 'right' });
+    doc.text(rightText, margins.margin_left + 170, footerY, { align: 'right' });
 }

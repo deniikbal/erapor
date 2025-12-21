@@ -4,17 +4,15 @@ import { getDbClient } from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const sql = getDbClient();
-    
-    console.log('Fetching kelas data...');
-    
+
+
     // First, check all available jenis_rombel
     const allJenisRombel = await sql`
       SELECT DISTINCT jenis_rombel 
       FROM tabel_kelas 
       ORDER BY jenis_rombel
     `;
-    console.log('Available jenis_rombel:', allJenisRombel);
-    
+
     // Get all kelas with wali kelas and student count
     const result = await sql`
       SELECT 
@@ -34,9 +32,6 @@ export async function GET(request: NextRequest) {
       ORDER BY k.nm_kelas
     `;
 
-    console.log(`Found ${result.length} kelas with filter jenis_rombel IN (1, 9, 16, 51)`);
-    console.log('Sample data:', result.slice(0, 2));
-
     // If no result with filter, try without filter
     if (result.length === 0) {
       const allKelas = await sql`
@@ -54,9 +49,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN tabel_anggotakelas ak ON k.rombongan_belajar_id = ak.rombongan_belajar_id
         GROUP BY k.rombongan_belajar_id, k.nm_kelas, k.jenis_rombel, k.tingkat_pendidikan_id, k.ptk_id, k.semester_id, p.nama
         ORDER BY k.nm_kelas
-        LIMIT 10
       `;
-      console.log('All kelas (without filter):', allKelas);
     }
 
     // Natural sort function
@@ -66,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     const sortedKelas = result.sort(naturalSort);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       kelas: sortedKelas,
       debug: {
         total: sortedKelas.length,

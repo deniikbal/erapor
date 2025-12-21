@@ -35,8 +35,12 @@ export async function generateEkstrakurikulerTable(
 
     let yPos = startY;
 
-    // Check if header fits, if not add new page
-    if (yPos + 8 > pageHeight - margins.margin_bottom) {
+    // Check if header + at least one row fits (header 8mm + min row 10mm = 18mm)
+    const headerHeight = 8;
+    const minRowHeight = 10;
+    const minRequiredSpace = headerHeight + minRowHeight;
+
+    if (yPos + minRequiredSpace > pageHeight - margins.margin_bottom) {
         doc.addPage();
 
         // Reserve space for student header info
@@ -48,8 +52,6 @@ export async function generateEkstrakurikulerTable(
     await setDejaVuFont(doc, 'bold');
     doc.setFontSize(9);
     doc.setLineWidth(0.3);
-
-    const headerHeight = 8;
 
     // Draw header cells
     doc.setFillColor(240, 240, 240); // Light gray background
