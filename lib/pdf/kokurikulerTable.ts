@@ -30,17 +30,18 @@ export async function generateKokurikulerTable(
     doc.setLineWidth(0.3);
 
     const headerHeight = 8;
-    doc.rect(leftMargin, yPos, tableWidth, headerHeight);
+    doc.setFillColor(240, 240, 240); // Light gray background
+    doc.rect(leftMargin, yPos, tableWidth, headerHeight, 'FD');
 
     // Center text vertically: yPos + (height / 2) + small offset for font
-    const textY = yPos + (headerHeight / 2) + 2.5;
+    const textY = yPos + (headerHeight / 2) + 1.3;
     doc.text('KOKURIKULER', leftMargin + tableWidth / 2, textY, { align: 'center' });
 
     yPos += headerHeight;
 
     // Content area
     await setDejaVuFont(doc, 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
 
     const padding = 3;
     const lineHeight = 4;

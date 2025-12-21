@@ -242,6 +242,143 @@ export default function NilaiRaporPage() {
                 );
             }
 
+            // Generate Ketidakhadiran (Attendance) table and Catatan Wali Kelas side by side
+            toast.info('Mengambil data kehadiran dan catatan wali...');
+
+            const [kehadiranResponse, catatanWaliResponse] = await Promise.all([
+                fetch(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`),
+                fetch(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`)
+            ]);
+
+            const kehadiranData = await kehadiranResponse.json();
+            const catatanWaliData = await catatanWaliResponse.json();
+
+            if (kehadiranResponse.ok && kehadiranData) {
+                const { generateKetidakhadiranTable } = await import('@/lib/pdf/ketidakhadiranTable');
+                const { generateCatatanWaliTable } = await import('@/lib/pdf/catatanWaliTable');
+
+                // Add some spacing before tables
+                yAfterTable += 5;
+
+                // Calculate total height needed for both tables (header + content)
+                const kehadiranHeaderHeight = 9;
+                const kehadiranRowHeight = 6;
+                const kehadiranTotalHeight = kehadiranHeaderHeight + (kehadiranRowHeight * 3); // header + 3 rows
+
+                // Check if tables fit on current page, if not add page BEFORE generating either table
+                const pageHeight = doc.internal.pageSize.getHeight();
+                if (yAfterTable + kehadiranTotalHeight > pageHeight - marginSettings.margin_bottom) {
+                    doc.addPage();
+
+                    // Reserve space for student header info
+                    const studentHeaderHeight = 21;
+                    yAfterTable = marginSettings.margin_top + studentHeaderHeight;
+                }
+
+                // Save starting Y position for both tables (now guaranteed to be on same page)
+                const tablesStartY = yAfterTable;
+
+                // Generate attendance table (left side, 53mm wide)
+                const kehadiranEndY = await generateKetidakhadiranTable(
+                    doc,
+                    tablesStartY,
+                    kehadiranData,
+                    marginSettings
+                );
+
+                // Generate catatan wali table (right side, 112mm wide)
+                // X position: margin_left + 53mm (kehadiran width) + 5mm (gap)
+                const catatanWaliX = marginSettings.margin_left + 53 + 5;
+                const catatanWaliEndY = await generateCatatanWaliTable(
+                    doc,
+                    tablesStartY,
+                    catatanWaliX,
+                    catatanWaliResponse.ok ? catatanWaliData : null,
+                    marginSettings
+                );
+
+                // Update yAfterTable to the maximum of both table end positions
+                yAfterTable = Math.max(kehadiranEndY, catatanWaliEndY);
+            }
+
+            // Generate Tanggapan Orang Tua/Wali Murid table (empty table below)
+            const { generateTanggapanOrtuTable } = await import('@/lib/pdf/tanggapanOrtuTable');
+
+            // Add some spacing before tanggapan ortu table
+            yAfterTable += 5;
+
+            yAfterTable = await generateTanggapanOrtuTable(doc, yAfterTable, marginSettings);
+
+            // Generate Signature Section
+            const { generateSignatureSection } = await import('@/lib/pdf/signatureSection');
+
+            // Add spacing before signature section
+            yAfterTable += 5;
+
+            // Fetch tanggal rapor data
+            const tanggalRaporResponse = await fetch('/api/tanggalrapor');
+            const tanggalRaporData = await tanggalRaporResponse.json();
+
+            // Fetch teacher (wali kelas) data from class relation
+            // Teacher info is associated with the class (rombongan_belajar_id)
+            const walasResponse = await fetch(`/api/kelas`);
+            const walasData = await walasResponse.json();
+
+            // Find the teacher for this student's class
+            const studentClass = walasData.kelas?.find((k: any) => k.nm_kelas === siswa.nm_kelas);
+
+            // Fetch guru data to get gelar (title) from tabel_ptk_pelengkap
+            let namaWaliKelasWithGelar = studentClass?.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
+
+            if (studentClass?.ptk_id) {
+                const guruResponse = await fetch('/api/guru');
+                const guruData = await guruResponse.json();
+
+                // Find the teacher in guru list
+                const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
+
+                if (guruInfo) {
+                    // Format name with gelar: gelar_depan + nama + gelar_belakang
+                    const gelarDepan = guruInfo.gelar_depan || '';
+                    const gelarBelakang = guruInfo.gelar_belakang || '';
+                    const nama = guruInfo.nm_ptk || studentClass.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
+
+                    namaWaliKelasWithGelar = [gelarDepan, nama, gelarBelakang]
+                        .filter(part => part && part.trim())
+                        .join(' ');
+                }
+            }
+
+            // Prepare signature data from database
+            // Format tanggal from ISO to Indonesian format (e.g., "22 Desember 2025")
+            const formatTanggalIndonesia = (isoDate: string): string => {
+                const date = new Date(isoDate);
+                const bulanIndonesia = [
+                    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                ];
+
+                const tanggal = date.getDate();
+                const bulan = bulanIndonesia[date.getMonth()];
+                const tahun = date.getFullYear();
+
+                return `${tanggal} ${bulan} ${tahun}`;
+            };
+
+            const tanggalRaw = tanggalRaporData.data?.[0]?.tanggal;
+            const tanggalFormatted = tanggalRaw ? formatTanggalIndonesia(tanggalRaw) : '22 Desember 2025';
+
+            const signatureData = {
+                tempat: tanggalRaporData.data?.[0]?.tempat_ttd || 'Bantarujeg',
+                tanggal: tanggalFormatted,
+                namaWaliKelas: namaWaliKelasWithGelar,
+                nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
+                namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
+                nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : ''
+            };
+
+            yAfterTable = await generateSignatureSection(doc, yAfterTable, signatureData, marginSettings);
+
             // Import footer and header info generators
             const { generateNilaiRaporFooter } = await import('@/lib/pdf/nilaiRaporFooter');
             const { generateStudentHeaderInfo } = await import('@/lib/pdf/studentHeaderInfo');

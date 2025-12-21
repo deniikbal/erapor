@@ -141,6 +141,15 @@ export type MarginSettings = {
   updated_at?: string;
 };
 
+export type Kehadiran = {
+  kehadiran_id?: string;
+  peserta_didik_id: string;
+  semester_id?: string;
+  sakit: number;
+  izin: number;
+  alpha: number;
+};
+
 export function getDbClient() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL must be set in environment variables');

@@ -56,10 +56,11 @@ export async function generateNilaiRaporTableHeader(
 
     // Draw header cells with borders
     doc.setLineWidth(0.3);
-    doc.rect(col1X, yPos, col1Width, headerHeight);
-    doc.rect(col2X, yPos, col2Width, headerHeight);
-    doc.rect(col3X, yPos, col3Width, headerHeight);
-    doc.rect(col4X, yPos, col4Width, headerHeight);
+    doc.setFillColor(240, 240, 240); // Light gray background
+    doc.rect(col1X, yPos, col1Width, headerHeight, 'FD');
+    doc.rect(col2X, yPos, col2Width, headerHeight, 'FD');
+    doc.rect(col3X, yPos, col3Width, headerHeight, 'FD');
+    doc.rect(col4X, yPos, col4Width, headerHeight, 'FD');
 
     // Header text (centered both horizontally and vertically)
     // For font size 9 in 8mm header: middle (4mm) + font baseline offset (~1mm)
@@ -92,12 +93,17 @@ export async function generateKelompokRow(
 
     // Draw merged cell
     doc.setLineWidth(0.3);
-    doc.setFillColor(240, 240, 240); // Light gray background
-    doc.rect(leftMargin, yPos, totalWidth, rowHeight, 'FD'); // F = fill, D = draw border
+    doc.rect(leftMargin, yPos, totalWidth, rowHeight); // Draw border only, white background
 
     // Text in merged cell (left-aligned with padding)
+    // Clean name: remove suffix after dash (e.g., "Mata Pelajaran Pilihan - IPS" -> "Mata Pelajaran Pilihan")
+    let cleanedName = kelompokName;
+    if (kelompokName.includes(' - ')) {
+        cleanedName = kelompokName.split(' - ')[0];
+    }
+
     // Title case: capitalize first letter of each word
-    const titleCase = kelompokName
+    const titleCase = cleanedName
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join(' ');
@@ -136,7 +142,7 @@ export async function generateMapelRow(
 
     // Set normal font
     await setDejaVuFont(doc, 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
 
     // Text wrapping for mata pelajaran
     const mapelLines = doc.splitTextToSize(mapel.nm_lokal, col2Width - 4);
@@ -165,7 +171,7 @@ export async function generateMapelRow(
 
         // Reset font to normal after header
         await setDejaVuFont(doc, 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(9);
     }
 
     // Draw row cells

@@ -38,7 +38,10 @@ export async function generateEkstrakurikulerTable(
     // Check if header fits, if not add new page
     if (yPos + 8 > pageHeight - margins.margin_bottom) {
         doc.addPage();
-        yPos = margins.margin_top;
+
+        // Reserve space for student header info
+        const studentHeaderHeight = 21;
+        yPos = margins.margin_top + studentHeaderHeight;
     }
 
     // Draw table header
@@ -49,12 +52,13 @@ export async function generateEkstrakurikulerTable(
     const headerHeight = 8;
 
     // Draw header cells
-    doc.rect(col1X, yPos, col1Width, headerHeight);
-    doc.rect(col2X, yPos, col2Width, headerHeight);
-    doc.rect(col3X, yPos, col3Width, headerHeight);
+    doc.setFillColor(240, 240, 240); // Light gray background
+    doc.rect(col1X, yPos, col1Width, headerHeight, 'FD');
+    doc.rect(col2X, yPos, col2Width, headerHeight, 'FD');
+    doc.rect(col3X, yPos, col3Width, headerHeight, 'FD');
 
     // Header text (vertically centered)
-    const headerTextY = yPos + (headerHeight / 2) + 2.5;
+    const headerTextY = yPos + (headerHeight / 2) + 1.3;
     doc.text('No', col1X + col1Width / 2, headerTextY, { align: 'center' });
     doc.text('Ekstrakurikuler', col2X + col2Width / 2, headerTextY, { align: 'center' });
     doc.text('Keterangan', col3X + col3Width / 2, headerTextY, { align: 'center' });
@@ -65,7 +69,7 @@ export async function generateEkstrakurikulerTable(
     if (!ekstraList || ekstraList.length === 0) {
         // Draw empty row
         await setDejaVuFont(doc, 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(9);
 
         const emptyRowHeight = 10;
         doc.rect(col1X, yPos, col1Width, emptyRowHeight);
@@ -81,7 +85,7 @@ export async function generateEkstrakurikulerTable(
 
     // Draw data rows
     await setDejaVuFont(doc, 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
 
     const lineHeight = 4;
 
@@ -102,7 +106,11 @@ export async function generateEkstrakurikulerTable(
         // Check if row fits on current page
         if (yPos + rowHeight > pageHeight - margins.margin_bottom) {
             doc.addPage();
-            yPos = margins.margin_top;
+
+            // Reserve space for student header info (will be added later in post-processing)
+            // Student header info is ~21mm tall (4 rows + spacing + reduced gap)
+            const studentHeaderHeight = 21;
+            yPos = margins.margin_top + studentHeaderHeight;
 
             // Redraw header on new page
             await setDejaVuFont(doc, 'bold');
@@ -112,15 +120,15 @@ export async function generateEkstrakurikulerTable(
             doc.rect(col2X, yPos, col2Width, headerHeight);
             doc.rect(col3X, yPos, col3Width, headerHeight);
 
-            doc.text('No', col1X + col1Width / 2, yPos + (headerHeight / 2) + 2.5, { align: 'center' });
-            doc.text('Ekstrakurikuler', col2X + col2Width / 2, yPos + (headerHeight / 2) + 2.5, { align: 'center' });
-            doc.text('Keterangan', col3X + col3Width / 2, yPos + (headerHeight / 2) + 2.5, { align: 'center' });
+            doc.text('No', col1X + col1Width / 2, yPos + (headerHeight / 2) + 1.3, { align: 'center' });
+            doc.text('Ekstrakurikuler', col2X + col2Width / 2, yPos + (headerHeight / 2) + 1.3, { align: 'center' });
+            doc.text('Keterangan', col3X + col3Width / 2, yPos + (headerHeight / 2) + 1.3, { align: 'center' });
 
             yPos += headerHeight;
 
             // Reset font to normal
             await setDejaVuFont(doc, 'normal');
-            doc.setFontSize(8);
+            doc.setFontSize(9);
         }
 
         // Draw row cells
