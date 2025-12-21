@@ -141,9 +141,9 @@ export default function DashboardPage() {
     },
     {
       title: 'Cetak Nilai',
-      description: 'Pelengkap raport siswa',
+      description: 'Pelengkap & nilai rapor siswa',
       icon: Printer,
-      href: '/dashboard/cetak-nilai/pelengkap-raport',
+      href: '/dashboard/cetak-nilai',
       color: 'text-purple-600'
     },
     {
@@ -249,8 +249,8 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Level Akses</span>
               <span className={`text-sm font-semibold px-2 py-1 rounded ${user?.level === 'Admin'
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-blue-100 text-blue-700'
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-blue-100 text-blue-700'
                 }`}>
                 {user?.level || '-'}
               </span>

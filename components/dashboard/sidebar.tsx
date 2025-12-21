@@ -73,6 +73,7 @@ const menuItems: MenuItem[] = [
     allowedLevels: ['Admin'],
     submenu: [
       { title: 'Pelengkap Raport', href: '/dashboard/admin-cetak-nilai/pelengkap-raport', icon: FileText },
+      { title: 'Nilai Rapor', href: '/dashboard/admin-cetak-nilai/nilai-rapor', icon: GraduationCap },
     ],
   },
   {
@@ -89,6 +90,7 @@ const menuItems: MenuItem[] = [
     allowedLevels: ['Guru'],
     submenu: [
       { title: 'Pelengkap Raport', href: '/dashboard/cetak-nilai/pelengkap-raport', icon: FileText },
+      { title: 'Nilai Rapor', href: '/dashboard/cetak-nilai/nilai-rapor', icon: GraduationCap },
     ],
   },
   {
