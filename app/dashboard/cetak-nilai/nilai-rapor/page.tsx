@@ -210,13 +210,79 @@ export default function NilaiRaporPage() {
 
             toast.success(`Data ${mapelData.total_mapel} mata pelajaran berhasil dimuat`);
 
-            await generateNilaiRaporTable(doc, yAfterHeader, kelompokData, marginSettings);
+            let yAfterTable = await generateNilaiRaporTable(doc, yAfterHeader, kelompokData, marginSettings);
 
-            // Import footer generator
+            // Generate Kokurikuler table if data exists
+            if (mapelData.kokurikuler) {
+                const { generateKokurikulerTable } = await import('@/lib/pdf/kokurikulerTable');
+
+                // Add some spacing before kokurikuler
+                yAfterTable += 5;
+
+                yAfterTable = await generateKokurikulerTable(
+                    doc,
+                    yAfterTable,
+                    mapelData.kokurikuler,
+                    marginSettings
+                );
+            }
+
+            // Generate Ekstrakurikuler table if data exists
+            if (mapelData.ekstrakurikuler && mapelData.ekstrakurikuler.length > 0) {
+                const { generateEkstrakurikulerTable } = await import('@/lib/pdf/ekstrakurikulerTable');
+
+                // Add some spacing before ekstrakurikuler
+                yAfterTable += 5;
+
+                yAfterTable = await generateEkstrakurikulerTable(
+                    doc,
+                    yAfterTable,
+                    mapelData.ekstrakurikuler,
+                    marginSettings
+                );
+            }
+
+            // Import footer and header info generators
             const { generateNilaiRaporFooter } = await import('@/lib/pdf/nilaiRaporFooter');
+            const { generateStudentHeaderInfo } = await import('@/lib/pdf/studentHeaderInfo');
 
-            // Add footer to all pages
+            // Prepare student header info
+            const studentHeaderInfo = {
+                nm_siswa: siswa.nm_siswa,
+                nm_kelas: siswa.nm_kelas || '-',
+                nis: siswa.nis || '-',
+                nisn: siswa.nisn || '-',
+                fase: headerInfo.fase || 'E',
+                nama_sekolah: headerInfo.school.nama,
+                alamat_sekolah: headerInfo.school.alamat,
+                // Same logic as page 1 (nilaiRaporPage.ts line 98)
+                semester: headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2',
+                // Same logic as page 1 (nilaiRaporPage.ts line 115)
+                tahun_ajaran: `${headerInfo.semester.tahun_ajaran_id}/${parseInt(headerInfo.semester.tahun_ajaran_id) + 1}`
+            };
+
+            // Add student header and footer to all pages
             const totalPages = doc.getNumberOfPages();
+
+            // First pass: Add student header info to pages 2+ and shift content down
+            for (let i = 2; i <= totalPages; i++) {
+                doc.setPage(i);
+
+                // Get all existing content positions on this page
+                // We'll add header at top and need to shift table content down
+                const headerHeight = await generateStudentHeaderInfo(
+                    doc,
+                    marginSettings.margin_top,
+                    studentHeaderInfo,
+                    marginSettings
+                );
+
+                // Note: Table content was already drawn at margin_top
+                // We need to shift it down by headerHeight
+                // This is done by the table generation functions which will be updated
+            }
+
+            // Second pass: Add footer to all pages
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
                 generateNilaiRaporFooter(doc, {

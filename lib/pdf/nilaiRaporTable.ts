@@ -48,7 +48,7 @@ export async function generateNilaiRaporTableHeader(
     const col3X = col2X + col2Width;
     const col4X = col3X + col3Width;
 
-    const headerHeight = 12;
+    const headerHeight = 8;
 
     // Set font and size for header
     await setDejaVuFont(doc, 'bold');
@@ -61,8 +61,9 @@ export async function generateNilaiRaporTableHeader(
     doc.rect(col3X, yPos, col3Width, headerHeight);
     doc.rect(col4X, yPos, col4Width, headerHeight);
 
-    // Header text (centered vertically)
-    const textY = yPos + 7;
+    // Header text (centered both horizontally and vertically)
+    // For font size 9 in 8mm header: middle (4mm) + font baseline offset (~1mm)
+    const textY = yPos + (headerHeight / 2) + (headerHeight * 0.15);
     doc.text('No', col1X + col1Width / 2, textY, { align: 'center' });
     doc.text('Mata Pelajaran', col2X + col2Width / 2, textY, { align: 'center' });
     doc.text('Nilai Akhir', col3X + col3Width / 2, textY, { align: 'center' });
@@ -83,7 +84,7 @@ export async function generateKelompokRow(
     const leftMargin = margins.margin_left;
     const totalWidth = 170; // 10 + 40 + 20 + 100
 
-    const rowHeight = 8;
+    const rowHeight = 6;
 
     // Set bold font for kelompok name
     await setDejaVuFont(doc, 'bold');
@@ -100,7 +101,10 @@ export async function generateKelompokRow(
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join(' ');
-    doc.text(titleCase, leftMargin + 2, yPos + 5.5);
+
+    // Center text vertically: middle + baseline offset
+    const textY = yPos + (rowHeight / 2) + (rowHeight * 0.15);
+    doc.text(titleCase, leftMargin + 2, textY);
 
     return yPos + rowHeight;
 }
@@ -149,11 +153,15 @@ export async function generateMapelRow(
     // Check if we need a new page
     if (yPos + rowHeight > pageHeight - margins.margin_bottom) {
         doc.addPage();
-        yPos = margins.margin_top;
 
-        // Redraw table header on new page
+        // Reserve space for student header info (will be added later in post-processing)
+        // Student header info is ~21mm tall (4 rows + spacing + reduced gap)
+        const studentHeaderHeight = 21;
+        yPos = margins.margin_top + studentHeaderHeight;
+
+        // Redraw table header on new page (below student header space)
         await generateNilaiRaporTableHeader(doc, yPos, margins);
-        yPos += 12; // header height
+        yPos += 8; // Actual header height (not 12)
 
         // Reset font to normal after header
         await setDejaVuFont(doc, 'normal');
@@ -216,9 +224,13 @@ export async function generateNilaiRaporTable(
         // Check if kelompok header fits, if not add new page
         if (yPos + 8 > pageHeight - margins.margin_bottom) {
             doc.addPage();
-            yPos = margins.margin_top;
+
+            // Reserve space for student header info
+            const studentHeaderHeight = 21;
+            yPos = margins.margin_top + studentHeaderHeight;
+
             await generateNilaiRaporTableHeader(doc, yPos, margins);
-            yPos += 12;
+            yPos += 8; // Actual header height
         }
 
         // Kelompok header (merged row)

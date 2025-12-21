@@ -121,14 +121,15 @@ export async function generateNilaiRaporHeader(
     doc.setLineWidth(0.5);
     doc.line(leftCol, yPos, pageWidth - margins.margin_right, yPos);
 
-    yPos += 10;
+    // Add spacing: 6mm visual gap + font baseline offset (~4mm for size 12)
+    yPos += 10;  // 6mm gap + 4mm baseline offset = 10mm total
 
     // Title: LAPORAN HASIL BELAJAR
     await setDejaVuFont(doc, 'bold');
     doc.setFontSize(12);
     doc.text('LAPORAN HASIL BELAJAR', pageWidth / 2, yPos, { align: 'center' });
 
-    yPos += 8;
+    yPos += 5;
 
     return yPos; // Return position for next content
 }

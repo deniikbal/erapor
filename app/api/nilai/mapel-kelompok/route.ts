@@ -216,6 +216,37 @@ export async function GET(request: NextRequest) {
         // Calculate total mapel after filtering
         const totalMapel = kelompokData.reduce((sum, k) => sum + k.mapels.length, 0);
 
+        // Fetch kokurikuler deskripsi
+        const kokurikuler = await sql`
+            SELECT deskripsi
+            FROM tabel_deskripsikurikuler
+            WHERE peserta_didik_id = ${peserta_didik_id}
+              AND semester_id = '20251'
+            LIMIT 1
+        `;
+
+        const kokurikulerDeskripsi = kokurikuler.length > 0 ? kokurikuler[0].deskripsi : null;
+
+        // Fetch ekstrakurikuler data
+        const ekstrakurikuler = await sql`
+            SELECT 
+                re.nm_ekskul as nama_ekstra,
+                ne.nilai_ekstra,
+                ne.deskripsi
+            FROM tabel_nilai_ekstra ne
+            LEFT JOIN refekstra_kurikuler re ON ne.id_ekskul_baru = re.id_ekskul
+            WHERE ne.peserta_didik_id = ${peserta_didik_id}
+              AND ne.semester_id = '20251'
+              AND ne.deskripsi IS NOT NULL
+            ORDER BY re.nm_ekskul
+        `;
+
+        const ekstraList = ekstrakurikuler.map(ek => ({
+            nama_ekstra: ek.nama_ekstra || 'N/A',
+            nilai_ekstra: ek.nilai_ekstra || '-',
+            deskripsi: ek.deskripsi || '-'
+        }));
+
         return NextResponse.json({
             success: true,
             peserta_didik_id,
@@ -225,7 +256,9 @@ export async function GET(request: NextRequest) {
             tingkat,
             total_kelompok: kelompokData.length,
             total_mapel: totalMapel,
-            kelompok: kelompokData
+            kelompok: kelompokData,
+            kokurikuler: kokurikulerDeskripsi,
+            ekstrakurikuler: ekstraList
         });
 
     } catch (error) {
