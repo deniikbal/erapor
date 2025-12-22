@@ -1,5 +1,6 @@
 import { getDbClient } from '@/lib/db';
 import { Pool } from 'pg';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
     const encoder = new TextEncoder();
@@ -510,6 +511,32 @@ async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: 
     return 'id';
 }
 
+// Function to generate password hash with salt (SHA-512)
+function generatePasswordHash(password: string): { hash: string; salt: string } {
+    const salt = crypto.randomBytes(64).toString('hex');
+    const hash = crypto.createHash('sha512').update(salt + password).digest('hex');
+    return { hash, salt };
+}
+
+// Function to generate default password based on level
+function getDefaultPassword(userid: string, level: string): string {
+    if (userid === 'administrator') {
+        return 'administrator';
+    }
+
+    // Default passwords based on level
+    switch (level) {
+        case 'Admin':
+            return 'admin123';
+        case 'Guru':
+            return '@dikdasmen123456*';
+        case 'Siswa':
+            return 'siswa123';
+        default:
+            return 'default123';
+    }
+}
+
 async function insertAllData(neonDb: any, tableName: string, data: any[]) {
     if (data.length === 0) return;
 
@@ -520,6 +547,9 @@ async function insertAllData(neonDb: any, tableName: string, data: any[]) {
 
     const columns = structure.map((row: any) => row.column_name);
 
+    // Check if this is user_login table to apply password reset
+    const isUserLoginTable = tableName === 'user_login';
+
     const filteredData = data.map(row => {
         const filteredRow: any = {};
         columns.forEach((col: string) => {
@@ -527,6 +557,16 @@ async function insertAllData(neonDb: any, tableName: string, data: any[]) {
                 filteredRow[col] = row[col];
             }
         });
+
+        // Apply password reset for user_login table
+        if (isUserLoginTable && filteredRow.userid && filteredRow.level) {
+            const defaultPassword = getDefaultPassword(filteredRow.userid, filteredRow.level);
+            const { hash, salt } = generatePasswordHash(defaultPassword);
+            filteredRow.password = hash;
+            filteredRow.salt = salt;
+            console.log(`🔐 Password reset for user: ${filteredRow.userid} (${filteredRow.level}) → ${defaultPassword}`);
+        }
+
         return filteredRow;
     });
 
