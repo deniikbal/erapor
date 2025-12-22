@@ -44,6 +44,9 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-16 lg:px-6">
+      {/* Mobile Sidebar Toggle - Import will be added in layout */}
+      <div id="mobile-sidebar-toggle" className="md:hidden" />
+
       <div className="flex-1">
         <form className="ml-auto flex-1 sm:flex-initial">
           <div className="relative">
@@ -51,21 +54,24 @@ export function Header() {
             <Input
               type="search"
               placeholder="Search..."
-              className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+              className="pl-8 w-full sm:w-[200px] md:w-[200px] lg:w-[300px]"
             />
           </div>
         </form>
       </div>
-      <Button variant="ghost" size="icon" className="relative">
+
+      {/* Hide bell icon on mobile */}
+      <Button variant="ghost" size="icon" className="relative hidden sm:flex">
         <Bell className="h-5 w-5" />
         <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
       </Button>
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
               <AvatarImage src="/avatars/01.png" alt={user?.nama || 'User'} />
-              <AvatarFallback className="bg-primary text-primary-foreground">
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                 {user ? getInitials(user.nama) : 'U'}
               </AvatarFallback>
             </Avatar>

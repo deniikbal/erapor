@@ -305,8 +305,8 @@ export default function GuruUpdateDataSiswaPage() {
             />
           </div>
 
-          {/* Table */}
-          <div className="rounded-md border">
+          {/* Desktop Table View - Hidden on mobile */}
+          <div className="hidden md:block rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -351,21 +351,75 @@ export default function GuruUpdateDataSiswaPage() {
             </Table>
           </div>
 
+          {/* Mobile Card View - Hidden on desktop */}
+          <div className="md:hidden space-y-4">
+            {currentItems.length === 0 ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-8">
+                  <p className="text-sm text-muted-foreground">
+                    {searchNama ? 'Tidak ada siswa yang sesuai pencarian' : 'Tidak ada data siswa'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              currentItems.map((siswa, index) => (
+                <Card key={siswa.peserta_didik_id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+                          {indexOfFirstItem + index + 1}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-base">{siswa.nm_siswa}</h3>
+                          <p className="text-sm text-muted-foreground">NIS: {siswa.nis}</p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => handleEditClick(siswa)}
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                      >
+                        <Pencil className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                    </div>
+                    <Separator className="my-3" />
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Kelas</p>
+                        <p className="font-medium">{siswa.nm_kelas || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Jenis Kelamin</p>
+                        <p className="font-medium">{siswa.jenis_kelamin || '-'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between space-x-2 py-4">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
+              <div className="text-sm text-muted-foreground text-center sm:text-left">
                 Menampilkan {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredSiswa.length)} dari {filteredSiswa.length} siswa
               </div>
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={prevPage}
                   disabled={currentPage === 1}
+                  className="h-8"
                 >
                   Previous
                 </Button>
+
+                {/* Page numbers - Hide some on mobile */}
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum: number;
@@ -379,24 +433,29 @@ export default function GuruUpdateDataSiswaPage() {
                       pageNum = currentPage - 2 + i;
                     }
 
+                    // On mobile, only show 3 page numbers
+                    const isMobileHidden = i > 0 && i < 4 && totalPages > 3;
+
                     return (
                       <Button
                         key={pageNum}
                         variant={currentPage === pageNum ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => paginate(pageNum)}
-                        className="w-8 h-8 p-0"
+                        className={`w-8 h-8 p-0 ${isMobileHidden ? 'hidden sm:inline-flex' : ''}`}
                       >
                         {pageNum}
                       </Button>
                     );
                   })}
                 </div>
+
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={nextPage}
                   disabled={currentPage === totalPages}
+                  className="h-8"
                 >
                   Next
                 </Button>
@@ -408,7 +467,7 @@ export default function GuruUpdateDataSiswaPage() {
 
       {/* Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Data Siswa</DialogTitle>
             <DialogDescription>

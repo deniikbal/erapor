@@ -58,6 +58,20 @@ export default function NilaiRaporPage() {
     const [availableClasses, setAvailableClasses] = useState<any[]>([]);
     const [selectedClass, setSelectedClass] = useState<string>('');
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+
+    // Pagination calculations
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = siswaList.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(siswaList.length / itemsPerPage);
+
+    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+    const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+
     useEffect(() => {
         const initUser = async () => {
             const user = await getCurrentUser();
@@ -897,7 +911,7 @@ export default function NilaiRaporPage() {
             {/* Student List Card */}
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
                             <div className="flex items-center gap-2">
                                 <FileText className="h-5 w-5 text-primary" />
@@ -907,12 +921,12 @@ export default function NilaiRaporPage() {
                         </div>
 
                         {/* Bulk Generate Button */}
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                             <Button
                                 onClick={handleOpenBulkModal}
                                 size="sm"
                                 variant="default"
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                                 disabled={generatingBulk || siswaList.length === 0}
                             >
                                 {generatingBulk ? (
@@ -936,7 +950,8 @@ export default function NilaiRaporPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border">
+                    {/* Desktop Table - Hidden on mobile */}
+                    <div className="hidden md:block rounded-md border">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -948,16 +963,16 @@ export default function NilaiRaporPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {siswaList.length === 0 ? (
+                                {currentItems.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={5} className="text-center text-muted-foreground">
                                             Tidak ada data siswa
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    siswaList.map((siswa, index) => (
+                                    currentItems.map((siswa, index) => (
                                         <TableRow key={siswa.peserta_didik_id}>
-                                            <TableCell className="font-medium">{index + 1}</TableCell>
+                                            <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
                                             <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
                                             <TableCell>{siswa.nis}</TableCell>
                                             <TableCell>{siswa.nm_kelas || '-'}</TableCell>
@@ -988,6 +1003,112 @@ export default function NilaiRaporPage() {
                             </TableBody>
                         </Table>
                     </div>
+
+                    {/* Mobile Card View - Hidden on desktop */}
+                    <div className="md:hidden space-y-4">
+                        {currentItems.length === 0 ? (
+                            <Card>
+                                <CardContent className="flex items-center justify-center py-8">
+                                    <p className="text-sm text-muted-foreground">Tidak ada data siswa</p>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            currentItems.map((siswa, index) => (
+                                <Card key={siswa.peserta_didik_id} className="overflow-hidden">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold flex-shrink-0">
+                                                {indexOfFirstItem + index + 1}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-semibold text-base truncate">{siswa.nm_siswa}</h3>
+                                                <p className="text-sm text-muted-foreground">NIS: {siswa.nis}</p>
+                                                <p className="text-sm text-muted-foreground">Kelas: {siswa.nm_kelas || '-'}</p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            onClick={() => handleGeneratePDF(siswa)}
+                                            size="sm"
+                                            variant="default"
+                                            className="w-full bg-red-600 hover:bg-red-700"
+                                            disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
+                                        >
+                                            {generatingPdf === siswa.peserta_didik_id ? (
+                                                <>
+                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                    Membuat PDF...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Download className="h-3 w-3 mr-1" />
+                                                    Cetak PDF
+                                                </>
+                                            )}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+                            <div className="text-sm text-muted-foreground text-center sm:text-left">
+                                Menampilkan {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, siswaList.length)} dari {siswaList.length} siswa
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={prevPage}
+                                    disabled={currentPage === 1}
+                                    className="h-8"
+                                >
+                                    Previous
+                                </Button>
+
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                        let pageNum: number;
+                                        if (totalPages <= 5) {
+                                            pageNum = i + 1;
+                                        } else if (currentPage <= 3) {
+                                            pageNum = i + 1;
+                                        } else if (currentPage >= totalPages - 2) {
+                                            pageNum = totalPages - 4 + i;
+                                        } else {
+                                            pageNum = currentPage - 2 + i;
+                                        }
+
+                                        const isMobileHidden = i > 0 && i < 4 && totalPages > 3;
+
+                                        return (
+                                            <Button
+                                                key={pageNum}
+                                                variant={currentPage === pageNum ? 'default' : 'outline'}
+                                                size="sm"
+                                                onClick={() => paginate(pageNum)}
+                                                className={`w-8 h-8 p-0 ${isMobileHidden ? 'hidden sm:inline-flex' : ''}`}
+                                            >
+                                                {pageNum}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={nextPage}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8"
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

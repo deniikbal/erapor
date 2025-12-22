@@ -94,15 +94,6 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    title: 'Nilai',
-    icon: FileText,
-    allowedLevels: ['Admin', 'Guru'],
-    submenu: [
-      { title: 'Input Nilai', href: '/dashboard/nilai', icon: FileText },
-      { title: 'Raport', href: '/dashboard/nilai/raport', icon: FileText },
-    ],
-  },
-  {
     title: 'Sync Data',
     href: '/dashboard/sync',
     icon: RefreshCw,
@@ -110,7 +101,7 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
@@ -176,7 +167,7 @@ export function Sidebar() {
                   {expandedMenus.includes(item.title) && (
                     <div className="ml-4 mt-1 space-y-1">
                       {item.submenu.map((subItem) => (
-                        <Link key={subItem.href} href={subItem.href}>
+                        <Link key={subItem.href} href={subItem.href} onClick={onNavigate}>
                           <Button
                             variant="ghost"
                             className={cn(
@@ -193,7 +184,7 @@ export function Sidebar() {
                   )}
                 </div>
               ) : (
-                <Link href={item.href!}>
+                <Link href={item.href!} onClick={onNavigate}>
                   <Button
                     variant="ghost"
                     className={cn(

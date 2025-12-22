@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth-client';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Header } from '@/components/dashboard/header';
+import { MobileSidebar } from '@/components/dashboard/mobile-sidebar';
 
 export default function DashboardLayout({
   children,
@@ -36,11 +37,22 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <aside className="w-64 flex-shrink-0">
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <aside className="hidden md:flex w-64 flex-shrink-0">
         <Sidebar />
       </aside>
+
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
+        {/* Header with Mobile Sidebar */}
+        <div className="flex items-center gap-2">
+          <div className="md:hidden flex-shrink-0">
+            <MobileSidebar />
+          </div>
+          <div className="flex-1">
+            <Header />
+          </div>
+        </div>
+
         <main className="flex-1 overflow-y-auto bg-muted/40 p-4 lg:p-6">
           {children}
         </main>
