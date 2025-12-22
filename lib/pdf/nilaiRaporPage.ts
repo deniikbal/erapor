@@ -117,9 +117,10 @@ export async function generateNilaiRaporHeader(
 
     yPos += 3;
 
-    // Garis pemisah (fixed 170mm width)
-    doc.setLineWidth(0.5);
-    doc.line(leftCol, yPos, leftCol + 170, yPos);
+    // Garis pemisah (dynamic width based on margins)
+    const lineWidth = pageWidth - margins.margin_left - margins.margin_right;
+    doc.setLineWidth(0.3);
+    doc.line(leftCol, yPos, leftCol + lineWidth, yPos);
 
     // Add spacing: 6mm visual gap + font baseline offset (~4mm for size 12)
     yPos += 10;  // 6mm gap + 4mm baseline offset = 10mm total

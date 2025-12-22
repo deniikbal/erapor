@@ -96,9 +96,10 @@ export async function generateStudentHeaderInfo(
 
     yPos += 3;
 
-    // Garis pemisah (fixed 170mm width)
+    // Garis pemisah (dynamic width based on margins)
+    const lineWidth = pageWidth - margins.margin_left - margins.margin_right;
     doc.setLineWidth(0.5);
-    doc.line(leftCol, yPos, leftCol + 170, yPos);
+    doc.line(leftCol, yPos, leftCol + lineWidth, yPos);
 
     yPos += 4; // Reduced spacing to eliminate gap with table
 

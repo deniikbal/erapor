@@ -13,23 +13,38 @@ export async function generateKokurikulerTable(
     margins: MarginSettings
 ): Promise<number> {
     const leftMargin = margins.margin_left;
-    const tableWidth = 170; // Same as nilai table total width
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = pageWidth - margins.margin_left - margins.margin_right; // Dynamic width
     const pageHeight = doc.internal.pageSize.getHeight();
 
     let yPos = startY;
 
+    // Content calculation first (before drawing anything)
+    await setDejaVuFont(doc, 'normal');
+    doc.setFontSize(9);
 
-    // Check if header + content area fits (header 8mm + content 18mm = 26mm minimum)
+    const padding = 2;
+    const lineHeight = 3.7;
+    const maxWidth = pageWidth - margins.margin_left - margins.margin_right - (padding * 2);
+
+    // Split deskripsi into lines to calculate height
+    const lines = doc.splitTextToSize(deskripsi || 'Tidak ada deskripsi kokurikuler.', maxWidth);
+
+    // Calculate content height
     const headerHeight = 8;
-    const minContentHeight = 18;
-    const minRequiredSpace = headerHeight + minContentHeight;
+    const contentHeight = Math.max(15, lines.length * lineHeight + (padding * 2));
+    const totalTableHeight = headerHeight + contentHeight;
 
-    if (yPos + minRequiredSpace > pageHeight - margins.margin_bottom) {
+    // Check if entire table fits on current page BEFORE drawing header
+    if (startY + totalTableHeight > pageHeight - margins.margin_bottom) {
         doc.addPage();
-        yPos = margins.margin_top;
+
+        // Reserve space for student header info
+        const studentHeaderHeight = 21;
+        yPos = margins.margin_top + studentHeaderHeight;
     }
 
-    // Draw header "KOKURIKULER"
+    // NOW draw the header (on correct page)
     await setDejaVuFont(doc, 'bold');
     doc.setFontSize(9);
     doc.setLineWidth(0.3);
@@ -37,103 +52,30 @@ export async function generateKokurikulerTable(
     doc.setFillColor(240, 240, 240); // Light gray background
     doc.rect(leftMargin, yPos, tableWidth, headerHeight, 'FD');
 
-    // Center text vertically: yPos + (height / 2) + small offset for font
-    const textY = yPos + (headerHeight / 2) + 1.3;
-    doc.text('KOKURIKULER', leftMargin + tableWidth / 2, textY, { align: 'center' });
+    // Center text vertically
+    const headerTextY = yPos + (headerHeight / 2) + 1.3;
+    doc.text('KOKURIKULER', leftMargin + tableWidth / 2, headerTextY, { align: 'center' });
 
     yPos += headerHeight;
 
-    // Content area
+    // Reset font for content
     await setDejaVuFont(doc, 'normal');
     doc.setFontSize(9);
 
-    const padding = 3;
-    const lineHeight = 4;
-    const maxWidth = tableWidth - (padding * 2);
+    // Draw content rectangle
+    doc.rect(leftMargin, yPos, tableWidth, contentHeight);
 
-    // Split deskripsi into lines
-    const lines = doc.splitTextToSize(deskripsi || 'Tidak ada deskripsi kokurikuler.', maxWidth);
-
-    // Calculate content height
-    const contentHeight = Math.max(15, lines.length * lineHeight + (padding * 2));
-
-    // Check if content fits on current page
-    if (yPos + contentHeight > pageHeight - margins.margin_bottom) {
-        // Content doesn't fit, need to split across pages
-
-        // Calculate how many lines fit on current page
-        const remainingSpace = pageHeight - margins.margin_bottom - yPos;
-        const linesFitOnPage = Math.floor((remainingSpace - (padding * 2)) / lineHeight);
-
-        if (linesFitOnPage > 0) {
-            // Draw partial content on current page
-            const currentPageLines = lines.slice(0, linesFitOnPage);
-            const currentPageHeight = currentPageLines.length * lineHeight + (padding * 2);
-
-            doc.rect(leftMargin, yPos, tableWidth, currentPageHeight);
-
-            let textY = yPos + padding + 3;
-            currentPageLines.forEach((line: string) => {
-                doc.text(line, leftMargin + padding, textY, {
-                    align: 'justify',
-                    maxWidth: maxWidth
-                });
-                textY += lineHeight;
-            });
-
-            // New page for remaining content
-            doc.addPage();
-            yPos = margins.margin_top;
-
-            // Draw remaining lines
-            const remainingLines = lines.slice(linesFitOnPage);
-            const remainingHeight = remainingLines.length * lineHeight + (padding * 2);
-
-            doc.rect(leftMargin, yPos, tableWidth, remainingHeight);
-
-            textY = yPos + padding + 3;
-            remainingLines.forEach((line: string) => {
-                doc.text(line, leftMargin + padding, textY, {
-                    align: 'justify',
-                    maxWidth: maxWidth
-                });
-                textY += lineHeight;
-            });
-
-            yPos += remainingHeight;
-        } else {
-            // No space at all, start fresh on new page
-            doc.addPage();
-            yPos = margins.margin_top;
-
-            doc.rect(leftMargin, yPos, tableWidth, contentHeight);
-
-            let textY = yPos + padding + 3;
-            lines.forEach((line: string) => {
-                doc.text(line, leftMargin + padding, textY, {
-                    align: 'justify',
-                    maxWidth: maxWidth
-                });
-                textY += lineHeight;
-            });
-
-            yPos += contentHeight;
-        }
-    } else {
-        // Content fits on current page
-        doc.rect(leftMargin, yPos, tableWidth, contentHeight);
-
-        let textY = yPos + padding + 3;
-        lines.forEach((line: string) => {
-            doc.text(line, leftMargin + padding, textY, {
-                align: 'justify',
-                maxWidth: maxWidth
-            });
-            textY += lineHeight;
+    // Draw text content
+    let textY = yPos + padding + 3;
+    lines.forEach((line: string) => {
+        doc.text(line, leftMargin + padding, textY, {
+            align: 'justify',
+            maxWidth: maxWidth
         });
+        textY += lineHeight;
+    });
 
-        yPos += contentHeight;
-    }
+    yPos += contentHeight;
 
     return yPos;
 }

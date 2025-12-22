@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { getCurrentUser } from '@/lib/auth-client';
+import { getCurrentUser, removeCurrentUser } from '@/lib/auth-client';
 import type { User } from '@/lib/db';
 
 export function Header() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -33,6 +35,11 @@ export function Header() {
       .map((n) => n[0])
       .join('')
       .toUpperCase();
+  };
+
+  const handleLogout = () => {
+    removeCurrentUser();
+    router.push('/login');
   };
 
   return (
@@ -77,7 +84,7 @@ export function Header() {
           <DropdownMenuItem>Profile</DropdownMenuItem>
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Logout</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

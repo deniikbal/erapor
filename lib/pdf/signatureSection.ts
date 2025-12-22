@@ -39,8 +39,9 @@ export async function generateSignatureSection(
         yPos = margins.margin_top + studentHeaderHeight;
     }
 
-    // Column widths (divide 170mm into 3 equal parts with some spacing)
-    const columnWidth = 170 / 3; // ~56.67mm each
+    // Calculate available width and divide into 3 columns
+    const availableWidth = pageWidth - margins.margin_left - margins.margin_right;
+    const columnWidth = availableWidth / 3; // Divide into 3 equal parts
 
     // Column X positions
     const col1X = leftMargin; // Left column (Orang Tua)
@@ -53,22 +54,22 @@ export async function generateSignatureSection(
     // Add spacing before signatures
     yPos += 5;
 
+    // Define common signature Y position for alignment
+    const signatureLineY = yPos + 25; // Common Y for both parent and teacher signatures (increased from 20 to 30)
+
     // LEFT COLUMN: Orang Tua Murid
     let currentY = yPos;
     doc.text('Orang Tua Murid', col1X, currentY);
 
-    // Space for signature
-    currentY += 20;
-
-    // Dotted line for parent signature
+    // Dotted line for parent signature (aligned with teacher signature)
     const dotLineStart = col1X;
-    const dotLineEnd = col1X + 50;
+    const dotLineEnd = col1X + Math.min(50, columnWidth - 5);
     for (let x = dotLineStart; x < dotLineEnd; x += 1) {
-        doc.text('.', x, currentY);
+        doc.text('.', x, signatureLineY);
     }
 
     // Add underline below dotted line
-    const parentUnderlineY = currentY + 0.5;
+    const parentUnderlineY = signatureLineY + 0.5;
     doc.setLineWidth(0.3);
     doc.line(dotLineStart, parentUnderlineY, dotLineEnd, parentUnderlineY);
 
@@ -81,30 +82,27 @@ export async function generateSignatureSection(
     currentY += 5;
     doc.text('Wali Kelas', col3X, currentY);
 
-    // Space for signature
-    currentY += 20;
-
-    // Teacher name and NIP
+    // Teacher name and NIP (aligned with parent signature)
     await setDejaVuFont(doc, 'bold');
     const namaWali = signatureData.namaWaliKelas || 'Revi indika, S.Pd.';
     const waliTextWidth = doc.getTextWidth(namaWali);
-    doc.text(namaWali, col3X, currentY);
+    doc.text(namaWali, col3X, signatureLineY);
 
     // Add underline below teacher name
-    const waliUnderlineY = currentY + 0.5;
+    const waliUnderlineY = signatureLineY + 0.5;
     doc.setLineWidth(0.3);
     doc.line(col3X, waliUnderlineY, col3X + waliTextWidth, waliUnderlineY);
 
-    currentY += 5;
+    currentY = signatureLineY + 5;
     await setDejaVuFont(doc, 'normal');
     const nipWali = signatureData.nipWaliKelas || 'NIP 199404162024212033';
     doc.text(nipWali, col3X, currentY);
 
     // CENTER COLUMN: Kepala Sekolah (positioned below others)
-    currentY = yPos + 35; // Position below parent and teacher
+    currentY = yPos + 30; // Position below parent and teacher (adjusted for increased spacing)
     doc.text('Kepala SMAN 1 Bantarujeg', col2X + 5, currentY, { align: 'left' });
 
-    currentY += 20;
+    currentY += 25; // Increased space for principal signature (from 20 to 25)
 
     // Principal name and NIP
     await setDejaVuFont(doc, 'bold');

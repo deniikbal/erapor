@@ -35,12 +35,18 @@ export async function generateNilaiRaporTableHeader(
     margins: MarginSettings
 ): Promise<number> {
     const leftMargin = margins.margin_left;
+    const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Column widths (in mm)
-    const col1Width = 10;   // No
-    const col2Width = 40;   // Mata Pelajaran
-    const col3Width = 20;   // Nilai Akhir
-    const col4Width = 100;  // Capaian Kompetensi
+    // Calculate available width for table
+    const availableWidth = pageWidth - margins.margin_left - margins.margin_right;
+
+    // Column widths (proportional to available space)
+    // Fixed columns: No (10mm), Mata Pelajaran (40mm), Nilai Akhir (20mm)
+    // Remaining space goes to Capaian Kompetensi
+    const col1Width = 10;   // No (fixed)
+    const col2Width = 40;   // Mata Pelajaran (fixed)
+    const col3Width = 20;   // Nilai Akhir (fixed)
+    const col4Width = availableWidth - col1Width - col2Width - col3Width;  // Capaian Kompetensi (dynamic)
 
     // Column X positions
     const col1X = leftMargin;
@@ -83,7 +89,8 @@ export async function generateKelompokRow(
     margins: MarginSettings
 ): Promise<number> {
     const leftMargin = margins.margin_left;
-    const totalWidth = 170; // 10 + 40 + 20 + 100
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const totalWidth = pageWidth - margins.margin_left - margins.margin_right;
 
     const rowHeight = 6;
 
@@ -127,12 +134,14 @@ export async function generateMapelRow(
     pageHeight: number
 ): Promise<number> {
     const leftMargin = margins.margin_left;
+    const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Column widths
+    // Calculate available width and dynamic columns (same as header)
+    const availableWidth = pageWidth - margins.margin_left - margins.margin_right;
     const col1Width = 10;
     const col2Width = 40;
     const col3Width = 20;
-    const col4Width = 100;
+    const col4Width = availableWidth - col1Width - col2Width - col3Width;
 
     // Column X positions
     const col1X = leftMargin;
@@ -152,7 +161,7 @@ export async function generateMapelRow(
     const capaianLines = doc.splitTextToSize(capaianText, col4Width - 4);
 
     // Calculate row height based on content (minimum 10mm, adjust based on max lines)
-    const lineHeight = 4; // mm per line
+    const lineHeight = 3.7; // mm per line
     const maxLines = Math.max(mapelLines.length, capaianLines.length);
     const rowHeight = Math.max(10, maxLines * lineHeight + 4); // +4 for padding
 

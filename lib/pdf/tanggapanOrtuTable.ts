@@ -13,7 +13,8 @@ export async function generateTanggapanOrtuTable(
     margins: MarginSettings
 ): Promise<number> {
     const leftMargin = margins.margin_left;
-    const tableWidth = 170; // Full width like other tables
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = pageWidth - margins.margin_left - margins.margin_right; // Dynamic width
     const headerHeight = 8; // 8mm
     const contentHeight = 22; // 22mm
     const pageHeight = doc.internal.pageSize.getHeight();

@@ -18,9 +18,12 @@ export async function generateCatatanWaliTable(
     catatanData: CatatanWaliData | null,
     margins: MarginSettings
 ): Promise<number> {
-    const tableWidth = 112; // 112mm width
-    const headerHeight = 9; // 9mm height
+    const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Calculate dynamic width: from startX to right margin
+    const tableWidth = pageWidth - startX - margins.margin_right;
+    const headerHeight = 9; // 9mm height
 
     let yPos = startY;
 

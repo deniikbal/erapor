@@ -20,13 +20,15 @@ export async function generateEkstrakurikulerTable(
     margins: MarginSettings
 ): Promise<number> {
     const leftMargin = margins.margin_left;
+    const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // Column widths
-    const col1Width = 8;    // No
-    const col2Width = 50;   // Ekstrakurikuler
-    const col3Width = 112;  // Keterangan
-    const totalWidth = col1Width + col2Width + col3Width; // 170mm
+    // Column widths (Keterangan is dynamic)
+    const availableWidth = pageWidth - margins.margin_left - margins.margin_right;
+    const col1Width = 8;    // No (fixed)
+    const col2Width = 50;   // Ekstrakurikuler (fixed)
+    const col3Width = availableWidth - col1Width - col2Width;  // Keterangan (dynamic)
+    const totalWidth = availableWidth;
 
     // Column X positions
     const col1X = leftMargin;
