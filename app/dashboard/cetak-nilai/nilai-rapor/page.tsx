@@ -203,8 +203,10 @@ export default function NilaiRaporPage() {
             // Get semester info from siswa.nm_kelas or default
             const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
 
-            // Create PDF
-            const doc = new jsPDF();
+            // Create PDF with compression enabled
+            const doc = new jsPDF({
+                compress: true
+            });
 
             // Header with student info
             const headerInfo = {
@@ -546,7 +548,10 @@ export default function NilaiRaporPage() {
             }
 
             // Create single PDF document for all students
-            const doc = new jsPDF();
+            // Create PDF with compression enabled
+            const doc = new jsPDF({
+                compress: true
+            });
             let isFirstStudent = true;
             const failedStudents: string[] = [];
 

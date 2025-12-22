@@ -98,8 +98,8 @@ export async function generateSignatureSection(
     const nipWali = signatureData.nipWaliKelas || 'NIP 199404162024212033';
     doc.text(nipWali, col3X, currentY);
 
-    // CENTER COLUMN: Kepala Sekolah (positioned below others)
-    currentY = yPos + 30; // Position below parent and teacher (adjusted for increased spacing)
+    // CENTER COLUMN: Kepala Sekolah (positioned below NIP wali kelas)
+    currentY = signatureLineY + 10; // Below NIP wali kelas (signatureLineY + 5 is NIP, so +10 puts it 5mm below)
     doc.text('Kepala SMAN 1 Bantarujeg', col2X + 5, currentY, { align: 'left' });
 
     currentY += 25; // Increased space for principal signature (from 20 to 25)

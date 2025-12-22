@@ -103,21 +103,15 @@ export async function generateKelompokRow(
     doc.rect(leftMargin, yPos, totalWidth, rowHeight); // Draw border only, white background
 
     // Text in merged cell (left-aligned with padding)
-    // Clean name: remove suffix after dash (e.g., "Mata Pelajaran Pilihan - IPS" -> "Mata Pelajaran Pilihan")
+    // Remove suffix after dash for cleaner display (e.g., "Mata Pelajaran Pilihan - GBIM" -> "Mata Pelajaran Pilihan")
     let cleanedName = kelompokName;
     if (kelompokName.includes(' - ')) {
         cleanedName = kelompokName.split(' - ')[0];
     }
 
-    // Title case: capitalize first letter of each word
-    const titleCase = cleanedName
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
-
     // Center text vertically: middle + baseline offset
     const textY = yPos + (rowHeight / 2) + (rowHeight * 0.15);
-    doc.text(titleCase, leftMargin + 2, textY);
+    doc.text(cleanedName, leftMargin + 2, textY);
 
     return yPos + rowHeight;
 }

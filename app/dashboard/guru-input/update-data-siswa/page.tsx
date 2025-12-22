@@ -41,20 +41,20 @@ export default function GuruUpdateDataSiswaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
+
   // Search
   const [searchNama, setSearchNama] = useState('');
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState('');
   const [selectedSiswa, setSelectedSiswa] = useState<Siswa | null>(null);
-  
+
   // Form state - Data Siswa
   const [formDataSiswa, setFormDataSiswa] = useState({
     nm_siswa: '',
@@ -111,7 +111,7 @@ export default function GuruUpdateDataSiswaPage() {
         setLoading(false);
         return;
       }
-      
+
       if (user.level !== 'Guru') {
         setError('Hanya guru yang dapat mengakses halaman ini');
         setLoading(false);
@@ -160,7 +160,7 @@ export default function GuruUpdateDataSiswaPage() {
 
   const handleEditClick = (siswa: Siswa) => {
     setSelectedSiswa(siswa);
-    
+
     // Set form data siswa
     setFormDataSiswa({
       nm_siswa: siswa.nm_siswa || '',
@@ -229,7 +229,7 @@ export default function GuruUpdateDataSiswaPage() {
 
       setIsModalOpen(false);
       toast.success('Data siswa berhasil diupdate');
-      
+
       // Refresh data
       if (currentUser?.ptk_id) {
         fetchSiswa(currentUser.ptk_id);
@@ -378,7 +378,7 @@ export default function GuruUpdateDataSiswaPage() {
                     } else {
                       pageNum = currentPage - 2 + i;
                     }
-                    
+
                     return (
                       <Button
                         key={pageNum}
@@ -415,12 +415,24 @@ export default function GuruUpdateDataSiswaPage() {
               Update data siswa dan data pelengkap. Klik simpan untuk menyimpan perubahan.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* Data Siswa */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Data Siswa</h3>
               <div className="grid gap-4 md:grid-cols-3">
+                {/* Peserta Didik ID - Read Only */}
+                <div className="space-y-2 md:col-span-3">
+                  <Label htmlFor="peserta_didik_id">Peserta Didik ID</Label>
+                  <Input
+                    id="peserta_didik_id"
+                    value={selectedSiswa?.peserta_didik_id || ''}
+                    readOnly
+                    disabled
+                    className="bg-muted font-mono text-sm"
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="nm_siswa">Nama Siswa *</Label>
                   <Input
@@ -430,7 +442,7 @@ export default function GuruUpdateDataSiswaPage() {
                     disabled={isSaving}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="nis">NIS *</Label>
                   <Input

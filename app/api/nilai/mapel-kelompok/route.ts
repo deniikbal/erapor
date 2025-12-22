@@ -6,10 +6,15 @@ const sql = neon(process.env.DATABASE_URL!);
 /**
  * Detect peminatan from class name
  */
-function detectPeminatan(nm_kelas: string): 'MIPA' | 'IPS' | null {
+function detectPeminatan(nm_kelas: string): string | null {
     const upper = nm_kelas.toUpperCase();
 
-    // Check kurikulum lama pattern
+    // Check Class XII groupings first (GBIM/SBIM/EBIM)
+    if (upper.includes('GBIM')) return 'GBIM';
+    if (upper.includes('SBIM')) return 'SBIM';
+    if (upper.includes('EBIM')) return 'EBIM';
+
+    // Check Class XI traditional peminatan (kurikulum lama)
     if (upper.includes('IPA') || upper.includes('MIPA')) return 'MIPA';
     if (upper.includes('IPS')) return 'IPS';
 
@@ -31,23 +36,37 @@ function detectPeminatan(nm_kelas: string): 'MIPA' | 'IPS' | null {
 /**
  * Filter mapel pilihan based on peminatan
  */
-function filterMapelPilihan(mapels: any[], peminatan: 'MIPA' | 'IPS' | null) {
+function filterMapelPilihan(mapels: any[], peminatan: string | null) {
     if (!peminatan) {
         // Kelas X - return all mapel pilihan
         return mapels;
     }
 
+    // Define mapel groups
     const mipaMapels = ['MATEMATIKA TINGKAT LANJUT', 'BIOLOGI', 'FISIKA', 'KIMIA'];
     const ipsMapels = ['GEOGRAFI', 'SEJARAH TINGKAT LANJUT', 'SOSIOLOGI', 'EKONOMI'];
+
+    // Class XII groupings
+    const gbimMapels = ['GEOGRAFI', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
+    const sbimMapels = ['SEJARAH', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
+    const ebimMapels = ['EKONOMI', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
 
     return mapels.filter(mapel => {
         const nmUpper = mapel.nm_lokal.toUpperCase();
 
         if (peminatan === 'MIPA') {
             return mipaMapels.some(m => nmUpper.includes(m));
-        } else {
+        } else if (peminatan === 'IPS') {
             return ipsMapels.some(m => nmUpper.includes(m));
+        } else if (peminatan === 'GBIM') {
+            return gbimMapels.some(m => nmUpper.includes(m));
+        } else if (peminatan === 'SBIM') {
+            return sbimMapels.some(m => nmUpper.includes(m));
+        } else if (peminatan === 'EBIM') {
+            return ebimMapels.some(m => nmUpper.includes(m));
         }
+
+        return false;
     });
 }
 
@@ -151,8 +170,10 @@ export async function GET(request: NextRequest) {
         const kelompokData = Array.from(kelompokMap.values());
 
         // Fetch nilai akhir from tabel_nilaiakhir
+        // For Class XII with multi-enrollment: merge nilai from main class and per-subject classes
+        // Priority: jenis_rombel=16 (per-subject) > jenis_rombel=1 (main class)
         const nilaiAkhir = await sql`
-      SELECT 
+      SELECT DISTINCT ON (n.mata_pelajaran_id)
         n.mata_pelajaran_id,
         n.nilai_peng,
         n.nilai_ket,
@@ -160,8 +181,12 @@ export async function GET(request: NextRequest) {
         n.predikat_ket
       FROM tabel_nilaiakhir n
       LEFT JOIN tabel_anggotakelas ak ON n.anggota_rombel_id = ak.anggota_rombel_id
+      LEFT JOIN tabel_kelas k ON ak.rombongan_belajar_id = k.rombongan_belajar_id
       WHERE ak.peserta_didik_id = ${peserta_didik_id}
         AND n.semester_id = '20251'
+      ORDER BY 
+        n.mata_pelajaran_id,
+        k.jenis_rombel DESC NULLS LAST
     `;
 
         // Fetch capaian kompetensi from tabel_deskripsi
@@ -211,6 +236,9 @@ export async function GET(request: NextRequest) {
                     mapel.capaian_kompetensi = capaian;
                 }
             });
+
+            // Filter out mapel without nilai (only show mapel that have grades)
+            kelompok.mapels = kelompok.mapels.filter((mapel: any) => mapel.nilai_akhir !== null && mapel.nilai_akhir !== 0);
         });
 
         // Calculate total mapel after filtering
