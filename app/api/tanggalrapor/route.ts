@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbClient, TanggalRapor } from '@/lib/db';
+import { retryQuery } from '@/lib/dbRetryHelper';
 
 export async function GET(request: NextRequest) {
   try {

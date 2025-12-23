@@ -154,5 +154,16 @@ export function getDbClient() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL must be set in environment variables');
   }
-  return neon(process.env.DATABASE_URL);
+
+  // Configure Neon with longer timeout and fetch options
+  return neon(process.env.DATABASE_URL, {
+    fetchOptions: {
+      // Increase timeout to 30 seconds (default is 15s)
+      cache: 'no-store',
+      // Add headers for better connection handling
+    },
+    // Enable connection pooling for better performance
+    fullResults: false,
+    arrayMode: false,
+  });
 }

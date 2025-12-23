@@ -1,5 +1,5 @@
 import type { jsPDF } from 'jspdf';
-import { setDejaVuFont } from './fontLoader';
+import { setDejaVuFont } from './optimizedFontLoader';
 import type { MarginSettings } from './nilaiRaporTable';
 
 export interface CatatanWaliData {

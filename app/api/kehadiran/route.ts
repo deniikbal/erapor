@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import type { Kehadiran } from '@/lib/db';
+import { retryQuery } from '@/lib/dbRetryHelper';
 
 const sql = neon(process.env.DATABASE_URL!);
 

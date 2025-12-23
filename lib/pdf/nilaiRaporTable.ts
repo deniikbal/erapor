@@ -1,5 +1,7 @@
 import type { jsPDF } from 'jspdf';
-import { setDejaVuFont } from './fontLoader';
+import { setDejaVuFont } from './optimizedFontLoader';
+import { setOptimizedLineWidth, setOptimizedFillColor, setOptimizedFontSize, updateFillColorCache } from './pdfOptimizationHelpers';
+import { optimizedSplitTextToSize } from './textSplitCache';
 
 export interface MarginSettings {
     margin_top: number;
@@ -58,11 +60,11 @@ export async function generateNilaiRaporTableHeader(
 
     // Set font and size for header
     await setDejaVuFont(doc, 'bold');
-    doc.setFontSize(9);
+    setOptimizedFontSize(doc, 9);
 
     // Draw header cells with borders
-    doc.setLineWidth(0.3);
-    doc.setFillColor(240, 240, 240); // Light gray background
+    setOptimizedLineWidth(doc, 0.3);
+    setOptimizedFillColor(doc, 240, 240, 240); // Light gray background
     doc.rect(col1X, yPos, col1Width, headerHeight, 'FD');
     doc.rect(col2X, yPos, col2Width, headerHeight, 'FD');
     doc.rect(col3X, yPos, col3Width, headerHeight, 'FD');
@@ -75,6 +77,14 @@ export async function generateNilaiRaporTableHeader(
     doc.text('Mata Pelajaran', col2X + col2Width / 2, textY, { align: 'center' });
     doc.text('Nilai Akhir', col3X + col3Width / 2, textY, { align: 'center' });
     doc.text('Capaian Kompetensi', col4X + col4Width / 2, textY, { align: 'center' });
+
+    // Reset draw and fill color to default (black text, white fill for next elements)
+    doc.setDrawColor(0, 0, 0);
+    doc.setFillColor(255, 255, 255);
+
+    // Update cache to reflect the new state
+    updateFillColorCache(doc, 255, 255, 255);
+
 
     return yPos + headerHeight;
 }
@@ -96,10 +106,10 @@ export async function generateKelompokRow(
 
     // Set bold font for kelompok name
     await setDejaVuFont(doc, 'bold');
-    doc.setFontSize(9);
+    setOptimizedFontSize(doc, 9);
 
     // Draw merged cell
-    doc.setLineWidth(0.3);
+    setOptimizedLineWidth(doc, 0.3);
     doc.rect(leftMargin, yPos, totalWidth, rowHeight); // Draw border only, white background
 
     // Text in merged cell (left-aligned with padding)
@@ -145,14 +155,14 @@ export async function generateMapelRow(
 
     // Set normal font
     await setDejaVuFont(doc, 'normal');
-    doc.setFontSize(9);
+    setOptimizedFontSize(doc, 9);
 
-    // Text wrapping for mata pelajaran
-    const mapelLines = doc.splitTextToSize(mapel.nm_lokal, col2Width - 4);
+    // Text wrapping for mata pelajaran (using optimized cache)
+    const mapelLines = optimizedSplitTextToSize(doc, mapel.nm_lokal, col2Width - 4);
 
-    // Text wrapping for capaian kompetensi
+    // Text wrapping for capaian kompetensi (using optimized cache)
     const capaianText = mapel.capaian_kompetensi || '-';
-    const capaianLines = doc.splitTextToSize(capaianText, col4Width - 4);
+    const capaianLines = optimizedSplitTextToSize(doc, capaianText, col4Width - 4);
 
     // Calculate row height based on content (minimum 10mm, adjust based on max lines)
     const lineHeight = 3.7; // mm per line
@@ -174,11 +184,11 @@ export async function generateMapelRow(
 
         // Reset font to normal after header
         await setDejaVuFont(doc, 'normal');
-        doc.setFontSize(9);
+        setOptimizedFontSize(doc, 9);
     }
 
     // Draw row cells
-    doc.setLineWidth(0.3);
+    setOptimizedLineWidth(doc, 0.3);
     doc.rect(col1X, yPos, col1Width, rowHeight);
     doc.rect(col2X, yPos, col2Width, rowHeight);
     doc.rect(col3X, yPos, col3Width, rowHeight);

@@ -1,5 +1,5 @@
 import type { jsPDF } from 'jspdf';
-import { setDejaVuFont } from './fontLoader';
+import { setDejaVuFont } from './optimizedFontLoader';
 import { formatDate, capitalizeWords, toUpperCase, getBase64Image } from './helpers';
 
 interface StudentIdentityData {

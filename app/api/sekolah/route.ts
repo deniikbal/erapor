@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDbClient, Sekolah } from '@/lib/db';
+import { retryQuery } from '@/lib/dbRetryHelper';
 
 export async function GET(request: NextRequest) {
   try {
     const sql = getDbClient();
-    
-    const result = await sql`
-      SELECT * FROM tabel_sekolah
-      LIMIT 1
-    `;
+
+    const result = await retryQuery(async () => {
+      return await sql`
+        SELECT * FROM tabel_sekolah
+        LIMIT 1
+      `;
+    });
 
     if (result.length === 0) {
       return NextResponse.json(
@@ -40,7 +43,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const sql = getDbClient();
-    
+
     const result = await sql`
       UPDATE tabel_sekolah
       SET nm_kepsek = ${nm_kepsek}, nip_kepsek = ${nip_kepsek}
@@ -56,9 +59,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const sekolah = result[0] as Sekolah;
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Data kepala sekolah berhasil diupdate',
-      sekolah 
+      sekolah
     }, { status: 200 });
   } catch (error) {
     console.error('Update kepala sekolah error:', error);

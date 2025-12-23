@@ -8,6 +8,7 @@ declare global {
       bold: string;
     };
     fontLoadPromise?: Promise<boolean>;
+    pdfInstanceFontCache?: WeakSet<jsPDF>;
   }
 }
 
@@ -77,6 +78,16 @@ async function ensureFontsLoaded(): Promise<void> {
 
 export async function loadDejaVuFonts(doc: jsPDF): Promise<boolean> {
   try {
+    // Initialize instance cache if it doesn't exist
+    if (!window.pdfInstanceFontCache) {
+      window.pdfInstanceFontCache = new WeakSet<jsPDF>();
+    }
+
+    // If fonts already added to this specific PDF instance, skip
+    if (window.pdfInstanceFontCache.has(doc)) {
+      return true;
+    }
+
     // Ensure fonts are loaded to cache
     await ensureFontsLoaded();
 
@@ -97,6 +108,9 @@ export async function loadDejaVuFonts(doc: jsPDF): Promise<boolean> {
       doc.addFileToVFS('DejaVuSansCondensed-Bold.ttf', window.dejavuFontsCache.bold);
       doc.addFont('DejaVuSansCondensed-Bold.ttf', 'DejaVuSansCondensed', 'bold');
     }
+
+    // Mark this PDF instance as having fonts loaded
+    window.pdfInstanceFontCache.add(doc);
 
     console.log('Fonts added to jsPDF instance successfully');
     return true;

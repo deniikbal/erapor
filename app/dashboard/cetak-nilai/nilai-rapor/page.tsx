@@ -217,10 +217,16 @@ export default function NilaiRaporPage() {
             // Get semester info from siswa.nm_kelas or default
             const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
 
-            // Create PDF with compression enabled
+            // Create PDF with compression enabled and optimizations
             const doc = new jsPDF({
-                compress: true
+                compress: true,
+                putOnlyUsedFonts: true,
+                floatPrecision: 2 // Reduce precision for smaller file size
             });
+
+            // Load fonts once at the beginning
+            const { loadDejaVuFonts } = await import('@/lib/pdf/fontLoader');
+            await loadDejaVuFonts(doc);
 
             // Header with student info
             const headerInfo = {
@@ -562,10 +568,16 @@ export default function NilaiRaporPage() {
             }
 
             // Create single PDF document for all students
-            // Create PDF with compression enabled
+            // Create PDF with compression enabled and optimizations
             const doc = new jsPDF({
-                compress: true
+                compress: true,
+                putOnlyUsedFonts: true,
+                floatPrecision: 2 // Reduce precision for smaller file size
             });
+
+            // Load fonts once at the beginning for bulk generation
+            const { loadDejaVuFonts } = await import('@/lib/pdf/fontLoader');
+            await loadDejaVuFonts(doc);
             let isFirstStudent = true;
             const failedStudents: string[] = [];
 

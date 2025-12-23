@@ -1,6 +1,6 @@
 import type { jsPDF } from 'jspdf';
 import { getBase64Image } from './helpers';
-import { setDejaVuFont } from './fontLoader';
+import { setDejaVuFont } from './optimizedFontLoader';
 
 interface StudentData {
   nm_siswa: string;
