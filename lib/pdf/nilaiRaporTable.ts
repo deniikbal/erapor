@@ -173,6 +173,9 @@ export async function generateMapelRow(
     if (yPos + rowHeight > pageHeight - margins.margin_bottom) {
         doc.addPage();
 
+        // Re-establish font after page break
+        await setDejaVuFont(doc, 'normal');
+
         // Reserve space for student header info (will be added later in post-processing)
         // Student header info is ~21mm tall (4 rows + spacing + reduced gap)
         const studentHeaderHeight = 21;
@@ -243,6 +246,9 @@ export async function generateNilaiRaporTable(
         // Check if kelompok header fits, if not add new page
         if (yPos + 8 > pageHeight - margins.margin_bottom) {
             doc.addPage();
+
+            // Re-establish font after page break
+            await setDejaVuFont(doc, 'normal');
 
             // Reserve space for student header info
             const studentHeaderHeight = 21;

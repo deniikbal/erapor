@@ -49,7 +49,8 @@ export default function NilaiRaporPage() {
         margin_top: 20,
         margin_bottom: 20,
         margin_left: 20,
-        margin_right: 20
+        margin_right: 20,
+        ttd_layout: 'classic'
     });
     const [savingMargin, setSavingMargin] = useState(false);
 
@@ -152,7 +153,8 @@ export default function NilaiRaporPage() {
                     margin_top: Number(data.data.margin_top) || 20,
                     margin_bottom: Number(data.data.margin_bottom) || 20,
                     margin_left: Number(data.data.margin_left) || 20,
-                    margin_right: Number(data.data.margin_right) || 20
+                    margin_right: Number(data.data.margin_right) || 20,
+                    ttd_layout: data.data.ttd_layout || 'classic'
                 });
             }
         } catch (err) {
@@ -439,7 +441,8 @@ export default function NilaiRaporPage() {
                 namaWaliKelas: namaWaliKelasWithGelar,
                 nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
                 namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
-                nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : ''
+                nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : '',
+                layout: marginSettings.ttd_layout || 'classic'
             };
 
             yAfterTable = await generateSignatureSection(doc, yAfterTable, signatureData, marginSettings);
@@ -571,7 +574,6 @@ export default function NilaiRaporPage() {
             // Create PDF with compression enabled and optimizations
             const doc = new jsPDF({
                 compress: true,
-                putOnlyUsedFonts: true,
                 floatPrecision: 2 // Reduce precision for smaller file size
             });
 
@@ -601,6 +603,9 @@ export default function NilaiRaporPage() {
                     // Add page break before each student (except first)
                     if (!isFirstStudent) {
                         doc.addPage();
+                        // Clear font state cache to ensure font is re-applied for this student
+                        const { clearFontState } = await import('@/lib/pdf/optimizedFontLoader');
+                        clearFontState(doc);
                     }
                     isFirstStudent = false;
 
@@ -735,7 +740,8 @@ export default function NilaiRaporPage() {
                         namaWaliKelas: namaWaliKelasWithGelar,
                         nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
                         namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
-                        nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : ''
+                        nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : '',
+                        layout: marginSettings.ttd_layout || 'classic'
                     };
 
                     yAfterTable = await generateSignatureSection(doc, yAfterTable, signatureData, marginSettings);
@@ -902,6 +908,20 @@ export default function NilaiRaporPage() {
                                 onChange={(e) => setMarginSettings({ ...marginSettings, margin_right: parseFloat(e.target.value) || 0 })}
                                 disabled={savingMargin}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="ttd_layout">Letak Tanda Tangan Kepsek</Label>
+                            <select
+                                id="ttd_layout"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={marginSettings.ttd_layout || 'classic'}
+                                onChange={(e) => setMarginSettings({ ...marginSettings, ttd_layout: e.target.value })}
+                                disabled={savingMargin}
+                            >
+                                <option value="classic">Dibawah (Classic)</option>
+                                <option value="parallel">Sejajar (Parallel)</option>
+                            </select>
                         </div>
                     </div>
 

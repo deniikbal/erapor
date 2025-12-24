@@ -64,7 +64,7 @@ export async function generateNilaiRaporHeader(
     await setDejaVuFont(doc, 'normal');
     doc.text(headerInfo.kelas, colonMid + 5, yPos);
 
-    yPos += 5;
+    yPos += 4;
 
     // NIS/NISN
     await setDejaVuFont(doc, 'normal');
@@ -81,7 +81,7 @@ export async function generateNilaiRaporHeader(
     await setDejaVuFont(doc, 'normal');
     doc.text(headerInfo.fase, colonMid + 5, yPos);
 
-    yPos += 5;
+    yPos += 4;
 
     // Sekolah
     await setDejaVuFont(doc, 'normal');
@@ -98,7 +98,7 @@ export async function generateNilaiRaporHeader(
     const semesterText = headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2';
     doc.text(semesterText, colonMid + 5, yPos);
 
-    yPos += 5;
+    yPos += 4;
 
     // Alamat
     await setDejaVuFont(doc, 'normal');
@@ -131,6 +131,10 @@ export async function generateNilaiRaporHeader(
     doc.text('LAPORAN HASIL BELAJAR', pageWidth / 2, yPos, { align: 'center' });
 
     yPos += 5;
+
+    // Ensure font is reset to normal before returning
+    await setDejaVuFont(doc, 'normal');
+    doc.setFontSize(9);
 
     return yPos; // Return position for next content
 }

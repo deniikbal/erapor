@@ -48,7 +48,7 @@ export async function generateStudentHeaderInfo(
     await setDejaVuFont(doc, 'normal');
     doc.text(studentInfo.nm_kelas, colonMid + 5, yPos);
 
-    yPos += 5;
+    yPos += 4;
 
     // Row 2: NIS/NISN & Fase
     await setDejaVuFont(doc, 'normal');
@@ -64,7 +64,7 @@ export async function generateStudentHeaderInfo(
     await setDejaVuFont(doc, 'normal');
     doc.text(studentInfo.fase, colonMid + 5, yPos);
 
-    yPos += 5;
+    yPos += 4;
 
     // Row 3: Sekolah & Semester
     await setDejaVuFont(doc, 'normal');
@@ -79,7 +79,7 @@ export async function generateStudentHeaderInfo(
     await setDejaVuFont(doc, 'normal');
     doc.text(studentInfo.semester, colonMid + 5, yPos);
 
-    yPos += 5;
+    yPos += 4;
 
     // Row 4: Alamat & Tahun Ajaran
     await setDejaVuFont(doc, 'normal');

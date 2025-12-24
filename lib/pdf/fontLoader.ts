@@ -78,27 +78,21 @@ async function ensureFontsLoaded(): Promise<void> {
 
 export async function loadDejaVuFonts(doc: jsPDF): Promise<boolean> {
   try {
-    // Initialize instance cache if it doesn't exist
-    if (!window.pdfInstanceFontCache) {
-      window.pdfInstanceFontCache = new WeakSet<jsPDF>();
-    }
-
-    // If fonts already added to this specific PDF instance, skip
-    if (window.pdfInstanceFontCache.has(doc)) {
+    // Check if font is already in this document instance
+    const fontList = doc.getFontList();
+    if (fontList['DejaVuSansCondensed']) {
       return true;
     }
 
-    // Ensure fonts are loaded to cache
+    // Ensure fonts are loaded to the global cache (base64)
     await ensureFontsLoaded();
 
     if (!window.dejavuFontsCache) {
-      console.warn('Fonts not cached');
+      console.warn('DejaVu fonts not in global cache');
       return false;
     }
 
     // Add fonts to this specific jsPDF instance
-    console.log('Adding fonts to jsPDF instance...');
-
     if (window.dejavuFontsCache.normal) {
       doc.addFileToVFS('DejaVuSansCondensed.ttf', window.dejavuFontsCache.normal);
       doc.addFont('DejaVuSansCondensed.ttf', 'DejaVuSansCondensed', 'normal');
@@ -109,13 +103,9 @@ export async function loadDejaVuFonts(doc: jsPDF): Promise<boolean> {
       doc.addFont('DejaVuSansCondensed-Bold.ttf', 'DejaVuSansCondensed', 'bold');
     }
 
-    // Mark this PDF instance as having fonts loaded
-    window.pdfInstanceFontCache.add(doc);
-
-    console.log('Fonts added to jsPDF instance successfully');
     return true;
   } catch (error) {
-    console.error('Error adding fonts to jsPDF:', error);
+    console.error('Error loading fonts into jsPDF:', error);
     return false;
   }
 }
@@ -124,17 +114,13 @@ export async function setDejaVuFont(doc: jsPDF, style: 'normal' | 'bold' = 'norm
   try {
     const loaded = await loadDejaVuFonts(doc);
 
-    if (loaded && window.dejavuFontsCache) {
+    if (loaded) {
       doc.setFont('DejaVuSansCondensed', style);
-      console.log(`Font set to DejaVuSansCondensed-${style}`);
     } else {
-      // Fallback to helvetica
       doc.setFont('helvetica', style);
-      console.warn('DejaVu font not loaded, using helvetica fallback');
     }
   } catch (error) {
-    // Fallback to helvetica on error
     doc.setFont('helvetica', style);
-    console.error('Error setting font, using helvetica fallback:', error);
+    console.error('Error setting font:', error);
   }
 }

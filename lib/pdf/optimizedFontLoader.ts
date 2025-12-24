@@ -1,52 +1,33 @@
 import type { jsPDF } from 'jspdf';
 import { loadDejaVuFonts } from './fontLoader';
 
-// Track current font state per PDF instance to avoid redundant setFont calls
-const fontStateCache = new WeakMap<jsPDF, { family: string; style: string }>();
-
 /**
- * Optimized font setter that only changes font when needed
+ * Stateless font setter that always calls doc.setFont.
+ * Removed all caching to prevent desynchronization during bulk PDF generation.
  */
 export async function setDejaVuFont(doc: jsPDF, style: 'normal' | 'bold' = 'normal'): Promise<void> {
     try {
-        // Load fonts if not already loaded for this instance
         const loaded = await loadDejaVuFonts(doc);
-
         if (loaded) {
-            // Check if font is already set to avoid redundant operations
-            const currentState = fontStateCache.get(doc);
-            const targetFont = 'DejaVuSansCondensed';
-
-            if (currentState?.family === targetFont && currentState?.style === style) {
-                // Font already set, skip
-                return;
-            }
-
-            // Set font and update cache
-            doc.setFont(targetFont, style);
-            fontStateCache.set(doc, { family: targetFont, style });
+            doc.setFont('DejaVuSansCondensed', style);
         } else {
-            // Fallback to helvetica
-            const currentState = fontStateCache.get(doc);
-            if (currentState?.family === 'helvetica' && currentState?.style === style) {
-                return;
-            }
-
             doc.setFont('helvetica', style);
-            fontStateCache.set(doc, { family: 'helvetica', style });
-            console.warn('DejaVu font not loaded, using helvetica fallback');
         }
     } catch (error) {
-        // Fallback to helvetica on error
         doc.setFont('helvetica', style);
-        fontStateCache.set(doc, { family: 'helvetica', style });
-        console.error('Error setting font, using helvetica fallback:', error);
+        console.error('Error in setDejaVuFont:', error);
     }
 }
 
 /**
- * Clear font state when starting a new page (optional, for manual control)
+ * Force set font - identical to setDejaVuFont now as it's no longer cached.
  */
-export function clearFontState(doc: jsPDF): void {
-    fontStateCache.delete(doc);
+export async function forceSetDejaVuFont(doc: jsPDF, style: 'normal' | 'bold' = 'normal'): Promise<void> {
+    return setDejaVuFont(doc, style);
+}
+
+/**
+ * Clear font state - now a no-op as there is no cache.
+ */
+export function clearFontState(_doc: jsPDF): void {
 }

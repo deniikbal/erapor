@@ -2,8 +2,6 @@
 const nextConfig = {
   images: { unoptimized: true },
   experimental: {
-    // Disable Turbopack to avoid Windows symlink permission issues with pg package
-    turbo: false,
   },
 };
 

@@ -137,6 +137,7 @@ export type MarginSettings = {
   margin_bottom: number;
   margin_left: number;
   margin_right: number;
+  ttd_layout?: string; // layout ttd: 'classic' atau 'parallel'
   created_at?: string;
   updated_at?: string;
 };
