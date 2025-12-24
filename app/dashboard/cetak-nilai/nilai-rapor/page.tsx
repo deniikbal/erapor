@@ -442,6 +442,7 @@ export default function NilaiRaporPage() {
                 nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
                 namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
                 nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : '',
+                statusKepsek: tanggalRaporData.data?.[0]?.status_kepsek || 'Kepala Sekolah',
                 layout: marginSettings.ttd_layout || 'classic'
             };
 
@@ -581,7 +582,7 @@ export default function NilaiRaporPage() {
             const { loadDejaVuFonts } = await import('@/lib/pdf/fontLoader');
             await loadDejaVuFonts(doc);
             let isFirstStudent = true;
-            const failedStudents: string[] = [];
+            const failedStudents: { name: string; error: string }[] = [];
 
             // Loop through filtered students
             for (let studentIndex = 0; studentIndex < filteredSiswa.length; studentIndex++) {
@@ -637,15 +638,18 @@ export default function NilaiRaporPage() {
 
                     let yAfterHeader = await generateNilaiRaporHeader(doc, headerInfo, marginSettings);
 
-                    // Fetch student-specific data (parallel)
+                    // Fetch student-specific data with retry mechanism
+                    const { fetchWithRetry } = await import('@/lib/fetchRetryHelper');
+
                     const [mapelRes, kehadiranRes, catatanWaliRes] = await Promise.all([
-                        fetch(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`),
-                        fetch(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`),
-                        fetch(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`)
+                        fetchWithRetry(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`, undefined, 3, 1000),
+                        fetchWithRetry(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000),
+                        fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000)
                     ]);
 
                     if (!mapelRes.ok) {
-                        throw new Error('Gagal mengambil data mata pelajaran');
+                        const errorText = await mapelRes.text().catch(() => mapelRes.statusText);
+                        throw new Error(`Gagal mengambil data mata pelajaran: ${errorText}`);
                     }
 
                     // Parse JSON in parallel
@@ -656,7 +660,7 @@ export default function NilaiRaporPage() {
                     ]);
 
                     if (!mapelData.success || !mapelData.kelompok) {
-                        throw new Error('Data mata pelajaran tidak valid');
+                        throw new Error('Data mata pelajaran tidak valid atau kosong');
                     }
 
                     // Generate tables
@@ -741,6 +745,7 @@ export default function NilaiRaporPage() {
                         nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
                         namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
                         nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : '',
+                        statusKepsek: tanggalRaporData.data?.[0]?.status_kepsek || 'Kepala Sekolah',
                         layout: marginSettings.ttd_layout || 'classic'
                     };
 
@@ -782,9 +787,10 @@ export default function NilaiRaporPage() {
                     }
 
                 } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
                     console.error(`Error generating PDF for ${siswa.nm_siswa}:`, err);
-                    failedStudents.push(siswa.nm_siswa);
-                    toast.error(`Gagal membuat PDF untuk ${siswa.nm_siswa}`);
+                    failedStudents.push({ name: siswa.nm_siswa, error: errorMessage });
+                    toast.error(`Gagal membuat PDF untuk ${siswa.nm_siswa}: ${errorMessage}`);
                     // Continue with next student
                 }
             }
@@ -795,10 +801,15 @@ export default function NilaiRaporPage() {
             doc.save(fileName);
 
             // Show summary
+            const successCount = filteredSiswa.length - failedStudents.length;
             if (failedStudents.length > 0) {
-                toast.warning(`PDF berhasil dibuat untuk ${filteredSiswa.length - failedStudents.length} siswa. Gagal: ${failedStudents.join(', ')}`);
+                const failedNames = failedStudents.map(f => `${f.name} (${f.error})`).join(', ');
+                toast.warning(
+                    `PDF berhasil dibuat untuk ${successCount}/${filteredSiswa.length} siswa. Gagal: ${failedNames}`,
+                    { duration: 10000 }
+                );
             } else {
-                toast.success(`PDF Nilai Rapor untuk ${filteredSiswa.length} siswa berhasil diunduh!`);
+                toast.success(`PDF berhasil dibuat untuk semua ${filteredSiswa.length} siswa!`);
             }
         } catch (err) {
             console.error('Error generating bulk PDFs:', err);

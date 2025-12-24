@@ -96,6 +96,7 @@ export type Kelas = {
   semester_id: string | null;
   // Fields from tabel_ptk (LEFT JOIN)
   nama_wali_kelas?: string | null;
+  nip_wali_kelas?: string | null;
   // Calculated field
   jumlah_siswa?: number;
 };

@@ -9,6 +9,7 @@ export interface SignatureData {
     nipWaliKelas?: string;
     namaKepalaSekolah?: string;
     nipKepalaSekolah?: string;
+    statusKepsek?: string; // Dynamic label from database (e.g., 'Kepala Sekolah', 'Plt. Kepala Sekolah', etc.)
     layout?: string; // 'classic' atau 'parallel'
 }
 
@@ -56,31 +57,33 @@ export async function generateSignatureSection(
 
     // Render classic mode elements (parent left, teacher right) only if NOT parallel
     if (layout !== 'parallel') {
-        // LEFT COLUMN: Orang Tua Murid
-        doc.text('Orang Tua Murid', col1Center, yPos, { align: 'center' });
+        // LEFT COLUMN: Orang Tua Murid (left-aligned)
+        const col1X = leftMargin;
+        doc.text('Orang Tua Murid', col1X, yPos, { align: 'left' });
 
-        // Dotted line centered
-        const lineLen = Math.min(45, columnWidth - 10);
-        const lineStart = col1Center - (lineLen / 2);
+        // Dotted line left-aligned
+        const lineLen = Math.min(50, columnWidth - 10);
+        const lineStart = col1X;
         for (let x = lineStart; x < lineStart + lineLen; x += 1) {
             doc.text('.', x, signatureLineY);
         }
         doc.setLineWidth(0.3);
         doc.line(lineStart, signatureLineY + 0.5, lineStart + lineLen, signatureLineY + 0.5);
 
-        // RIGHT COLUMN: Date, Place and Wali Kelas
-        doc.text(`${tempat}, ${tanggal}`, col3Center, yPos, { align: 'center' });
-        doc.text('Wali Kelas', col3Center, yPos + 5, { align: 'center' });
+        // RIGHT COLUMN: Date, Place and Wali Kelas (left-aligned)
+        const col3X = leftMargin + (columnWidth * 2);
+        doc.text(`${tempat}, ${tanggal}`, col3X, yPos, { align: 'left' });
+        doc.text('Wali Kelas', col3X, yPos + 5, { align: 'left' });
 
         await setDejaVuFont(doc, 'bold');
         const namaWali = signatureData.namaWaliKelas || 'Wali Kelas';
         const waliWidth = doc.getTextWidth(namaWali);
-        doc.text(namaWali, col3Center, signatureLineY, { align: 'center' });
-        doc.line(col3Center - (waliWidth / 2), signatureLineY + 0.5, col3Center + (waliWidth / 2), signatureLineY + 0.5);
+        doc.text(namaWali, col3X, signatureLineY, { align: 'left' });
+        doc.line(col3X, signatureLineY + 0.5, col3X + waliWidth, signatureLineY + 0.5);
 
         await setDejaVuFont(doc, 'normal');
         const nipWali = signatureData.nipWaliKelas || '';
-        doc.text(nipWali, col3Center, signatureLineY + 5, { align: 'center' });
+        doc.text(nipWali, col3X, signatureLineY + 5, { align: 'left' });
     }
 
     // PRINCIPAL SECTION
@@ -93,8 +96,9 @@ export async function generateSignatureSection(
         await setDejaVuFont(doc, 'normal');
         doc.setFontSize(10);
         const labelY = yPos;
+        const statusKepsek = signatureData.statusKepsek || 'Kepala Sekolah';
         doc.text('Orang Tua Murid', leftMargin, labelY, { align: 'left' });
-        doc.text('Kepala Sekolah', leftMargin + columnWidth, labelY, { align: 'left' });
+        doc.text(statusKepsek, leftMargin + columnWidth, labelY, { align: 'left' });
         doc.text(`${tempat}, ${tanggal}`, leftMargin + (columnWidth * 2), labelY, { align: 'left' });
         doc.text('Wali Kelas', leftMargin + (columnWidth * 2), labelY + 5, { align: 'left' });
 
@@ -141,25 +145,25 @@ export async function generateSignatureSection(
 
         return sigY + 15; // Extra bottom spacing
     } else {
-        // Classic: Principal centered below
+        // Classic: Principal centered below (but left-aligned text)
         const kepsekY = signatureLineY + 15;
         const kepsekSignY = kepsekY + 25;
 
-        // Use center of page for classic principal
-        const pageCenter = leftMargin + (availableWidth / 2);
+        // Use center column for classic principal
+        const col2X = leftMargin + columnWidth;
 
-        doc.text('Mengetahui,', pageCenter, kepsekY, { align: 'center' });
-        doc.text('Kepala Sekolah', pageCenter, kepsekY + 5, { align: 'center' });
+        const statusKepsek = signatureData.statusKepsek || 'Kepala Sekolah';
+        doc.text(statusKepsek, col2X, kepsekY, { align: 'left' });
 
         await setDejaVuFont(doc, 'bold');
         const namaKepsek = signatureData.namaKepalaSekolah || 'Kepala Sekolah';
         const kepsekWidth = doc.getTextWidth(namaKepsek);
-        doc.text(namaKepsek, pageCenter, kepsekSignY, { align: 'center' });
-        doc.line(pageCenter - (kepsekWidth / 2), kepsekSignY + 0.5, pageCenter + (kepsekWidth / 2), kepsekSignY + 0.5);
+        doc.text(namaKepsek, col2X, kepsekSignY, { align: 'left' });
+        doc.line(col2X, kepsekSignY + 0.5, col2X + kepsekWidth, kepsekSignY + 0.5);
 
         await setDejaVuFont(doc, 'normal');
         const nipKepsek = signatureData.nipKepalaSekolah || '';
-        doc.text(nipKepsek, pageCenter, kepsekSignY + 5, { align: 'center' });
+        doc.text(nipKepsek, col2X, kepsekSignY + 5, { align: 'left' });
 
         return kepsekSignY + 10;
     }
