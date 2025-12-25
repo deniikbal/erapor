@@ -63,6 +63,7 @@ const menuItems: MenuItem[] = [
       { title: 'Data Guru', href: '/dashboard/guru', icon: UserCheck },
       { title: 'Data Siswa', href: '/dashboard/siswa', icon: GraduationCap },
       { title: 'Data Kelas', href: '/dashboard/referensi/kelas', icon: BookOpen },
+      { title: 'Data Mapel', href: '/dashboard/referensi/mapel', icon: BookOpen },
       { title: 'Data Logo', href: '/dashboard/referensi/logo', icon: ImageIcon },
       { title: 'Data Tanggal Rapor', href: '/dashboard/referensi/tanggalrapor', icon: Calendar },
     ],

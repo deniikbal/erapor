@@ -303,13 +303,13 @@ export default function AdminPelengkapRaportPage() {
                     <CardDescription>Pilih kelas untuk generate PDF pelengkap raport</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full">
+                    <div className="space-y-3">
                         <Select value={selectedKelas} onValueChange={setSelectedKelas}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Pilih Kelas" />
                             </SelectTrigger>
                             <SelectContent position="popper" className="max-h-[300px]">
-                                <SelectItem value="all">Semua Kelas ({siswaList.length} siswa)</SelectItem>
+                                <SelectItem value="all">Pilih Kelas ......</SelectItem>
                                 {kelasList.map(kelas => {
                                     const count = siswaList.filter(s => s.nm_kelas === kelas).length;
                                     return (
@@ -324,159 +324,172 @@ export default function AdminPelengkapRaportPage() {
                 </CardContent>
             </Card>
 
-            {/* Student List Card */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-primary" />
-                                <CardTitle>Daftar Siswa</CardTitle>
-                            </div>
-                            <CardDescription>Klik tombol "Cetak PDF" untuk generate dokumen identitas siswa</CardDescription>
-                        </div>
+            {/* Instruction Card - Show when no class selected */}
+            {selectedKelas === 'all' && (
+                <Card className="border-blue-200 bg-blue-50/50">
+                    <CardContent className="pt-6">
+                        <p className="text-sm text-blue-700 flex items-center gap-2">
+                            <span className="text-lg">📌</span>
+                            <span>Silakan pilih kelas terlebih dahulu untuk menampilkan daftar siswa</span>
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
 
-                        {/* Bulk Generate Button */}
-                        <div className="flex flex-col items-end gap-2">
-                            <Button
-                                onClick={handleGenerateBulkPDFs}
-                                size="sm"
-                                variant="default"
-                                className="bg-blue-600 hover:bg-blue-700"
-                                disabled={generatingBulk || filteredSiswa.length === 0}
-                            >
-                                {generatingBulk ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Membuat ({bulkProgress.current} dari {bulkProgress.total})
-                                    </>
-                                ) : (
-                                    <>
-                                        <DownloadCloud className="h-4 w-4 mr-2" />
-                                        Cetak PDF Semua Siswa
-                                    </>
-                                )}
-                            </Button>
-                            {generatingBulk && bulkProgress.total > 0 && (
-                                <div className="text-sm text-muted-foreground">
-                                    Membuat PDF untuk: {bulkProgress.currentStudent || 'Memulai...'}
+            {/* Student List Card - Only show when a class is selected */}
+            {selectedKelas !== 'all' && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                    <CardTitle>Daftar Siswa</CardTitle>
                                 </div>
-                            )}
+                                <CardDescription>Klik tombol "Cetak PDF" untuk generate dokumen identitas siswa</CardDescription>
+                            </div>
+
+                            {/* Bulk Generate Button */}
+                            <div className="flex flex-col items-end gap-2">
+                                <Button
+                                    onClick={handleGenerateBulkPDFs}
+                                    size="sm"
+                                    variant="default"
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                    disabled={generatingBulk || filteredSiswa.length === 0}
+                                >
+                                    {generatingBulk ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Membuat ({bulkProgress.current} dari {bulkProgress.total})
+                                        </>
+                                    ) : (
+                                        <>
+                                            <DownloadCloud className="h-4 w-4 mr-2" />
+                                            Cetak PDF Semua Siswa
+                                        </>
+                                    )}
+                                </Button>
+                                {generatingBulk && bulkProgress.total > 0 && (
+                                    <div className="text-sm text-muted-foreground">
+                                        Membuat PDF untuk: {bulkProgress.currentStudent || 'Memulai...'}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[60px]">No</TableHead>
-                                    <TableHead>Nama Lengkap</TableHead>
-                                    <TableHead>NIS</TableHead>
-                                    <TableHead>Kelas</TableHead>
-                                    <TableHead className="text-right w-[150px]">Aksi</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {paginatedSiswa.length === 0 ? (
+                    </CardHeader>
+                    <CardContent>
+                        <div className="rounded-md border">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                            Tidak ada data siswa
-                                        </TableCell>
+                                        <TableHead className="w-[60px]">No</TableHead>
+                                        <TableHead>Nama Lengkap</TableHead>
+                                        <TableHead>NIS</TableHead>
+                                        <TableHead>Kelas</TableHead>
+                                        <TableHead className="text-right w-[150px]">Aksi</TableHead>
                                     </TableRow>
-                                ) : (
-                                    paginatedSiswa.map((siswa, index) => (
-                                        <TableRow key={siswa.peserta_didik_id}>
-                                            <TableCell className="font-medium">
-                                                {startIndex + index + 1}
-                                            </TableCell>
-                                            <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
-                                            <TableCell>{siswa.nis}</TableCell>
-                                            <TableCell>{siswa.nm_kelas || '-'}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button
-                                                    onClick={() => handleGeneratePDF(siswa)}
-                                                    size="sm"
-                                                    variant="default"
-                                                    className="bg-red-600 hover:bg-red-700"
-                                                    disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
-                                                >
-                                                    {generatingPdf === siswa.peserta_didik_id ? (
-                                                        <>
-                                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                            Membuat PDF...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Download className="h-3 w-3 mr-1" />
-                                                            Cetak PDF
-                                                        </>
-                                                    )}
-                                                </Button>
+                                </TableHeader>
+                                <TableBody>
+                                    {paginatedSiswa.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                                Tidak ada data siswa
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-between px-2 py-4">
-                            <div className="text-sm text-muted-foreground">
-                                Menampilkan {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredSiswa.length)} dari {filteredSiswa.length} data
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
-                                    disabled={currentPage === 1}
-                                >
-                                    Previous
-                                </Button>
-
-                                <div className="flex items-center gap-1">
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                                        if (
-                                            page === 1 ||
-                                            page === totalPages ||
-                                            (page >= currentPage - 1 && page <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <Button
-                                                    key={page}
-                                                    variant={currentPage === page ? "default" : "outline"}
-                                                    size="sm"
-                                                    onClick={() => handlePageChange(page)}
-                                                    className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : ""}
-                                                >
-                                                    {page}
-                                                </Button>
-                                            );
-                                        } else if (page === currentPage - 2 || page === currentPage + 2) {
-                                            return <span key={page} className="px-2">...</span>;
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
-                                >
-                                    Next
-                                </Button>
-                            </div>
+                                    ) : (
+                                        paginatedSiswa.map((siswa, index) => (
+                                            <TableRow key={siswa.peserta_didik_id}>
+                                                <TableCell className="font-medium">
+                                                    {startIndex + index + 1}
+                                                </TableCell>
+                                                <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
+                                                <TableCell>{siswa.nis}</TableCell>
+                                                <TableCell>{siswa.nm_kelas || '-'}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button
+                                                        onClick={() => handleGeneratePDF(siswa)}
+                                                        size="sm"
+                                                        variant="default"
+                                                        className="bg-red-600 hover:bg-red-700"
+                                                        disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
+                                                    >
+                                                        {generatingPdf === siswa.peserta_didik_id ? (
+                                                            <>
+                                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                                Membuat PDF...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Download className="h-3 w-3 mr-1" />
+                                                                Cetak PDF
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
-                    )}
 
-                </CardContent>
-            </Card>
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-2 py-4">
+                                <div className="text-sm text-muted-foreground">
+                                    Menampilkan {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredSiswa.length)} dari {filteredSiswa.length} data
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Previous
+                                    </Button>
 
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                            if (
+                                                page === 1 ||
+                                                page === totalPages ||
+                                                (page >= currentPage - 1 && page <= currentPage + 1)
+                                            ) {
+                                                return (
+                                                    <Button
+                                                        key={page}
+                                                        variant={currentPage === page ? "default" : "outline"}
+                                                        size="sm"
+                                                        onClick={() => handlePageChange(page)}
+                                                        className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                                                    >
+                                                        {page}
+                                                    </Button>
+                                                );
+                                            } else if (page === currentPage - 2 || page === currentPage + 2) {
+                                                return <span key={page} className="px-2">...</span>;
+                                            }
+                                            return null;
+                                        })}
+                                    </div>
+
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                    </CardContent>
+                </Card>
+            )}
         </div >
     );
 }

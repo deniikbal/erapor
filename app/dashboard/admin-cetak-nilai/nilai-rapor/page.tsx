@@ -273,11 +273,17 @@ export default function AdminNilaiRaporPage() {
                             <SelectValue placeholder="Pilih kelas..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {kelasList.map((kelas) => (
-                                <SelectItem key={kelas.rombongan_belajar_id} value={kelas.rombongan_belajar_id}>
-                                    {kelas.nm_kelas} {kelas.jumlah_siswa ? `(${kelas.jumlah_siswa} siswa)` : ''}
-                                </SelectItem>
-                            ))}
+                            {kelasList
+                                .filter(kelas => {
+                                    const jenis = Number(kelas.jenis_rombel);
+                                    return jenis === 1 || jenis === 9;
+                                })
+                                .sort((a, b) => a.nm_kelas.localeCompare(b.nm_kelas, 'id', { numeric: true, sensitivity: 'base' }))
+                                .map((kelas) => (
+                                    <SelectItem key={kelas.rombongan_belajar_id} value={kelas.rombongan_belajar_id}>
+                                        {kelas.nm_kelas} {kelas.jumlah_siswa ? `(${kelas.jumlah_siswa} siswa)` : ''}
+                                    </SelectItem>
+                                ))}
                         </SelectContent>
                     </Select>
                 </CardContent>
