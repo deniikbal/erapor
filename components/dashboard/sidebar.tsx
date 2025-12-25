@@ -28,6 +28,7 @@ import {
   ClipboardEdit,
   Printer,
   RefreshCw,
+  Table,
 } from 'lucide-react';
 import { removeCurrentUser, getCurrentUser } from '@/lib/auth-client';
 import type { User } from '@/lib/db';
@@ -74,6 +75,7 @@ const menuItems: MenuItem[] = [
     submenu: [
       { title: 'Pelengkap Raport', href: '/dashboard/admin-cetak-nilai/pelengkap-raport', icon: FileText },
       { title: 'Nilai Rapor', href: '/dashboard/admin-cetak-nilai/nilai-rapor', icon: GraduationCap },
+      { title: 'Leger Rapor', href: '/dashboard/admin-cetak-nilai/leger-rapor', icon: Table },
     ],
   },
   {
@@ -91,6 +93,7 @@ const menuItems: MenuItem[] = [
     submenu: [
       { title: 'Pelengkap Raport', href: '/dashboard/cetak-nilai/pelengkap-raport', icon: FileText },
       { title: 'Nilai Rapor', href: '/dashboard/cetak-nilai/nilai-rapor', icon: GraduationCap },
+      { title: 'Leger Rapor', href: '/dashboard/cetak-nilai/leger-rapor', icon: Table },
     ],
   },
   {
