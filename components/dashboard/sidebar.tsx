@@ -142,8 +142,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col gap-2 bg-background border-r">
       <div className="flex h-14 items-center border-b px-4 lg:h-16 lg:px-6">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <LayoutDashboard className="h-6 w-6 text-primary" />
-          <span className="text-lg">Dashboard</span>
+          <img src="/erap-icon.png" alt="ERAP+" className="h-8 w-8" />
+          <div className="flex items-center">
+            <span className="text-xl font-bold text-[#1e3a8a]">ERAP</span>
+            <span className="text-xl font-bold text-[#10b981]">+</span>
+          </div>
         </Link>
       </div>
       <ScrollArea className="flex-1 px-3">

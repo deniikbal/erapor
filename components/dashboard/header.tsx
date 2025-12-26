@@ -49,6 +49,7 @@ export function Header() {
 
       <div className="flex-1" />
 
+
       {/* Hide bell icon on mobile */}
       <Button variant="ghost" size="icon" className="relative hidden sm:flex">
         <Bell className="h-5 w-5" />

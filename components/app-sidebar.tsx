@@ -148,10 +148,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <Sidebar variant="sidebar" {...props}>
             <SidebarHeader className="flex h-14 items-center border-b px-6">
                 <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-lg">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                        <School className="h-4 w-4" />
+                    <img src="/erap-icon.png" alt="ERAP+" className="h-8 w-8" />
+                    <div className="flex items-center">
+                        <span className="text-xl font-bold text-[#1e3a8a]">ERAP</span>
+                        <span className="text-xl font-bold text-[#10b981]">+</span>
                     </div>
-                    <span>e-Rapor</span>
                 </Link>
             </SidebarHeader>
 

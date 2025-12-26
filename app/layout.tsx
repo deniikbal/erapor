@@ -3,12 +3,12 @@ import type { Metadata } from 'next';
 import { Toaster } from '@/components/ui/sonner';
 
 export const metadata: Metadata = {
-  title: 'E-Rapor - Sistem Informasi Rapor',
-  description: 'Sistem Informasi E-Rapor untuk pengelolaan nilai siswa',
+  title: 'ERAP+ | Interface Modern untuk e-Rapor',
+  description: 'ERAP+ (e-Rapor Plus) - Interface modern dan mudah untuk mengakses data e-Rapor sekolah. Portal pintar untuk guru dan admin.',
   openGraph: {
     images: [
       {
-        url: 'https://bolt.new/static/og_default.png',
+        url: '/erap-logo.png',
       },
     ],
   },
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     images: [
       {
-        url: 'https://bolt.new/static/og_default.png',
+        url: '/erap-logo.png',
       },
     ],
   },

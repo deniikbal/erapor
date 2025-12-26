@@ -56,11 +56,17 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white">
             <div className="max-w-md space-y-6">
-              <h1 className="text-4xl font-bold leading-tight">
-                Sistem Informasi E-Rapor
-              </h1>
+              <div className="flex items-center gap-3 mb-6">
+                <img src="/erap-icon.png" alt="ERAP+" className="h-16 w-16" />
+                <div>
+                  <h1 className="text-4xl font-bold leading-tight">
+                    <span className="text-white">ERAP</span><span className="text-emerald-200">+</span>
+                  </h1>
+                  <p className="text-emerald-100 text-sm">Interface Modern untuk e-Rapor</p>
+                </div>
+              </div>
               <p className="text-lg text-emerald-50">
-                Platform digital untuk pengelolaan rapor dan nilai siswa secara efisien dan terstruktur
+                Portal pintar untuk akses data e-Rapor sekolah. Memudahkan guru dan admin dalam pengelolaan rapor siswa.
               </p>
               <div className="grid grid-cols-2 gap-4 pt-8">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
@@ -83,6 +89,15 @@ export default function LoginPage() {
         <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
           <Card className="w-full max-w-md shadow-xl">
             <CardHeader className="space-y-1">
+              <div className="flex flex-col items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <img src="/erap-icon.png" alt="ERAP+" className="h-10 w-10" />
+                  <div>
+                    <span className="text-2xl font-bold text-[#1e3a8a]">ERAP</span>
+                    <span className="text-2xl font-bold text-[#10b981]">+</span>
+                  </div>
+                </div>
+              </div>
               <CardTitle className="text-2xl font-bold text-center">Selamat Datang</CardTitle>
               <CardDescription className="text-center">
                 Masukkan username dan password untuk mengakses sistem
@@ -156,13 +171,9 @@ export default function LoginPage() {
 
       <footer className="w-full py-4 text-center bg-white dark:bg-gray-950 border-t border-slate-200 dark:border-slate-800 shrink-0">
         <div className="flex justify-center items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
-          <span>&copy; {new Date().getFullYear()} Sistem E-Rapor. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} ERAP+ &mdash; Interface Modern untuk e-Rapor</span>
           <span className="mx-2 text-slate-300 dark:text-slate-700">|</span>
-          <a href="#" className="hover:text-emerald-600 transition-colors">Kebijakan Privasi</a>
-          <span className="text-slate-300 dark:text-slate-700">•</span>
-          <a href="#" className="hover:text-emerald-600 transition-colors">Syarat & Ketentuan</a>
-          <span className="text-slate-300 dark:text-slate-700">•</span>
-          <a href="#" className="hover:text-emerald-600 transition-colors">Bantuan</a>
+          <span className="text-xs">Data bersumber dari aplikasi e-Rapor Kemdikbud</span>
         </div>
       </footer>
     </div>
