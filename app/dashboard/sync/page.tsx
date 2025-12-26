@@ -275,7 +275,7 @@ export default function SyncPage() {
         </p>
       </div>
 
-      <Card>
+      <Card className="rounded-sm border-l-4 border-l-emerald-600">
         <CardHeader>
           <CardTitle>Sinkronisasi Database</CardTitle>
           <CardDescription>

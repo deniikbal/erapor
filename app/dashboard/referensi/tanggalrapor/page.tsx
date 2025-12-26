@@ -50,7 +50,7 @@ export default function DataTanggalRaporPage() {
   const [loading, setLoading] = useState(true);
   const [loadingSemester, setLoadingSemester] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,11 +58,11 @@ export default function DataTanggalRaporPage() {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedItem, setSelectedItem] = useState<TanggalRapor | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  
+
   // Delete confirmation modal state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<TanggalRapor | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     semester_id: '',
@@ -151,8 +151,8 @@ export default function DataTanggalRaporPage() {
     try {
       const url = '/api/tanggalrapor';
       const method = modalMode === 'create' ? 'POST' : 'PATCH';
-      const body = modalMode === 'create' 
-        ? formData 
+      const body = modalMode === 'create'
+        ? formData
         : { ...formData, tanggal_id: selectedItem?.tanggal_id };
 
       const response = await fetch(url, {
@@ -174,11 +174,11 @@ export default function DataTanggalRaporPage() {
 
       setIsModalOpen(false);
       toast.success(
-        modalMode === 'create' 
-          ? 'Data tanggal rapor berhasil ditambahkan' 
+        modalMode === 'create'
+          ? 'Data tanggal rapor berhasil ditambahkan'
           : 'Data tanggal rapor berhasil diupdate'
       );
-      
+
       fetchTanggalRapor();
     } catch (err) {
       const errorMessage = 'Terjadi kesalahan saat menyimpan data';
@@ -252,7 +252,7 @@ export default function DataTanggalRaporPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Tanggal Rapor</h1>
           <p className="text-muted-foreground">Kelola data tanggal pembagian rapor</p>
         </div>
-        <Card>
+        <Card className="rounded-sm border-l-4 border-l-emerald-600">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-4 w-96" />
@@ -292,7 +292,7 @@ export default function DataTanggalRaporPage() {
         </Button>
       </div>
 
-      <Card>
+      <Card className="rounded-sm border-l-4 border-l-emerald-600">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
@@ -370,13 +370,13 @@ export default function DataTanggalRaporPage() {
               {modalMode === 'create' ? 'Tambah Data Tanggal Rapor' : 'Edit Data Tanggal Rapor'}
             </DialogTitle>
             <DialogDescription>
-              {modalMode === 'create' 
+              {modalMode === 'create'
                 ? 'Isi form di bawah untuk menambahkan data tanggal rapor baru'
                 : 'Update informasi tanggal rapor'
               }
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="semester_id">Semester</Label>
@@ -384,8 +384,8 @@ export default function DataTanggalRaporPage() {
                 value={formData.semester_id}
                 onValueChange={(value) => {
                   const selectedSemester = semesterList.find(s => s.semester_id === value);
-                  setFormData({ 
-                    ...formData, 
+                  setFormData({
+                    ...formData,
                     semester_id: value,
                     semester: selectedSemester?.semester || ''
                   });
@@ -404,7 +404,7 @@ export default function DataTanggalRaporPage() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="tanggal">Tanggal Rapor</Label>
               <Input

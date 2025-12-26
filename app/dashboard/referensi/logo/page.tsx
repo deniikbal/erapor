@@ -69,7 +69,7 @@ export default function DataLogoPage() {
       }
 
       setSekolahList(data.sekolah || []);
-      
+
       // Set default selected sekolah if only one
       if (data.sekolah && data.sekolah.length === 1) {
         setSelectedSekolahId(data.sekolah[0].sekolah_id);
@@ -90,7 +90,7 @@ export default function DataLogoPage() {
       }
 
       setLogo(data.logo);
-      
+
       // Set selected sekolah_id from logo data
       if (data.logo && data.logo.sekolah_id) {
         setSelectedSekolahId(data.logo.sekolah_id);
@@ -165,10 +165,10 @@ export default function DataLogoPage() {
 
     try {
       const formData = new FormData();
-      
+
       // Add sekolah_id to form data
       formData.append('sekolah_id', selectedSekolahId);
-      
+
       if (filePemda) formData.append('logo_pemda', filePemda);
       if (fileSek) formData.append('logo_sek', fileSek);
       if (fileTtd) formData.append('ttd_kepsek', fileTtd);
@@ -189,7 +189,7 @@ export default function DataLogoPage() {
       }
 
       toast.success('Logo berhasil diupload');
-      
+
       // Reset file inputs and previews
       setFilePemda(null);
       setFileSek(null);
@@ -199,10 +199,10 @@ export default function DataLogoPage() {
       setPreviewSek(null);
       setPreviewTtd(null);
       setPreviewKop(null);
-      
+
       // Reset error states
       setImageErrors({ pemda: false, sek: false, ttd: false, kop: false });
-      
+
       // Refresh data
       fetchLogo();
     } catch (err) {
@@ -245,7 +245,7 @@ export default function DataLogoPage() {
               <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p className="text-sm">
                 {currentPath && hasError ? (
-                  <>File tidak ditemukan<br/><span className="text-xs">Silakan upload ulang</span></>
+                  <>File tidak ditemukan<br /><span className="text-xs">Silakan upload ulang</span></>
                 ) : (
                   `Belum ada ${label}`
                 )}
@@ -264,7 +264,7 @@ export default function DataLogoPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Logo</h1>
           <p className="text-muted-foreground">Kelola logo sekolah dan pemda</p>
         </div>
-        <Card>
+        <Card className="rounded-sm border-l-4 border-l-emerald-600">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -298,7 +298,7 @@ export default function DataLogoPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Card>
+        <Card className="rounded-sm border-l-4 border-l-emerald-600">
           <CardHeader>
             <div className="flex items-center gap-2">
               <ImageIcon className="h-5 w-5 text-primary" />

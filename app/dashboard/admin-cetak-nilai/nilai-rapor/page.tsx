@@ -14,16 +14,22 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Siswa, User, MarginSettings, Kelas } from '@/lib/db';
-import { FileText, Settings as SettingsIcon, Loader2, Download, DownloadCloud } from 'lucide-react';
+import { FileText, Settings as SettingsIcon, Loader2, Download, DownloadCloud, Check, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCurrentUser } from '@/lib/auth-client';
 
@@ -38,6 +44,11 @@ export default function AdminNilaiRaporPage() {
     const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
     const [generatingBulk, setGeneratingBulk] = useState(false);
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentStudent: '' });
+    const [openCombobox, setOpenCombobox] = useState(false);
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
 
     // Margin settings state
     const [marginSettings, setMarginSettings] = useState({
@@ -114,6 +125,7 @@ export default function AdminNilaiRaporPage() {
 
     const handleKelasChange = (kelasId: string) => {
         setSelectedKelas(kelasId);
+        setCurrentPage(1); // Reset to page 1 when class changes
         if (kelasId) {
             fetchSiswaByKelas(kelasId);
         } else {
@@ -223,7 +235,7 @@ export default function AdminNilaiRaporPage() {
         return (
             <div className="space-y-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Nilai Rapor (Admin)</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Nilai Rapor</h1>
                     <p className="text-muted-foreground">Generate PDF nilai rapor siswa</p>
                 </div>
                 <Card>
@@ -242,7 +254,7 @@ export default function AdminNilaiRaporPage() {
         return (
             <div className="space-y-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Nilai Rapor (Admin)</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Nilai Rapor</h1>
                     <p className="text-muted-foreground">Generate PDF nilai rapor siswa</p>
                 </div>
                 <Alert variant="destructive">
@@ -268,24 +280,55 @@ export default function AdminNilaiRaporPage() {
                     <CardDescription>Pilih kelas untuk menampilkan daftar siswa</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Select value={selectedKelas} onValueChange={handleKelasChange}>
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Pilih kelas..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {kelasList
-                                .filter(kelas => {
-                                    const jenis = Number(kelas.jenis_rombel);
-                                    return jenis === 1 || jenis === 9;
-                                })
-                                .sort((a, b) => a.nm_kelas.localeCompare(b.nm_kelas, 'id', { numeric: true, sensitivity: 'base' }))
-                                .map((kelas) => (
-                                    <SelectItem key={kelas.rombongan_belajar_id} value={kelas.rombongan_belajar_id}>
-                                        {kelas.nm_kelas} {kelas.jumlah_siswa ? `(${kelas.jumlah_siswa} siswa)` : ''}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
+                    <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={openCombobox}
+                                className="w-full justify-between"
+                            >
+                                {selectedKelas
+                                    ? kelasList.find(k => k.rombongan_belajar_id === selectedKelas)?.nm_kelas +
+                                    (kelasList.find(k => k.rombongan_belajar_id === selectedKelas)?.jumlah_siswa
+                                        ? ` (${kelasList.find(k => k.rombongan_belajar_id === selectedKelas)?.jumlah_siswa} siswa)`
+                                        : '')
+                                    : 'Pilih kelas...'}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" side="bottom" align="start" avoidCollisions={false} sideOffset={4}>
+                            <Command>
+                                <CommandInput placeholder="Cari kelas..." />
+                                <CommandList>
+                                    <CommandEmpty>Kelas tidak ditemukan.</CommandEmpty>
+                                    <CommandGroup>
+                                        {kelasList
+                                            .filter(kelas => {
+                                                const jenis = Number(kelas.jenis_rombel);
+                                                return jenis === 1 || jenis === 9;
+                                            })
+                                            .sort((a, b) => a.nm_kelas.localeCompare(b.nm_kelas, 'id', { numeric: true, sensitivity: 'base' }))
+                                            .map((kelas) => (
+                                                <CommandItem
+                                                    key={kelas.rombongan_belajar_id}
+                                                    value={kelas.nm_kelas}
+                                                    onSelect={() => {
+                                                        handleKelasChange(kelas.rombongan_belajar_id);
+                                                        setOpenCombobox(false);
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={`mr-2 h-4 w-4 ${selectedKelas === kelas.rombongan_belajar_id ? 'opacity-100' : 'opacity-0'}`}
+                                                    />
+                                                    {kelas.nm_kelas} {kelas.jumlah_siswa ? `(${kelas.jumlah_siswa} siswa)` : ''}
+                                                </CommandItem>
+                                            ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                 </CardContent>
             </Card>
 
@@ -419,58 +462,129 @@ export default function AdminNilaiRaporPage() {
                         {loadingSiswa ? (
                             <Skeleton className="h-64 w-full" />
                         ) : (
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-[60px]">No</TableHead>
-                                            <TableHead>Nama Lengkap</TableHead>
-                                            <TableHead>NIS</TableHead>
-                                            <TableHead>Kelas</TableHead>
-                                            <TableHead className="text-right w-[150px]">Aksi</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {siswaList.length === 0 ? (
+                            <>
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                                    Tidak ada data siswa di kelas ini
-                                                </TableCell>
+                                                <TableHead className="w-[60px] py-2">No</TableHead>
+                                                <TableHead className="py-2">Nama Lengkap</TableHead>
+                                                <TableHead className="py-2">NIS</TableHead>
+                                                <TableHead className="py-2">Kelas</TableHead>
+                                                <TableHead className="text-right w-[150px] py-2">Aksi</TableHead>
                                             </TableRow>
-                                        ) : (
-                                            siswaList.map((siswa, index) => (
-                                                <TableRow key={siswa.peserta_didik_id}>
-                                                    <TableCell className="font-medium">{index + 1}</TableCell>
-                                                    <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
-                                                    <TableCell>{siswa.nis}</TableCell>
-                                                    <TableCell>{siswa.nm_kelas || '-'}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button
-                                                            onClick={() => handleGeneratePDF(siswa)}
-                                                            size="sm"
-                                                            variant="default"
-                                                            className="bg-red-600 hover:bg-red-700"
-                                                            disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
-                                                        >
-                                                            {generatingPdf === siswa.peserta_didik_id ? (
-                                                                <>
-                                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                                    Membuat PDF...
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Download className="h-3 w-3 mr-1" />
-                                                                    Cetak PDF
-                                                                </>
-                                                            )}
-                                                        </Button>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {siswaList.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                                        Tidak ada data siswa di kelas ini
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                                            ) : (
+                                                (() => {
+                                                    // Pagination logic
+                                                    const totalPages = Math.ceil(siswaList.length / ITEMS_PER_PAGE);
+                                                    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                                                    const paginatedSiswa = siswaList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                                                    return paginatedSiswa.map((siswa, index) => (
+                                                        <TableRow key={siswa.peserta_didik_id}>
+                                                            <TableCell className="font-medium py-2">{startIndex + index + 1}</TableCell>
+                                                            <TableCell className="font-medium py-2">{siswa.nm_siswa}</TableCell>
+                                                            <TableCell className="py-2">{siswa.nis}</TableCell>
+                                                            <TableCell className="py-2">{siswa.nm_kelas || '-'}</TableCell>
+                                                            <TableCell className="text-right py-2">
+                                                                <Button
+                                                                    onClick={() => handleGeneratePDF(siswa)}
+                                                                    size="sm"
+                                                                    variant="default"
+                                                                    className="bg-red-600 hover:bg-red-700"
+                                                                    disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
+                                                                >
+                                                                    {generatingPdf === siswa.peserta_didik_id ? (
+                                                                        <>
+                                                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                                            Membuat PDF...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Download className="h-3 w-3 mr-1" />
+                                                                            Cetak PDF
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ));
+                                                })()
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                {/* Pagination Controls */}
+                                {siswaList.length > 0 && (() => {
+                                    const totalPages = Math.ceil(siswaList.length / ITEMS_PER_PAGE);
+                                    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+                                    if (totalPages <= 1) return null;
+
+                                    return (
+                                        <div className="flex items-center justify-between px-2 py-4">
+                                            <div className="text-sm text-muted-foreground">
+                                                Menampilkan {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, siswaList.length)} dari {siswaList.length} data
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
+                                                    disabled={currentPage === 1}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                                    Previous
+                                                </Button>
+
+                                                <div className="flex items-center gap-1">
+                                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                                        if (
+                                                            page === 1 ||
+                                                            page === totalPages ||
+                                                            (page >= currentPage - 1 && page <= currentPage + 1)
+                                                        ) {
+                                                            return (
+                                                                <Button
+                                                                    key={page}
+                                                                    variant={currentPage === page ? "default" : "outline"}
+                                                                    size="sm"
+                                                                    onClick={() => setCurrentPage(page)}
+                                                                    className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700 w-10" : "w-10"}
+                                                                >
+                                                                    {page}
+                                                                </Button>
+                                                            );
+                                                        } else if (page === currentPage - 2 || page === currentPage + 2) {
+                                                            return <span key={page} className="px-2">...</span>;
+                                                        }
+                                                        return null;
+                                                    })}
+                                                </div>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+                                                    disabled={currentPage === totalPages}
+                                                >
+                                                    Next
+                                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </>
                         )}
                     </CardContent>
                 </Card>

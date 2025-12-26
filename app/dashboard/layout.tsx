@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth-client';
-import { Sidebar } from '@/components/dashboard/sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Header } from '@/components/dashboard/header';
-import { MobileSidebar } from '@/components/dashboard/mobile-sidebar';
+import { Separator } from '@/components/ui/separator';
 
 export default function DashboardLayout({
   children,
@@ -36,27 +37,18 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Desktop Sidebar - Hidden on mobile */}
-      <aside className="hidden md:flex w-64 flex-shrink-0">
-        <Sidebar />
-      </aside>
-
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header with Mobile Sidebar */}
-        <div className="flex items-center gap-2">
-          <div className="md:hidden flex-shrink-0">
-            <MobileSidebar />
-          </div>
-          <div className="flex-1">
-            <Header />
-          </div>
-        </div>
-
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Header />
+        </header>
         <main className="flex-1 overflow-y-auto bg-muted/40 p-4 lg:p-6">
           {children}
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

@@ -24,12 +24,12 @@ export default function DataSekolahPage() {
   const [sekolah, setSekolah] = useState<Sekolah | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState('');
-  
+
   // Form state
   const [formData, setFormData] = useState({
     nm_kepsek: '',
@@ -106,7 +106,7 @@ export default function DataSekolahPage() {
       // Update local state
       setSekolah(data.sekolah);
       setIsModalOpen(false);
-      
+
       // Show success toast
       toast.success('Data kepala sekolah berhasil diupdate', {
         description: `${formData.nm_kepsek} - ${formData.nip_kepsek}`,
@@ -127,7 +127,7 @@ export default function DataSekolahPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Sekolah</h1>
           <p className="text-muted-foreground">Informasi lengkap tentang sekolah</p>
         </div>
-        <Card>
+        <Card className="rounded-sm border-l-4 border-l-emerald-600">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-4 w-96" />
@@ -185,7 +185,7 @@ export default function DataSekolahPage() {
       </div>
 
       {/* Informasi Umum */}
-      <Card>
+      <Card className="rounded-md border-l-4 border-l-emerald-600">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -204,7 +204,7 @@ export default function DataSekolahPage() {
       </Card>
 
       {/* Alamat & Kontak */}
-      <Card>
+      <Card className="rounded-md border-l-4 border-l-emerald-600">
         <CardHeader>
           <div className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
@@ -223,9 +223,9 @@ export default function DataSekolahPage() {
             <InfoItem label="Provinsi" value={sekolah.propinsi} />
             <InfoItem label="Kode Pos" value={sekolah.kd_pos} />
             <div />
-            
+
             <Separator className="md:col-span-2" />
-            
+
             <div className="flex items-start gap-2">
               <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
               <InfoItem label="Telepon" value={sekolah.telepon} />
@@ -247,7 +247,7 @@ export default function DataSekolahPage() {
       </Card>
 
       {/* Kepala Sekolah */}
-      <Card>
+      <Card className="rounded-md border-l-4 border-l-emerald-600">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -281,7 +281,7 @@ export default function DataSekolahPage() {
               Update informasi kepala sekolah. Klik simpan untuk menyimpan perubahan.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="nm_kepsek">Nama Kepala Sekolah</Label>
@@ -293,7 +293,7 @@ export default function DataSekolahPage() {
                 disabled={isSaving}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="nip_kepsek">NIP Kepala Sekolah</Label>
               <Input

@@ -39,6 +39,8 @@ export default function LegerRaporPage() {
     const [selectedKelas, setSelectedKelas] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [openCombobox, setOpenCombobox] = useState(false);
+    const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+    const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentClass: '' });
 
     useEffect(() => {
         const loadUser = async () => {
@@ -518,6 +520,339 @@ export default function LegerRaporPage() {
         }
     };
 
+    const handleGenerateAllExcel = async () => {
+        if (filteredKelas.length === 0) {
+            toast.error('Tidak ada kelas untuk di-generate');
+            return;
+        }
+
+        setIsGeneratingAll(true);
+        setBulkProgress({ current: 0, total: filteredKelas.length, currentClass: '' });
+
+        try {
+            toast.info(`Mempersiapkan ${filteredKelas.length} file Excel...`);
+
+            // Fetch semester & sekolah data once (reused for all classes)
+            const [semesterRes, sekolahRes] = await Promise.all([
+                fetch('/api/semester'),
+                fetch('/api/sekolah')
+            ]);
+
+            const semesterData = await semesterRes.json();
+            const sekolahData = await sekolahRes.json();
+
+            // Process each class
+            for (let i = 0; i < filteredKelas.length; i++) {
+                const kelasInfo = filteredKelas[i];
+                setBulkProgress({ current: i + 1, total: filteredKelas.length, currentClass: kelasInfo.nm_kelas });
+
+                try {
+                    // Fetch leger data for this class
+                    const legerRes = await fetch(`/api/leger?rombongan_belajar_id=${kelasInfo.rombongan_belajar_id}`);
+
+                    if (!legerRes.ok) {
+                        toast.warning(`Gagal mengambil data untuk kelas ${kelasInfo.nm_kelas}`);
+                        continue;
+                    }
+
+                    const legerData = await legerRes.json();
+                    const students = legerData.students || [];
+                    const allSubjects = legerData.subjects || [];
+                    const gradeMap = legerData.grades || {};
+                    const ekskulList = legerData.ekskul || [];
+                    const ekskulValues = legerData.ekskulValues || {};
+
+                    if (students.length === 0) {
+                        toast.warning(`Kelas ${kelasInfo.nm_kelas} tidak memiliki siswa, dilewati`);
+                        continue;
+                    }
+
+                    // Calculate stats for this class
+                    const studentStats: Record<string, { sum: number, avg: number, rank: number }> = {};
+                    const studentSums: { id: string, sum: number }[] = [];
+
+                    students.forEach((siswa: any) => {
+                        let sum = 0;
+                        let count = 0;
+
+                        allSubjects.forEach((subject: any) => {
+                            const grade = gradeMap[siswa.peserta_didik_id]?.[subject.mata_pelajaran_id];
+                            if (grade !== undefined) {
+                                sum += Number(grade);
+                                count++;
+                            }
+                        });
+
+                        const avg = count > 0 ? sum / count : 0;
+                        studentStats[siswa.peserta_didik_id] = { sum, avg, rank: 0 };
+                        studentSums.push({ id: siswa.peserta_didik_id, sum });
+                    });
+
+                    // Calculate ranks
+                    studentSums.sort((a, b) => b.sum - a.sum);
+                    let currentRank = 0;
+                    let previousSum: number | null = null;
+
+                    studentSums.forEach((item) => {
+                        if (item.sum !== previousSum) {
+                            currentRank++;
+                            previousSum = item.sum;
+                        }
+                        if (studentStats[item.id]) {
+                            studentStats[item.id].rank = currentRank;
+                        }
+                    });
+
+                    // Create workbook (same logic as single generation)
+                    const workbook = new ExcelJS.Workbook();
+                    const worksheet = workbook.addWorksheet('Leger Nilai');
+
+                    const columnConfig = [
+                        { width: 5 }, { width: 30 }, { width: 12 }, { width: 12 },
+                        ...allSubjects.map(() => ({ width: 7 })),
+                        { width: 10 }, { width: 10 }, { width: 10 },
+                        { width: 7 }, { width: 7 }, { width: 7 },
+                        ...ekskulList.map(() => ({ width: 8 }))
+                    ];
+                    worksheet.columns = columnConfig;
+
+                    const semesterText = semesterData.data?.[0]?.nama_semester || semesterData.semester?.nama_semester || '2025/2026';
+                    const totalCols = 4 + allSubjects.length + 3 + 3 + ekskulList.length;
+                    const lastColChar = getExcelCol(totalCols - 1);
+
+                    // Row 1: Title
+                    worksheet.getCell('A1').value = `LEGER NILAI RAPOR SISWA TAHUN PELAJARAN ${semesterText.toUpperCase()}`;
+                    worksheet.getCell('A1').font = { bold: true, size: 14 };
+                    worksheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+                    worksheet.mergeCells(`A1:${lastColChar}1`);
+
+                    // Row 2-3: School & Class info
+                    worksheet.getCell('A2').value = 'SEKOLAH';
+                    worksheet.getCell('A2').font = { bold: true };
+                    worksheet.getCell('C2').value = `: ${sekolahData.sekolah?.nama || '-'}`;
+                    worksheet.getCell('A3').value = 'KELAS';
+                    worksheet.getCell('A3').font = { bold: true };
+                    worksheet.getCell('C3').value = `: ${kelasInfo.nm_kelas}`;
+
+                    // Headers (simplified - reuse same logic)
+                    const headers = ['NO', 'NAMA SISWA', 'NISN', 'NIS'];
+                    ['A4:A7', 'B4:B7', 'C4:C7', 'D4:D7'].forEach((range, idx) => {
+                        worksheet.mergeCells(range);
+                        const cell = worksheet.getCell(range.split(':')[0]);
+                        cell.value = headers[idx];
+                        cell.font = { bold: true };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    });
+
+                    // Mata Pelajaran headers
+                    if (allSubjects.length > 0) {
+                        const startCol = 'E';
+                        const endCol = getExcelCol(4 + allSubjects.length - 1);
+                        worksheet.mergeCells(`${startCol}4:${endCol}4`);
+                        const cell = worksheet.getCell('E4');
+                        cell.value = 'MATA PELAJARAN';
+                        cell.font = { bold: true };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                        allSubjects.forEach((subject: any, index: number) => {
+                            const colIdx = 4 + index;
+                            const col = getExcelCol(colIdx);
+                            worksheet.mergeCells(`${col}5:${col}7`);
+                            const subCell = worksheet.getCell(`${col}5`);
+                            subCell.value = subject.nm_ringkas || subject.nm_mapel || 'Mapel';
+                            subCell.font = { bold: true, size: 9 };
+                            subCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                            subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                            subCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+                    }
+
+                    // Stats headers
+                    const statsStartIdx = 4 + allSubjects.length;
+                    const startStatsCol = getExcelCol(statsStartIdx);
+                    const endStatsCol = getExcelCol(statsStartIdx + 2);
+                    worksheet.mergeCells(`${startStatsCol}4:${endStatsCol}4`);
+                    const statsCell = worksheet.getCell(`${startStatsCol}4`);
+                    statsCell.value = 'WALI KELAS';
+                    statsCell.font = { bold: true };
+                    statsCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    statsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                    statsCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                    ['JUMLAH', 'RATA-RATA', 'RANGKING'].forEach((header, idx) => {
+                        const col = getExcelCol(statsStartIdx + idx);
+                        worksheet.mergeCells(`${col}5:${col}7`);
+                        const cell = worksheet.getCell(`${col}5`);
+                        cell.value = header;
+                        cell.font = { bold: true, size: 9 };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    });
+
+                    // Attendance headers
+                    const attendanceStartIdx = statsStartIdx + 3;
+                    const startAttCol = getExcelCol(attendanceStartIdx);
+                    const endAttCol = getExcelCol(attendanceStartIdx + 2);
+                    worksheet.mergeCells(`${startAttCol}4:${endAttCol}6`);
+                    const attCell = worksheet.getCell(`${startAttCol}4`);
+                    attCell.value = 'KETIDAKHADIRAN';
+                    attCell.font = { bold: true };
+                    attCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    attCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                    attCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                    ['Sakit', 'Izin', 'Alpa'].forEach((label, idx) => {
+                        const col = getExcelCol(attendanceStartIdx + idx);
+                        const cell = worksheet.getCell(`${col}7`);
+                        cell.value = label;
+                        cell.font = { bold: true };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    });
+
+                    // Ekskul headers
+                    if (ekskulList.length > 0) {
+                        const ekskulStartIdx = attendanceStartIdx + 3;
+                        const startEkskulCol = getExcelCol(ekskulStartIdx);
+                        const endEkskulCol = getExcelCol(ekskulStartIdx + ekskulList.length - 1);
+                        worksheet.mergeCells(`${startEkskulCol}4:${endEkskulCol}4`);
+                        const ekskulCell = worksheet.getCell(`${startEkskulCol}4`);
+                        ekskulCell.value = 'EKSTRA KURIKULER';
+                        ekskulCell.font = { bold: true };
+                        ekskulCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        ekskulCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                        ekskulCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                        ekskulList.forEach((ekskul: any, idx: number) => {
+                            const col = getExcelCol(ekskulStartIdx + idx);
+                            worksheet.mergeCells(`${col}5:${col}7`);
+                            const cell = worksheet.getCell(`${col}5`);
+                            cell.value = ekskul.name;
+                            cell.font = { bold: true, size: 9 };
+                            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF99FFD6' } };
+                            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+                    }
+
+                    // Student data
+                    students.forEach((siswa: any, index: number) => {
+                        const rowNum = 8 + index;
+                        worksheet.getCell(`A${rowNum}`).value = index + 1;
+                        worksheet.getCell(`B${rowNum}`).value = siswa.nm_siswa;
+                        worksheet.getCell(`C${rowNum}`).value = siswa.nisn || '-';
+                        worksheet.getCell(`D${rowNum}`).value = siswa.nis || '-';
+
+                        ['A', 'B', 'C', 'D'].forEach(col => {
+                            worksheet.getCell(`${col}${rowNum}`).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+
+                        worksheet.getCell(`A${rowNum}`).alignment = { horizontal: 'center', vertical: 'middle' };
+                        worksheet.getCell(`C${rowNum}`).alignment = { horizontal: 'center', vertical: 'middle' };
+                        worksheet.getCell(`D${rowNum}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+                        allSubjects.forEach((subject: any, subjectIndex: number) => {
+                            const col = getExcelCol(4 + subjectIndex);
+                            const grade = gradeMap[siswa.peserta_didik_id]?.[subject.mata_pelajaran_id];
+                            const gradeCell = worksheet.getCell(`${col}${rowNum}`);
+                            gradeCell.value = grade !== undefined ? grade : '-';
+                            gradeCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                            gradeCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+
+                        const stats = studentStats[siswa.peserta_didik_id] || { sum: 0, avg: 0, rank: 0 };
+                        const sumCol = getExcelCol(statsStartIdx);
+                        const sumCell = worksheet.getCell(`${sumCol}${rowNum}`);
+                        sumCell.value = stats.sum;
+                        sumCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        sumCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                        const avgCol = getExcelCol(statsStartIdx + 1);
+                        const avgCell = worksheet.getCell(`${avgCol}${rowNum}`);
+                        avgCell.value = stats.avg;
+                        avgCell.numFmt = '0.00';
+                        avgCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        avgCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                        const rankCol = getExcelCol(statsStartIdx + 2);
+                        const rankCell = worksheet.getCell(`${rankCol}${rowNum}`);
+                        rankCell.value = stats.rank;
+                        rankCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        rankCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        if (stats.rank >= 1 && stats.rank <= 10) {
+                            rankCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } };
+                        }
+
+                        const attData = (legerData.attendance || {})[siswa.peserta_didik_id] || { s: 0, i: 0, a: 0 };
+                        ['s', 'i', 'a'].forEach((key, idx) => {
+                            const col = getExcelCol(attendanceStartIdx + idx);
+                            const cell = worksheet.getCell(`${col}${rowNum}`);
+                            cell.value = attData[key] || '-';
+                            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+
+                        if (ekskulList.length > 0) {
+                            const ekskulStartIdx = attendanceStartIdx + 3;
+                            const studentEkskul = ekskulValues[siswa.peserta_didik_id] || {};
+                            ekskulList.forEach((ekskul: any, idx: number) => {
+                                const col = getExcelCol(ekskulStartIdx + idx);
+                                const cell = worksheet.getCell(`${col}${rowNum}`);
+                                cell.value = studentEkskul[ekskul.id] || '';
+                                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                            });
+                        }
+                    });
+
+                    // Keterangan Mapel
+                    const keteranganStartRow = 8 + students.length + 2;
+                    worksheet.getCell(`A${keteranganStartRow}`).value = 'Keterangan Mapel:';
+                    worksheet.getCell(`A${keteranganStartRow}`).font = { bold: true, size: 11 };
+                    allSubjects.forEach((subject: any, index: number) => {
+                        const rowNum = keteranganStartRow + 1 + index;
+                        const ringkas = subject.nm_ringkas || subject.nm_mapel || 'N/A';
+                        const fullName = subject.nm_mapel || subject.nm_lokal || 'N/A';
+                        worksheet.getCell(`A${rowNum}`).value = `${ringkas} : ${fullName}`;
+                        worksheet.getCell(`A${rowNum}`).font = { size: 10 };
+                    });
+
+                    // Download file
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Leger_Nilai_${kelasInfo.nm_kelas.replace(/\s+/g, '_')}.xlsx`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+
+                    toast.success(`✓ ${kelasInfo.nm_kelas}`);
+
+                    // Small delay to prevent browser overwhelm
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error(`Error generating for ${kelasInfo.nm_kelas}:`, error);
+                    toast.error(`Gagal generate ${kelasInfo.nm_kelas}`);
+                }
+            }
+
+            toast.success(`Selesai! ${filteredKelas.length} file Excel berhasil dibuat`);
+        } catch (error) {
+            console.error('Error in bulk generation:', error);
+            toast.error('Gagal generate file Excel massal');
+        } finally {
+            setIsGeneratingAll(false);
+            setBulkProgress({ current: 0, total: 0, currentClass: '' });
+        }
+    };
+
     // Filter kelas based on user level
     const filteredKelas = kelasData.kelas.filter((kelas) => {
         // Filter by jenis_rombel (only regular classes: 1 and 9)
@@ -595,8 +930,44 @@ export default function LegerRaporPage() {
                     </div>
 
                     <Button
+                        onClick={handleGenerateAllExcel}
+                        disabled={isGeneratingAll || isGenerating || filteredKelas.length === 0}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700"
+                        size="lg"
+                    >
+                        {isGeneratingAll ? (
+                            <>
+                                <Download className="mr-2 h-4 w-4 animate-spin" />
+                                Generating ({bulkProgress.current}/{bulkProgress.total})...
+                            </>
+                        ) : (
+                            <>
+                                <Download className="mr-2 h-4 w-4" />
+                                Generate Semua Kelas ({filteredKelas.length} kelas)
+                            </>
+                        )}
+                    </Button>
+
+                    {isGeneratingAll && bulkProgress.currentClass && (
+                        <div className="text-sm text-center text-muted-foreground">
+                            Sedang memproses: {bulkProgress.currentClass}
+                        </div>
+                    )}
+
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-2 text-muted-foreground">
+                                atau per kelas
+                            </span>
+                        </div>
+                    </div>
+
+                    <Button
                         onClick={handleGenerateExcel}
-                        disabled={!selectedKelas || isGenerating}
+                        disabled={!selectedKelas || isGenerating || isGeneratingAll}
                         className="w-full"
                         size="lg"
                     >

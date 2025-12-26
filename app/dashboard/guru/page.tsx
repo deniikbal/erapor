@@ -31,28 +31,36 @@ export default function DataGuruPage() {
   const [guruList, setGuruList] = useState<PTK[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState('');
   const [selectedGuru, setSelectedGuru] = useState<PTK | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     gelar_depan: '',
     gelar_belakang: '',
   });
 
+  // Filter guru based on search
+  const filteredGuru = guruList.filter((guru) =>
+    guru.nama.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = guruList.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(guruList.length / itemsPerPage);
+  const currentItems = filteredGuru.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredGuru.length / itemsPerPage);
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
@@ -61,6 +69,11 @@ export default function DataGuruPage() {
   useEffect(() => {
     fetchGuru();
   }, []);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const fetchGuru = async () => {
     try {
@@ -119,14 +132,14 @@ export default function DataGuruPage() {
       }
 
       // Update local state
-      setGuruList(prev => prev.map(g => 
-        g.ptk_id === selectedGuru.ptk_id 
+      setGuruList(prev => prev.map(g =>
+        g.ptk_id === selectedGuru.ptk_id
           ? { ...g, gelar_depan: formData.gelar_depan, gelar_belakang: formData.gelar_belakang }
           : g
       ));
-      
+
       setIsModalOpen(false);
-      
+
       // Show success toast
       toast.success('Gelar guru berhasil diupdate', {
         description: `${formData.gelar_depan} ${selectedGuru.nama} ${formData.gelar_belakang}`.trim(),
@@ -158,7 +171,7 @@ export default function DataGuruPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Guru</h1>
           <p className="text-muted-foreground">Kelola data pendidik dan tenaga kependidikan</p>
         </div>
-        <Card>
+        <Card className="rounded-sm border-l-4 border-l-emerald-600">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -191,18 +204,28 @@ export default function DataGuruPage() {
         <p className="text-muted-foreground">Kelola data pendidik dan tenaga kependidikan</p>
       </div>
 
-      <Card>
+      <Card className="rounded-sm border-l-4 border-l-emerald-600">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
             <CardTitle>Daftar Guru & Tenaga Kependidikan</CardTitle>
           </div>
           <CardDescription>
-            Total: {guruList.length} guru
+            Menampilkan {filteredGuru.length} dari {guruList.length} guru
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          {/* Search Input */}
+          <div className="mb-4">
+            <Input
+              placeholder="Cari nama guru..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+
+          <div className="rounded-sm border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -240,8 +263,8 @@ export default function DataGuruPage() {
                       </TableCell>
                       <TableCell>{getJenisPTKLabel(guru.jenis_ptk_id)}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          onClick={() => handleEditClick(guru)} 
+                        <Button
+                          onClick={() => handleEditClick(guru)}
                           size="sm"
                           style={{ backgroundColor: '#059669', color: 'white' }}
                           className="hover:bg-emerald-700"
@@ -261,7 +284,7 @@ export default function DataGuruPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-2 py-4">
               <div className="text-sm text-muted-foreground">
-                Menampilkan {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, guruList.length)} dari {guruList.length} data
+                Menampilkan {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredGuru.length)} dari {filteredGuru.length} data
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -272,7 +295,7 @@ export default function DataGuruPage() {
                 >
                   Previous
                 </Button>
-                
+
                 <div className="flex gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
                     // Show first page, last page, current page, and pages around current
@@ -322,7 +345,7 @@ export default function DataGuruPage() {
               Update gelar depan dan belakang untuk {selectedGuru?.nama}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="gelar_depan">Gelar Depan</Label>
@@ -337,7 +360,7 @@ export default function DataGuruPage() {
                 Gelar akademik yang ditempatkan di depan nama
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="gelar_belakang">Gelar Belakang</Label>
               <Input

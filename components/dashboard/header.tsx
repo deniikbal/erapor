@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Search } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -43,22 +43,11 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-16 lg:px-6">
+    <>
       {/* Mobile Sidebar Toggle - Import will be added in layout */}
       <div id="mobile-sidebar-toggle" className="md:hidden" />
 
-      <div className="flex-1">
-        <form className="ml-auto flex-1 sm:flex-initial">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="pl-8 w-full sm:w-[200px] md:w-[200px] lg:w-[300px]"
-            />
-          </div>
-        </form>
-      </div>
+      <div className="flex-1" />
 
       {/* Hide bell icon on mobile */}
       <Button variant="ghost" size="icon" className="relative hidden sm:flex">
@@ -93,6 +82,6 @@ export function Header() {
           <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </header>
+    </>
   );
 }

@@ -235,7 +235,7 @@ export default function DataSiswaPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Siswa</h1>
           <p className="text-muted-foreground">Kelola data peserta didik</p>
         </div>
-        <Card>
+        <Card className="rounded-sm border-l-4 border-l-emerald-600">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -268,7 +268,7 @@ export default function DataSiswaPage() {
         <p className="text-muted-foreground">Kelola data peserta didik</p>
       </div>
 
-      <Card>
+      <Card className="rounded-sm border-l-4 border-l-emerald-600">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />

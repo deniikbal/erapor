@@ -182,7 +182,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {statisticsCards.map((stat) => (
           <Link key={stat.title} href={stat.href}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer rounded-sm border-l-4 border-l-emerald-600">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
                 <div className={`flex h-10 w-10 items-center justify-center rounded-full ${stat.bgColor}`}>
@@ -199,7 +199,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Access */}
-      <Card>
+      <Card className="rounded-sm border-l-4 border-l-emerald-600">
         <CardHeader>
           <CardTitle>Akses Cepat</CardTitle>
           <CardDescription>

@@ -14,17 +14,23 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Siswa, User } from '@/lib/db';
 
-import { FileText, Filter, Loader2, Download, DownloadCloud, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Filter, Loader2, Download, DownloadCloud, ChevronLeft, ChevronRight, Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCurrentUser } from '@/lib/auth-client';
 import { jsPDF } from 'jspdf';
@@ -54,6 +60,7 @@ export default function AdminPelengkapRaportPage() {
 
     // Class filter state
     const [selectedKelas, setSelectedKelas] = useState<string>('all');
+    const [openCombobox, setOpenCombobox] = useState(false);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -304,22 +311,63 @@ export default function AdminPelengkapRaportPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">
-                        <Select value={selectedKelas} onValueChange={setSelectedKelas}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Pilih Kelas" />
-                            </SelectTrigger>
-                            <SelectContent position="popper" className="max-h-[300px]">
-                                <SelectItem value="all">Pilih Kelas ......</SelectItem>
-                                {kelasList.map(kelas => {
-                                    const count = siswaList.filter(s => s.nm_kelas === kelas).length;
-                                    return (
-                                        <SelectItem key={kelas} value={kelas}>
-                                            {kelas} ({count} siswa)
-                                        </SelectItem>
-                                    );
-                                })}
-                            </SelectContent>
-                        </Select>
+                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={openCombobox}
+                                    className="w-full justify-between"
+                                >
+                                    {selectedKelas === 'all'
+                                        ? 'Pilih Kelas ......'
+                                        : kelasList.find(kelas => kelas === selectedKelas)
+                                            ? `${selectedKelas} (${siswaList.filter(s => s.nm_kelas === selectedKelas).length} siswa)`
+                                            : 'Pilih Kelas ......'}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" side="bottom" align="start" avoidCollisions={false} sideOffset={4}>
+                                <Command>
+                                    <CommandInput placeholder="Cari kelas..." />
+                                    <CommandList>
+                                        <CommandEmpty>Kelas tidak ditemukan.</CommandEmpty>
+                                        <CommandGroup>
+                                            <CommandItem
+                                                value="all"
+                                                onSelect={() => {
+                                                    setSelectedKelas('all');
+                                                    setOpenCombobox(false);
+                                                }}
+                                            >
+                                                <Check
+                                                    className={`mr-2 h-4 w-4 ${selectedKelas === 'all' ? 'opacity-100' : 'opacity-0'}`}
+                                                />
+                                                Pilih Kelas ......
+                                            </CommandItem>
+                                            {kelasList.map(kelas => {
+                                                const count = siswaList.filter(s => s.nm_kelas === kelas).length;
+                                                return (
+                                                    <CommandItem
+                                                        key={kelas}
+                                                        value={kelas}
+                                                        onSelect={() => {
+                                                            setSelectedKelas(kelas);
+                                                            setOpenCombobox(false);
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={`mr-2 h-4 w-4 ${selectedKelas === kelas ? 'opacity-100' : 'opacity-0'}`}
+                                                        />
+                                                        {kelas} ({count} siswa)
+                                                    </CommandItem>
+                                                );
+                                            })}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </CardContent>
             </Card>

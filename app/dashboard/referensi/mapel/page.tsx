@@ -41,6 +41,9 @@ export default function DataMapelPage() {
     });
     const [saving, setSaving] = useState(false);
 
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
@@ -48,6 +51,11 @@ export default function DataMapelPage() {
     useEffect(() => {
         fetchMapel();
     }, []);
+
+    // Reset to page 1 when search changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
 
     const fetchMapel = async () => {
         try {
@@ -117,11 +125,17 @@ export default function DataMapelPage() {
         setFormData({ nm_mapel: '', nm_ringkas: '' });
     };
 
+    // Filter mapel based on search
+    const filteredMapel = mapelList.filter((mapel) =>
+        mapel.nm_mapel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (mapel.nm_ringkas && mapel.nm_ringkas.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
     // Pagination calculations
-    const totalPages = Math.ceil(mapelList.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredMapel.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const currentMapelList = mapelList.slice(startIndex, endIndex);
+    const currentMapelList = filteredMapel.slice(startIndex, endIndex);
 
     const goToPage = (page: number) => {
         setCurrentPage(Math.max(1, Math.min(page, totalPages)));
@@ -134,17 +148,27 @@ export default function DataMapelPage() {
                 <p className="text-muted-foreground">Kelola nama mata pelajaran dan nama ringkas</p>
             </div>
 
-            <Card>
+            <Card className="rounded-sm border-l-4 border-l-emerald-600">
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <BookOpen className="h-5 w-5 text-primary" />
                         <CardTitle>Daftar Mata Pelajaran</CardTitle>
                     </div>
                     <CardDescription>
-                        Total: {mapelList.length} mata pelajaran
+                        Menampilkan {filteredMapel.length} dari {mapelList.length} mata pelajaran
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {/* Search Input */}
+                    <div className="mb-4">
+                        <Input
+                            placeholder="Cari nama mata pelajaran atau nama ringkas..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="max-w-sm"
+                        />
+                    </div>
+
                     <div className="rounded-md border">
                         <Table>
                             <TableHeader>
@@ -194,7 +218,7 @@ export default function DataMapelPage() {
                     {!loading && mapelList.length > 0 && (
                         <div className="flex items-center justify-between px-2 py-4">
                             <div className="text-sm text-muted-foreground">
-                                Menampilkan {startIndex + 1} - {Math.min(endIndex, mapelList.length)} dari {mapelList.length} data
+                                Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredMapel.length)} dari {filteredMapel.length} data
                             </div>
 
                             <div className="flex items-center gap-2">

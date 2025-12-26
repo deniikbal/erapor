@@ -296,7 +296,7 @@ export default function DataKelasPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Kelas</h1>
           <p className="text-muted-foreground">Kelola data kelas dan rombongan belajar</p>
         </div>
-        <Card>
+        <Card className="rounded-sm border-l-4 border-l-emerald-600">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -329,7 +329,7 @@ export default function DataKelasPage() {
         <p className="text-muted-foreground">Kelola data kelas dan rombongan belajar</p>
       </div>
 
-      <Card>
+      <Card className="rounded-sm border-l-4 border-l-emerald-600">
         <CardHeader>
           <div className="flex items-center gap-2">
             <School className="h-5 w-5 text-primary" />
