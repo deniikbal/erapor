@@ -85,6 +85,7 @@ export type Siswa = {
   // Fields from tabel_kelas (LEFT JOIN)
   nm_kelas?: string | null;
   tingkat_pendidikan_id?: string | null;
+  jenis_rombel?: number | null;
 };
 
 export type Kelas = {

@@ -32,8 +32,9 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Siswa } from '@/lib/db';
-import { Users, Pencil, Loader2 } from 'lucide-react';
+import { Users, Pencil, Loader2, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
+import ExcelJS from 'exceljs';
 
 export default function DataSiswaPage() {
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);
@@ -228,6 +229,114 @@ export default function DataSiswaPage() {
     return `${tempat || '-'}, ${tgl || '-'}`;
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      
+      // Gunakan data yang sedang difilter di UI
+      const exportData = filteredSiswa;
+
+      if (exportData.length === 0) {
+        toast.error('Tidak ada data siswa untuk di-export');
+        return;
+      }
+
+      // Grouping data per kelas
+      const groupedData = exportData.reduce((acc, siswa) => {
+        const kelas = siswa.nm_kelas || 'Tanpa Kelas';
+        if (!acc[kelas]) acc[kelas] = [];
+        acc[kelas].push(siswa);
+        return acc;
+      }, {} as Record<string, typeof filteredSiswa>);
+
+      // Helper format tanggal Indonesia
+      const formatDateIndo = (dateStr: string | null) => {
+        if (!dateStr) return '-';
+        try {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          });
+        } catch (e) {
+          return dateStr || '-';
+        }
+      };
+
+      // Buat sheet untuk setiap kelas
+      Object.entries(groupedData).forEach(([kelasName, students]) => {
+        // Excel sheet names have a limit of 31 characters and some forbidden characters
+        const safeSheetName = kelasName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '-');
+        const worksheet = workbook.addWorksheet(safeSheetName);
+
+        worksheet.columns = [
+          { header: 'No', key: 'no', width: 5 },
+          { header: 'Nama Siswa', key: 'nm_siswa', width: 35 },
+          { header: 'Jenis Kelamin', key: 'jenis_kelamin', width: 15 },
+          { header: 'Tempat Lahir', key: 'tempat_lahir', width: 20 },
+          { header: 'Tanggal Lahir', key: 'tanggal_lahir', width: 25 },
+          { header: 'Agama', key: 'agama', width: 15 },
+          { header: 'NIS', key: 'nis', width: 15 },
+          { header: 'NISN', key: 'nisn', width: 15 },
+          { header: 'Alamat', key: 'alamat_siswa', width: 50 },
+        ];
+
+        students.forEach((siswa, index) => {
+          worksheet.addRow({
+            no: index + 1,
+            nm_siswa: siswa.nm_siswa,
+            jenis_kelamin: siswa.jenis_kelamin || '-',
+            tempat_lahir: siswa.tempat_lahir || '-',
+            tanggal_lahir: formatDateIndo(siswa.tanggal_lahir),
+            agama: siswa.agama || '-',
+            nis: siswa.nis || '-',
+            nisn: siswa.nisn || '-',
+            alamat_siswa: siswa.alamat_siswa || '-',
+          });
+        });
+
+        // Styling header
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        headerRow.height = 20;
+
+        // Styling borders
+        worksheet.eachRow((row, rowNumber) => {
+          row.eachCell((cell) => {
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+            // Vertical middle for all cells
+            cell.alignment = { ...cell.alignment, vertical: 'middle' };
+          });
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Data_Siswa_${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Berhasil export Excel', {
+        description: `Berhasil mengeksport ${exportData.length} data siswa dalam ${Object.keys(groupedData).length} sheet.`
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Gagal mengeksport data ke Excel');
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -304,6 +413,14 @@ export default function DataSiswaPage() {
                 </SelectContent>
               </Select>
             </div>
+            <Button
+              onClick={handleExportExcel}
+              variant="outline"
+              className="flex items-center gap-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export Excel
+            </Button>
           </div>
 
           <div className="rounded-md border">
