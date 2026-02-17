@@ -232,7 +232,7 @@ export default function DataSiswaPage() {
   const handleExportExcel = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
-      
+
       // Gunakan data yang sedang difilter di UI
       const exportData = filteredSiswa;
 
@@ -430,6 +430,7 @@ export default function DataSiswaPage() {
                   <TableHead className="w-[60px]">No</TableHead>
                   <TableHead>Nama Siswa</TableHead>
                   <TableHead>NIS</TableHead>
+                  <TableHead>NISN</TableHead>
                   <TableHead className="text-center">JK</TableHead>
                   <TableHead>TTL</TableHead>
                   <TableHead>Agama</TableHead>
@@ -441,7 +442,7 @@ export default function DataSiswaPage() {
               <TableBody>
                 {currentItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground">
                       Tidak ada data siswa
                     </TableCell>
                   </TableRow>
@@ -451,6 +452,7 @@ export default function DataSiswaPage() {
                       <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
                       <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
                       <TableCell>{siswa.nis}</TableCell>
+                      <TableCell>{siswa.nisn || '-'}</TableCell>
                       <TableCell className="text-center">{siswa.jenis_kelamin || '-'}</TableCell>
                       <TableCell>{formatTTL(siswa.tempat_lahir, siswa.tanggal_lahir)}</TableCell>
                       <TableCell>{siswa.agama || '-'}</TableCell>
