@@ -16,6 +16,7 @@ interface SchoolData {
 interface SemesterData {
     nama_semester: string;
     tahun_ajaran_id: string;
+    semester?: string;
 }
 
 interface HeaderInfo {
@@ -95,7 +96,7 @@ export async function generateNilaiRaporHeader(
     doc.text('Semester', midCol, yPos);
     doc.text(':', colonMid, yPos);
     await setDejaVuFont(doc, 'normal');
-    const semesterText = headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2';
+    const semesterText = headerInfo.semester.semester || (headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2');
     doc.text(semesterText, colonMid + 5, yPos);
 
     yPos += 4;

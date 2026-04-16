@@ -57,8 +57,9 @@ const menuItems: MenuItem[] = [
   {
     title: 'Data Referensi',
     icon: Package,
-    allowedLevels: ['Admin'],
+    allowedLevels: ['Admin', 'Administrator'],
     submenu: [
+      { title: 'Setting Semester', href: '/dashboard/referensi/semester', icon: Settings },
       { title: 'Data Sekolah', href: '/dashboard/referensi/sekolah', icon: School },
       { title: 'Data Guru', href: '/dashboard/guru', icon: UserCheck },
       { title: 'Data Siswa', href: '/dashboard/siswa', icon: GraduationCap },
@@ -68,11 +69,10 @@ const menuItems: MenuItem[] = [
       { title: 'Data Tanggal Rapor', href: '/dashboard/referensi/tanggalrapor', icon: Calendar },
     ],
   },
-
   {
     title: 'Cetak Nilai',
     icon: Printer,
-    allowedLevels: ['Admin'],
+    allowedLevels: ['Admin', 'Administrator'],
     submenu: [
       { title: 'Pelengkap Raport', href: '/dashboard/admin-cetak-nilai/pelengkap-raport', icon: FileText },
       { title: 'Nilai Rapor', href: '/dashboard/admin-cetak-nilai/nilai-rapor', icon: GraduationCap },
@@ -101,7 +101,7 @@ const menuItems: MenuItem[] = [
     title: 'Sync Data',
     href: '/dashboard/sync',
     icon: RefreshCw,
-    allowedLevels: ['Admin'],
+    allowedLevels: ['Admin', 'Administrator'],
   },
 ];
 

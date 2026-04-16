@@ -17,13 +17,27 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Query attendance data - get ALL columns first to see what's available
-        const result = await sql`
-      SELECT *
-      FROM tabel_kehadiran
-      WHERE peserta_didik_id = ${peserta_didik_id}
-      LIMIT 1
-    `;
+        // Ambil semester aktif
+        const activeSemester = await sql`
+            SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
+        `;
+        const activeSemesterId = activeSemester.length > 0 ? activeSemester[0].semester_id : null;
+
+        // Query attendance data - filtered by semester
+        const result = activeSemesterId 
+            ? await sql`
+                SELECT *
+                FROM tabel_kehadiran
+                WHERE peserta_didik_id = ${peserta_didik_id}
+                  AND semester_id = ${activeSemesterId}
+                LIMIT 1
+              `
+            : await sql`
+                SELECT *
+                FROM tabel_kehadiran
+                WHERE peserta_didik_id = ${peserta_didik_id}
+                LIMIT 1
+              `;
 
         if (result.length === 0) {
             // Return zero values if no attendance data found

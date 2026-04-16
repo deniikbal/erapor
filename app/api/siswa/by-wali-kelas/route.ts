@@ -17,45 +17,92 @@ export async function GET(request: NextRequest) {
 
     const sql = getDbClient();
 
+    // Ambil semester aktif
+    const activeSemester = await sql`
+      SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
+    `;
+    const activeSemesterId = activeSemester.length > 0 ? activeSemester[0].semester_id : null;
+
     // Get siswa dari kelas yang diwali kelasi oleh guru ini - with retry
     const result = await retryQuery(async () => {
-      return await sql`
-        SELECT DISTINCT ON (s.peserta_didik_id)
-          s.peserta_didik_id,
-          s.nis,
-          s.nisn,
-          s.nm_siswa,
-          s.tempat_lahir,
-          s.tanggal_lahir,
-          s.jenis_kelamin,
-          s.agama,
-          s.alamat_siswa,
-          s.telepon_siswa,
-          s.diterima_tanggal,
-          s.nm_ayah,
-          s.nm_ibu,
-          s.pekerjaan_ayah,
-          s.pekerjaan_ibu,
-          s.nm_wali,
-          s.pekerjaan_wali,
-          sp.pelengkap_siswa_id,
-          sp.status_dalam_kel,
-          sp.anak_ke,
-          sp.sekolah_asal,
-          sp.diterima_kelas,
-          sp.alamat_ortu,
-          sp.telepon_ortu,
-          k.nm_kelas,
-          k.tingkat_pendidikan_id,
-          k.jenis_rombel
-        FROM tabel_siswa s
-        LEFT JOIN tabel_siswa_pelengkap sp ON s.peserta_didik_id = sp.peserta_didik_id
-        INNER JOIN tabel_anggotakelas ak ON s.peserta_didik_id = ak.peserta_didik_id
-        INNER JOIN tabel_kelas k ON ak.rombongan_belajar_id = k.rombongan_belajar_id 
-          AND k.jenis_rombel IN (1, 9)
-          AND k.ptk_id = ${ptk_id}
-        ORDER BY s.peserta_didik_id, k.nm_kelas ASC, s.nm_siswa ASC
-      `;
+      if (activeSemesterId) {
+        return await sql`
+          SELECT DISTINCT ON (s.peserta_didik_id)
+            s.peserta_didik_id,
+            s.nis,
+            s.nisn,
+            s.nm_siswa,
+            s.tempat_lahir,
+            s.tanggal_lahir,
+            s.jenis_kelamin,
+            s.agama,
+            s.alamat_siswa,
+            s.telepon_siswa,
+            s.diterima_tanggal,
+            s.nm_ayah,
+            s.nm_ibu,
+            s.pekerjaan_ayah,
+            s.pekerjaan_ibu,
+            s.nm_wali,
+            s.pekerjaan_wali,
+            sp.pelengkap_siswa_id,
+            sp.status_dalam_kel,
+            sp.anak_ke,
+            sp.sekolah_asal,
+            sp.diterima_kelas,
+            sp.alamat_ortu,
+            sp.telepon_ortu,
+            k.nm_kelas,
+            k.tingkat_pendidikan_id,
+            k.jenis_rombel
+          FROM tabel_siswa s
+          LEFT JOIN tabel_siswa_pelengkap sp ON s.peserta_didik_id = sp.peserta_didik_id
+          INNER JOIN tabel_anggotakelas ak ON s.peserta_didik_id = ak.peserta_didik_id
+          INNER JOIN tabel_kelas k ON ak.rombongan_belajar_id = k.rombongan_belajar_id 
+            AND k.jenis_rombel IN (1, 9)
+            AND k.ptk_id = ${ptk_id}
+            AND k.semester_id = ${activeSemesterId}
+          ORDER BY s.peserta_didik_id, k.nm_kelas ASC, s.nm_siswa ASC
+        `;
+      } else {
+        return await sql`
+          SELECT DISTINCT ON (s.peserta_didik_id)
+            s.peserta_didik_id,
+            s.nis,
+            s.nisn,
+            s.nm_siswa,
+            s.tempat_lahir,
+            s.tanggal_lahir,
+            s.jenis_kelamin,
+            s.agama,
+            s.alamat_siswa,
+            s.telepon_siswa,
+            s.diterima_tanggal,
+            s.nm_ayah,
+            s.nm_ibu,
+            s.pekerjaan_ayah,
+            s.pekerjaan_ibu,
+            s.nm_wali,
+            s.pekerjaan_wali,
+            sp.pelengkap_siswa_id,
+            sp.status_dalam_kel,
+            sp.anak_ke,
+            sp.sekolah_asal,
+            sp.diterima_kelas,
+            sp.alamat_ortu,
+            sp.telepon_ortu,
+            k.nm_kelas,
+            k.tingkat_pendidikan_id,
+            k.jenis_rombel
+          FROM tabel_siswa s
+          LEFT JOIN tabel_siswa_pelengkap sp ON s.peserta_didik_id = sp.peserta_didik_id
+          INNER JOIN tabel_anggotakelas ak ON s.peserta_didik_id = ak.peserta_didik_id
+          INNER JOIN tabel_kelas k ON ak.rombongan_belajar_id = k.rombongan_belajar_id 
+            AND k.jenis_rombel IN (1, 9)
+            AND k.ptk_id = ${ptk_id}
+          ORDER BY s.peserta_didik_id, k.nm_kelas ASC, s.nm_siswa ASC
+        `;
+      }
     });
 
     // Natural sort function

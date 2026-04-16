@@ -20,13 +20,27 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Query catatan wali data
-        const result = await sql`
-      SELECT *
-      FROM tabel_cat_wali
-      WHERE peserta_didik_id = ${peserta_didik_id}
-      LIMIT 1
-    `;
+        // Ambil semester aktif
+        const activeSemester = await sql`
+            SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
+        `;
+        const activeSemesterId = activeSemester.length > 0 ? activeSemester[0].semester_id : null;
+
+        // Query catatan wali data - filtered by semester
+        const result = activeSemesterId
+            ? await sql`
+                SELECT *
+                FROM tabel_cat_wali
+                WHERE peserta_didik_id = ${peserta_didik_id}
+                  AND semester_id = ${activeSemesterId}
+                LIMIT 1
+              `
+            : await sql`
+                SELECT *
+                FROM tabel_cat_wali
+                WHERE peserta_didik_id = ${peserta_didik_id}
+                LIMIT 1
+              `;
 
         if (result.length === 0) {
             // Return default empty note if no data found

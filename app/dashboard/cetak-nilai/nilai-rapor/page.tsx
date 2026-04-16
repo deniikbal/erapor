@@ -40,9 +40,18 @@ export default function NilaiRaporPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [activeSemester, setActiveSemester] = useState<any>(null);
     const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
     const [generatingBulk, setGeneratingBulk] = useState(false);
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentStudent: '' });
+    const [debugLogs, setDebugLogs] = useState<string[]>([]);
+    const [showDebug, setShowDebug] = useState(false);
+
+    const addLog = (msg: string) => {
+        const time = new Date().toLocaleTimeString();
+        setDebugLogs(prev => [`[${time}] ${msg}`, ...prev].slice(0, 100)); // Keep last 100
+        console.log(`[PDF-DEBUG] ${msg}`);
+    };
 
     // Margin settings state
     const [marginSettings, setMarginSettings] = useState({
@@ -95,6 +104,18 @@ export default function NilaiRaporPage() {
             }
 
             setCurrentUser(user);
+
+            // Fetch active semester
+            try {
+                const semRes = await fetch('/api/semester/active');
+                const semData = await semRes.json();
+                if (semRes.ok && semData.data) {
+                    setActiveSemester(semData.data);
+                }
+            } catch (err) {
+                console.error('Error fetching active semester:', err);
+            }
+
             fetchSiswa(user.ptk_id);
             fetchMarginSettings(user.ptk_id);
             fetchAvailableClasses(user.ptk_id);
@@ -195,42 +216,107 @@ export default function NilaiRaporPage() {
 
     const handleGeneratePDF = async (siswa: Siswa) => {
         setGeneratingPdf(siswa.peserta_didik_id);
+        setDebugLogs([]); // Reset logs
+        addLog(`=== Memulai Generate PDF untuk: ${siswa.nm_siswa} ===`);
 
         try {
-            toast.info('Membuat PDF Nilai Rapor...');
+            toast.info('Menyiapkan data rapor...');
+            addLog('Mengimpor library jspdf dan modul pendukung...');
 
-            // Dynamic import jsPDF
-            const { jsPDF } = await import('jspdf');
-            const { generateNilaiRaporHeader } = await import('@/lib/pdf/nilaiRaporPage');
-            const { getFaseByTingkat, calculatePredikat } = await import('@/lib/pdf/nilaiRaporTable');
+            // 1. Batch all dynamic imports at once to save time
+            const [
+                { jsPDF },
+                { generateNilaiRaporHeader },
+                { getFaseByTingkat, generateNilaiRaporTable },
+                { loadDejaVuFonts },
+                { generateKokurikulerTable },
+                { generateEkstrakurikulerTable },
+                { generateKetidakhadiranTable },
+                { generateCatatanWaliTable },
+                { generateTanggapanOrtuTable },
+                { generateSignatureSection },
+                { generateNilaiRaporFooter },
+                { generateStudentHeaderInfo }
+            ] = await Promise.all([
+                import('jspdf'),
+                import('@/lib/pdf/nilaiRaporPage'),
+                import('@/lib/pdf/nilaiRaporTable'),
+                import('@/lib/pdf/fontLoader'),
+                import('@/lib/pdf/kokurikulerTable'),
+                import('@/lib/pdf/ekstrakurikulerTable'),
+                import('@/lib/pdf/ketidakhadiranTable'),
+                import('@/lib/pdf/catatanWaliTable'),
+                import('@/lib/pdf/tanggapanOrtuTable'),
+                import('@/lib/pdf/signatureSection'),
+                import('@/lib/pdf/nilaiRaporFooter'),
+                import('@/lib/pdf/studentHeaderInfo')
+            ]);
+            addLog('Library berhasil diimpor.');
 
-            // Fetch additional data
-            const [sekolahRes, kelasRes] = await Promise.all([
+            // 2. Batch all data fetching at once
+            addLog('Mengambil data dari server (API)...');
+            const [
+                sekolahRes, 
+                mapelRes, 
+                kehadiranRes, 
+                catatanWaliRes, 
+                tanggalRaporRes, 
+                kelasRes,
+                guruRes
+            ] = await Promise.all([
                 fetch('/api/sekolah'),
-                fetch('/api/siswa/by-wali-kelas?ptk_id=' + currentUser?.ptk_id)
+                fetch(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`),
+                fetch(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`),
+                fetch(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`),
+                fetch('/api/tanggalrapor'),
+                fetch('/api/kelas'),
+                fetch('/api/guru')
             ]);
 
-            const sekolahData = await sekolahRes.json();
+            addLog('Parsing JSON data...');
+            const [
+                sekolahData,
+                mapelData,
+                kehadiranData,
+                catatanWaliData,
+                tanggalRaporData,
+                walasData,
+                guruData
+            ] = await Promise.all([
+                sekolahRes.json(),
+                mapelRes.json(),
+                kehadiranRes.json(),
+                catatanWaliRes.json(),
+                tanggalRaporRes.json(),
+                kelasRes.json(),
+                guruRes.json()
+            ]);
 
-            if (!sekolahRes.ok || sekolahData.error) {
-                throw new Error('Gagal mengambil data sekolah');
+            if (!sekolahRes.ok || sekolahData.error) throw new Error('Gagal mengambil data sekolah');
+            addLog('Data sekolah berhasil dimuat.');
+            if (!mapelRes.ok || !mapelData.success) {
+                addLog('Gagal mengambil data mata pelajaran: ' + mapelRes.status);
+                throw new Error('Gagal mengambil data mata pelajaran');
             }
+            addLog(`Data ${mapelData.kelompok?.length || 0} mata pelajaran berhasil dimuat.`);
 
-            // Get semester info from siswa.nm_kelas or default
-            const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
+            toast.info('Memasukkan data ke PDF...');
+            addLog('Inisialisasi dokumen jsPDF...');
 
-            // Create PDF with compression enabled and optimizations
+            // 3. Create PDF and Construction (Mostly synchronous calculation)
             const doc = new jsPDF({
                 compress: true,
                 putOnlyUsedFonts: true,
-                floatPrecision: 2 // Reduce precision for smaller file size
+                floatPrecision: 2
             });
 
-            // Load fonts once at the beginning
-            const { loadDejaVuFonts } = await import('@/lib/pdf/fontLoader');
+            addLog('Memuat fonts DejaVu...');
             await loadDejaVuFonts(doc);
 
-            // Header with student info
+            const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
+            addLog(`Fase ditentukan: ${fase}`);
+            
+            // Header Info
             const headerInfo = {
                 student: {
                     nm_siswa: siswa.nm_siswa,
@@ -243,201 +329,80 @@ export default function NilaiRaporPage() {
                     alamat: sekolahData.sekolah?.alamat || 'Jl. Siliwangi No. 119 Bantarujeg'
                 },
                 semester: {
-                    nama_semester: '2025/2026 Ganjil',
-                    tahun_ajaran_id: '2025'
+                    nama_semester: activeSemester?.nama || '2025/2026 Ganjil',
+                    tahun_ajaran_id: activeSemester?.tahun_ajaran_id || '2025',
+                    semester: activeSemester?.semester
                 },
-                kelas: siswa.nm_kelas || 'X MERDEKA 5',
+                kelas: siswa.nm_kelas || '-',
                 fase: fase
             };
 
-            const yAfterHeader = await generateNilaiRaporHeader(doc, headerInfo, marginSettings);
+            addLog('Generate Header...');
+            let yAfterHeader = await generateNilaiRaporHeader(doc, headerInfo, marginSettings);
 
-            // Import table generator
-            const { generateNilaiRaporTable } = await import('@/lib/pdf/nilaiRaporTable');
+            addLog('Generate Tabel Nilai...');
+            let yAfterTable = await generateNilaiRaporTable(doc, yAfterHeader, mapelData.kelompok, marginSettings);
 
-            // Fetch mata pelajaran dari database
-            toast.info('Mengambil data mata pelajaran...');
-
-            const mapelResponse = await fetch(
-                `/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`
-            );
-
-            if (!mapelResponse.ok) {
-                throw new Error('Gagal mengambil data mata pelajaran');
-            }
-
-            const mapelData = await mapelResponse.json();
-
-            if (!mapelData.success || !mapelData.kelompok) {
-                throw new Error('Data mata pelajaran tidak valid');
-            }
-
-            // Use real data from database (nilai already included from API)
-            const kelompokData = mapelData.kelompok;
-
-            toast.success(`Data ${mapelData.total_mapel} mata pelajaran berhasil dimuat`);
-
-            let yAfterTable = await generateNilaiRaporTable(doc, yAfterHeader, kelompokData, marginSettings);
-
-            // Generate Kokurikuler table if data exists
+            // Kokurikuler
             if (mapelData.kokurikuler) {
-                const { generateKokurikulerTable } = await import('@/lib/pdf/kokurikulerTable');
-
-                // Add some spacing before kokurikuler
+                addLog('Generate Tabel Kokurikuler...');
                 yAfterTable += 5;
-
-                yAfterTable = await generateKokurikulerTable(
-                    doc,
-                    yAfterTable,
-                    mapelData.kokurikuler,
-                    marginSettings
-                );
+                yAfterTable = await generateKokurikulerTable(doc, yAfterTable, mapelData.kokurikuler, marginSettings);
             }
 
-            // Generate Ekstrakurikuler table if data exists
+            // Ekstrakurikuler
             if (mapelData.ekstrakurikuler && mapelData.ekstrakurikuler.length > 0) {
-                const { generateEkstrakurikulerTable } = await import('@/lib/pdf/ekstrakurikulerTable');
-
-                // Add some spacing before ekstrakurikuler
+                addLog('Generate Tabel Ekstrakurikuler...');
                 yAfterTable += 5;
-
-                yAfterTable = await generateEkstrakurikulerTable(
-                    doc,
-                    yAfterTable,
-                    mapelData.ekstrakurikuler,
-                    marginSettings
-                );
+                yAfterTable = await generateEkstrakurikulerTable(doc, yAfterTable, mapelData.ekstrakurikuler, marginSettings);
             }
 
-            // Generate Ketidakhadiran (Attendance) table and Catatan Wali Kelas side by side
-            toast.info('Mengambil data kehadiran dan catatan wali...');
-
-            const [kehadiranResponse, catatanWaliResponse] = await Promise.all([
-                fetch(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`),
-                fetch(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`)
-            ]);
-
-            const kehadiranData = await kehadiranResponse.json();
-            const catatanWaliData = await catatanWaliResponse.json();
-
-            if (kehadiranResponse.ok && kehadiranData) {
-                const { generateKetidakhadiranTable } = await import('@/lib/pdf/ketidakhadiranTable');
-                const { generateCatatanWaliTable } = await import('@/lib/pdf/catatanWaliTable');
-
-                // Add some spacing before tables
+            // Kehadiran & Catatan (Side by side)
+            if (kehadiranRes.ok && kehadiranData) {
+                addLog('Generate Tabel Kehadiran & Catatan Wali...');
                 yAfterTable += 5;
-
-                // Calculate total height needed for both tables (header + content)
-                const kehadiranHeaderHeight = 9;
-                const kehadiranRowHeight = 6;
-                const kehadiranTotalHeight = kehadiranHeaderHeight + (kehadiranRowHeight * 3); // header + 3 rows
-
-                // Check if tables fit on current page, if not add page BEFORE generating either table
                 const pageHeight = doc.internal.pageSize.getHeight();
-                if (yAfterTable + kehadiranTotalHeight > pageHeight - marginSettings.margin_bottom) {
+                if (yAfterTable + 27 > pageHeight - marginSettings.margin_bottom) {
                     doc.addPage();
-
-                    // Reserve space for student header info
-                    const studentHeaderHeight = 21;
-                    yAfterTable = marginSettings.margin_top + studentHeaderHeight;
+                    addLog('Tambah halaman baru untuk tabel kehadiran.');
+                    yAfterTable = marginSettings.margin_top + 21;
                 }
-
-                // Save starting Y position for both tables (now guaranteed to be on same page)
                 const tablesStartY = yAfterTable;
-
-                // Generate attendance table (left side, 53mm wide)
-                const kehadiranEndY = await generateKetidakhadiranTable(
-                    doc,
-                    tablesStartY,
-                    kehadiranData,
-                    marginSettings
-                );
-
-                // Generate catatan wali table (right side, 112mm wide)
-                // X position: margin_left + 53mm (kehadiran width) + 5mm (gap)
+                const kehadiranEndY = await generateKetidakhadiranTable(doc, tablesStartY, kehadiranData, marginSettings);
                 const catatanWaliX = marginSettings.margin_left + 53 + 5;
-                const catatanWaliEndY = await generateCatatanWaliTable(
-                    doc,
-                    tablesStartY,
-                    catatanWaliX,
-                    catatanWaliResponse.ok ? catatanWaliData : null,
-                    marginSettings
-                );
-
-                // Update yAfterTable to the maximum of both table end positions
+                const catatanWaliEndY = await generateCatatanWaliTable(doc, tablesStartY, catatanWaliX, catatanWaliRes.ok ? catatanWaliData : null, marginSettings);
                 yAfterTable = Math.max(kehadiranEndY, catatanWaliEndY);
             }
 
-            // Generate Tanggapan Orang Tua/Wali Murid table (empty table below)
-            const { generateTanggapanOrtuTable } = await import('@/lib/pdf/tanggapanOrtuTable');
-
-            // Add some spacing before tanggapan ortu table
+            // Tanggapan Ortu
+            addLog('Generate Tabel Tanggapan...');
             yAfterTable += 5;
-
             yAfterTable = await generateTanggapanOrtuTable(doc, yAfterTable, marginSettings);
 
-            // Generate Signature Section
-            const { generateSignatureSection } = await import('@/lib/pdf/signatureSection');
-
-            // Add spacing before signature section
-            yAfterTable += 5;
-
-            // Fetch tanggal rapor data
-            const tanggalRaporResponse = await fetch('/api/tanggalrapor');
-            const tanggalRaporData = await tanggalRaporResponse.json();
-
-            // Fetch teacher (wali kelas) data from class relation
-            // Teacher info is associated with the class (rombongan_belajar_id)
-            const walasResponse = await fetch(`/api/kelas`);
-            const walasData = await walasResponse.json();
-
-            // Find the teacher for this student's class
+            // Signatures
+            addLog('Generate Signature Section...');
             const studentClass = walasData.kelas?.find((k: any) => k.nm_kelas === siswa.nm_kelas);
-
-            // Fetch guru data to get gelar (title) from tabel_ptk_pelengkap
             let namaWaliKelasWithGelar = studentClass?.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
-
             if (studentClass?.ptk_id) {
-                const guruResponse = await fetch('/api/guru');
-                const guruData = await guruResponse.json();
-
-                // Find the teacher in guru list
                 const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
-
                 if (guruInfo) {
-                    // Format name with gelar: gelar_depan + nama + gelar_belakang
                     const gelarDepan = guruInfo.gelar_depan || '';
                     const gelarBelakang = guruInfo.gelar_belakang || '';
-                    const nama = guruInfo.nm_ptk || studentClass.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
-
-                    namaWaliKelasWithGelar = [gelarDepan, nama, gelarBelakang]
-                        .filter(part => part && part.trim())
-                        .join(' ');
+                    const namaBase = guruInfo.nama || studentClass.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
+                    namaWaliKelasWithGelar = [gelarDepan, namaBase, gelarBelakang].filter(part => part && part.trim()).join(' ');
                 }
             }
 
-            // Prepare signature data from database
-            // Format tanggal from ISO to Indonesian format (e.g., "22 Desember 2025")
             const formatTanggalIndonesia = (isoDate: string): string => {
                 const date = new Date(isoDate);
-                const bulanIndonesia = [
-                    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                ];
-
-                const tanggal = date.getDate();
-                const bulan = bulanIndonesia[date.getMonth()];
-                const tahun = date.getFullYear();
-
-                return `${tanggal} ${bulan} ${tahun}`;
+                const bulanIndonesia = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                return `${date.getDate()} ${bulanIndonesia[date.getMonth()]} ${date.getFullYear()}`;
             };
 
             const tanggalRaw = tanggalRaporData.data?.[0]?.tanggal;
-            const tanggalFormatted = tanggalRaw ? formatTanggalIndonesia(tanggalRaw) : '22 Desember 2025';
-
             const signatureData = {
                 tempat: tanggalRaporData.data?.[0]?.tempat_ttd || 'Bantarujeg',
-                tanggal: tanggalFormatted,
+                tanggal: tanggalRaw ? formatTanggalIndonesia(tanggalRaw) : '22 Desember 2025',
                 namaWaliKelas: namaWaliKelasWithGelar,
                 nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
                 namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
@@ -446,51 +411,29 @@ export default function NilaiRaporPage() {
                 layout: marginSettings.ttd_layout || 'classic'
             };
 
+            yAfterTable += 5;
             yAfterTable = await generateSignatureSection(doc, yAfterTable, signatureData, marginSettings);
 
-            // Import footer and header info generators
-            const { generateNilaiRaporFooter } = await import('@/lib/pdf/nilaiRaporFooter');
-            const { generateStudentHeaderInfo } = await import('@/lib/pdf/studentHeaderInfo');
+            // Finalizing headers/footers
+            const totalPages = doc.getNumberOfPages();
+            addLog(`PDF selesai dibuat. Total halaman: ${totalPages}`);
 
-            // Prepare student header info
             const studentHeaderInfo = {
                 nm_siswa: siswa.nm_siswa,
                 nm_kelas: siswa.nm_kelas || '-',
                 nis: siswa.nis || '-',
                 nisn: siswa.nisn || '-',
-                fase: headerInfo.fase || 'E',
+                fase: fase,
                 nama_sekolah: headerInfo.school.nama,
                 alamat_sekolah: headerInfo.school.alamat,
-                // Same logic as page 1 (nilaiRaporPage.ts line 98)
-                semester: headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2',
-                // Same logic as page 1 (nilaiRaporPage.ts line 115)
+                semester: headerInfo.semester.semester || (headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2'),
                 tahun_ajaran: `${headerInfo.semester.tahun_ajaran_id}/${parseInt(headerInfo.semester.tahun_ajaran_id) + 1}`
             };
 
-            // Add student header and footer to all pages
-            const totalPages = doc.getNumberOfPages();
-
-            // First pass: Add student header info to pages 2+ and shift content down
-            for (let i = 2; i <= totalPages; i++) {
-                doc.setPage(i);
-
-                // Get all existing content positions on this page
-                // We'll add header at top and need to shift table content down
-                const headerHeight = await generateStudentHeaderInfo(
-                    doc,
-                    marginSettings.margin_top,
-                    studentHeaderInfo,
-                    marginSettings
-                );
-
-                // Note: Table content was already drawn at margin_top
-                // We need to shift it down by headerHeight
-                // This is done by the table generation functions which will be updated
-            }
-
-            // Second pass: Add footer to all pages
+            addLog('Generate Footers untuk semua halaman...');
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
+                if (i > 1) await generateStudentHeaderInfo(doc, marginSettings.margin_top, studentHeaderInfo, marginSettings);
                 generateNilaiRaporFooter(doc, {
                     nm_kelas: siswa.nm_kelas || '-',
                     nm_siswa: siswa.nm_siswa,
@@ -499,14 +442,50 @@ export default function NilaiRaporPage() {
                 }, marginSettings);
             }
 
-            // Save PDF
-            const fileName = `Nilai_Rapor_${siswa.nm_siswa.replace(/\s+/g, '_')}.pdf`;
-            doc.save(fileName);
+            // 4. Save/Download (Robust Blob Method)
+            const sanitizedName = siswa.nm_siswa.replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
+            const fileName = `Nilai_Rapor_${sanitizedName}.pdf`;
+            
+            addLog('Konversi PDF ke Blob...');
+            try {
+                const blob = doc.output('blob');
+                addLog(`Blob berhasil dibuat. Ukuran: ${(blob.size / 1024).toFixed(2)} KB. Tipe: ${blob.type}`);
+                
+                const url = URL.createObjectURL(blob);
+                addLog(`URL Blob dibuat: ${url}`);
 
-            toast.success(`PDF Nilai Rapor untuk ${siswa.nm_siswa} berhasil diunduh`);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                addLog('Menambahkan link download ke dokumen dan mensimulasikan klik...');
+                
+                document.body.appendChild(link);
+                link.click();
+                
+                addLog('Klik simulasi berhasil. Menghapus link.');
+                document.body.removeChild(link);
+                
+                // Keep URL alive for 1 minute for manual access if needed
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                    addLog('URL Blob dibersihkan (revoke).');
+                }, 60000);
+
+                toast.success(`PDF Nilai Rapor untuk ${siswa.nm_siswa} berhasil diunduh`);
+                addLog('=== PROSES SELESAI DENGAN SUKSES ===');
+            } catch (saveErr) {
+                const errMsg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+                addLog('!! GAGAL SAAT SIMPAN BLOB: ' + errMsg);
+                console.error('Error saving PDF:', saveErr);
+                addLog('Mencoba fallback metode doc.save()...');
+                doc.save(fileName);
+                toast.success(`PDF Nilai Rapor untuk ${siswa.nm_siswa} berhasil dibuat`);
+            }
         } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            addLog('!!! ERROR GENERATE PDF: ' + errMsg);
             console.error('Error generating PDF:', err);
-            toast.error('Gagal generate PDF: ' + (err instanceof Error ? err.message : 'Unknown error'));
+            toast.error('Gagal generate PDF: ' + errMsg);
         } finally {
             setGeneratingPdf(null);
         }
@@ -521,10 +500,7 @@ export default function NilaiRaporPage() {
     };
 
     const handleGenerateBulkPDFs = async () => {
-        // Close modal
         setShowClassModal(false);
-
-        // Filter students by selected class
         const selectedClassData = availableClasses.find(k => k.rombongan_belajar_id === selectedClass);
         const filteredSiswa = siswaList.filter(s => s.nm_kelas === selectedClassData?.nm_kelas);
 
@@ -535,26 +511,48 @@ export default function NilaiRaporPage() {
 
         setGeneratingBulk(true);
         setBulkProgress({ current: 0, total: filteredSiswa.length, currentStudent: '' });
+        setDebugLogs([]); // Reset logs
+        addLog(`=== Memulai GENSET BULK PDF untuk ${filteredSiswa.length} siswa ===`);
+        addLog(`Kelas: ${selectedClassData?.nm_kelas || '-'}`);
 
         try {
-            toast.info('Mempersiapkan PDF Nilai Rapor untuk semua siswa...');
+            toast.info('Menyiapkan generator PDF massal...');
+            addLog('Mengimpor library massal...');
 
-            // Dynamic import jsPDF
-            const { jsPDF } = await import('jspdf');
-            const { generateNilaiRaporHeader } = await import('@/lib/pdf/nilaiRaporPage');
-            const { getFaseByTingkat } = await import('@/lib/pdf/nilaiRaporTable');
-            const { generateNilaiRaporTable } = await import('@/lib/pdf/nilaiRaporTable');
-            const { generateKokurikulerTable } = await import('@/lib/pdf/kokurikulerTable');
-            const { generateEkstrakurikulerTable } = await import('@/lib/pdf/ekstrakurikulerTable');
-            const { generateKetidakhadiranTable } = await import('@/lib/pdf/ketidakhadiranTable');
-            const { generateCatatanWaliTable } = await import('@/lib/pdf/catatanWaliTable');
-            const { generateTanggapanOrtuTable } = await import('@/lib/pdf/tanggapanOrtuTable');
-            const { generateSignatureSection } = await import('@/lib/pdf/signatureSection');
-            const { generateNilaiRaporFooter } = await import('@/lib/pdf/nilaiRaporFooter');
-            const { generateStudentHeaderInfo } = await import('@/lib/pdf/studentHeaderInfo');
+            // 1. Batch Imports
+            const [
+                { jsPDF },
+                { generateNilaiRaporHeader },
+                { getFaseByTingkat, generateNilaiRaporTable },
+                { loadDejaVuFonts },
+                { generateKokurikulerTable },
+                { generateEkstrakurikulerTable },
+                { generateKetidakhadiranTable },
+                { generateCatatanWaliTable },
+                { generateTanggapanOrtuTable },
+                { generateSignatureSection },
+                { generateNilaiRaporFooter },
+                { generateStudentHeaderInfo },
+                { fetchWithRetry }
+            ] = await Promise.all([
+                import('jspdf'),
+                import('@/lib/pdf/nilaiRaporPage'),
+                import('@/lib/pdf/nilaiRaporTable'),
+                import('@/lib/pdf/fontLoader'),
+                import('@/lib/pdf/kokurikulerTable'),
+                import('@/lib/pdf/ekstrakurikulerTable'),
+                import('@/lib/pdf/ketidakhadiranTable'),
+                import('@/lib/pdf/catatanWaliTable'),
+                import('@/lib/pdf/tanggapanOrtuTable'),
+                import('@/lib/pdf/signatureSection'),
+                import('@/lib/pdf/nilaiRaporFooter'),
+                import('@/lib/pdf/studentHeaderInfo'),
+                import('@/lib/fetchRetryHelper')
+            ]);
+            addLog('Library massal siap.');
 
-            // Fetch common data once for all students
-            toast.info('Mengambil data umum...');
+            // 2. Batch Static Data Fetch once for all students
+            addLog('Mengambil data umum sekolah & guru...');
             const [sekolahRes, tanggalRaporRes, guruRes, kelasRes] = await Promise.all([
                 fetch('/api/sekolah'),
                 fetch('/api/tanggalrapor'),
@@ -567,26 +565,24 @@ export default function NilaiRaporPage() {
             const guruData = await guruRes.json();
             const kelasData = await kelasRes.json();
 
-            if (!sekolahRes.ok || sekolahData.error) {
-                throw new Error('Gagal mengambil data sekolah');
-            }
+            if (!sekolahRes.ok || sekolahData.error) throw new Error('Gagal mengambil data sekolah');
+            addLog('Data umum berhasil dimuat.');
 
-            // Create single PDF document for all students
-            // Create PDF with compression enabled and optimizations
+            // 3. Initialize PDF
+            addLog('Inisialisasi dokumen jsPDF (Bulk)...');
             const doc = new jsPDF({
                 compress: true,
-                floatPrecision: 2 // Reduce precision for smaller file size
+                floatPrecision: 2
             });
 
-            // Load fonts once at the beginning for bulk generation
-            const { loadDejaVuFonts } = await import('@/lib/pdf/fontLoader');
             await loadDejaVuFonts(doc);
             let isFirstStudent = true;
             const failedStudents: { name: string; error: string }[] = [];
 
-            // Loop through filtered students
+            // 4. Loop through filtered students
             for (let studentIndex = 0; studentIndex < filteredSiswa.length; studentIndex++) {
                 const siswa = filteredSiswa[studentIndex];
+                addLog(`---> Memproses Siswa ${studentIndex + 1}/${filteredSiswa.length}: ${siswa.nm_siswa}`);
 
                 try {
                     setBulkProgress({
@@ -595,153 +591,97 @@ export default function NilaiRaporPage() {
                         currentStudent: siswa.nm_siswa
                     });
 
-                    // Show toast every 5 students or for first/last student
                     if (studentIndex === 0 || studentIndex === filteredSiswa.length - 1 || (studentIndex + 1) % 5 === 0) {
-                        toast.info(`Membuat PDF untuk: ${siswa.nm_siswa} (${studentIndex + 1}/${filteredSiswa.length})`);
+                        toast.info(`Memproses: ${siswa.nm_siswa} (${studentIndex + 1}/${filteredSiswa.length})`);
                     }
 
-
-                    // Add page break before each student (except first)
                     if (!isFirstStudent) {
                         doc.addPage();
-                        // Clear font state cache to ensure font is re-applied for this student
                         const { clearFontState } = await import('@/lib/pdf/optimizedFontLoader');
                         clearFontState(doc);
                     }
                     isFirstStudent = false;
 
-                    // Track starting page for this student (AFTER addPage)
                     const studentStartPage = doc.getNumberOfPages();
-
-                    // Get fase for this student
                     const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
 
-                    // Header with student info
-                    const headerInfo = {
-                        student: {
-                            nm_siswa: siswa.nm_siswa,
-                            nis: siswa.nis,
-                            nisn: siswa.nisn,
-                            nm_kelas: siswa.nm_kelas
-                        },
-                        school: {
-                            nama: sekolahData.sekolah?.nama || 'SMAN 1 BANTARUJEG',
-                            alamat: sekolahData.sekolah?.alamat || 'Jl. Siliwangi No. 119 Bantarujeg'
-                        },
-                        semester: {
-                            nama_semester: '2025/2026 Ganjil',
-                            tahun_ajaran_id: '2025'
-                        },
-                        kelas: siswa.nm_kelas || 'X MERDEKA 5',
-                        fase: fase
-                    };
-
-                    let yAfterHeader = await generateNilaiRaporHeader(doc, headerInfo, marginSettings);
-
-                    // Fetch student-specific data with retry mechanism
-                    const { fetchWithRetry } = await import('@/lib/fetchRetryHelper');
-
+                    // Batch student-specific data
                     const [mapelRes, kehadiranRes, catatanWaliRes] = await Promise.all([
                         fetchWithRetry(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`, undefined, 3, 1000),
                         fetchWithRetry(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000),
                         fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000)
                     ]);
 
-                    if (!mapelRes.ok) {
-                        const errorText = await mapelRes.text().catch(() => mapelRes.statusText);
-                        throw new Error(`Gagal mengambil data mata pelajaran: ${errorText}`);
-                    }
-
-                    // Parse JSON in parallel
+                    if (!mapelRes.ok) throw new Error(`Gagal mengambil data mata pelajaran`);
                     const [mapelData, kehadiranData, catatanWaliData] = await Promise.all([
                         mapelRes.json(),
                         kehadiranRes.json(),
                         catatanWaliRes.json()
                     ]);
 
-                    if (!mapelData.success || !mapelData.kelompok) {
-                        throw new Error('Data mata pelajaran tidak valid atau kosong');
-                    }
-
-                    // Generate tables
-                    let yAfterTable = await generateNilaiRaporTable(doc, yAfterHeader, mapelData.kelompok, marginSettings);
-
-                    // Kokurikuler
-                    if (mapelData.kokurikuler) {
-                        yAfterTable += 5;
-                        yAfterTable = await generateKokurikulerTable(doc, yAfterTable, mapelData.kokurikuler, marginSettings);
-                    }
-
-                    // Ekstrakurikuler
-                    if (mapelData.ekstrakurikuler && mapelData.ekstrakurikuler.length > 0) {
-                        yAfterTable += 5;
-                        yAfterTable = await generateEkstrakurikulerTable(doc, yAfterTable, mapelData.ekstrakurikuler, marginSettings);
-                    }
-
-                    // Kehadiran & Catatan Wali (side by side)
-                    if (kehadiranRes.ok && kehadiranData) {
-                        yAfterTable += 5;
-
-                        const kehadiranHeaderHeight = 9;
-                        const kehadiranRowHeight = 6;
-                        const kehadiranTotalHeight = kehadiranHeaderHeight + (kehadiranRowHeight * 3);
-                        const pageHeight = doc.internal.pageSize.getHeight();
-
-                        if (yAfterTable + kehadiranTotalHeight > pageHeight - marginSettings.margin_bottom) {
-                            doc.addPage();
-                            const studentHeaderHeight = 21;
-                            yAfterTable = marginSettings.margin_top + studentHeaderHeight;
-                        }
-
-                        const tablesStartY = yAfterTable;
-                        const kehadiranEndY = await generateKetidakhadiranTable(doc, tablesStartY, kehadiranData, marginSettings);
-                        const catatanWaliX = marginSettings.margin_left + 53 + 5;
-                        const catatanWaliEndY = await generateCatatanWaliTable(doc, tablesStartY, catatanWaliX, catatanWaliRes.ok ? catatanWaliData : null, marginSettings);
-                        yAfterTable = Math.max(kehadiranEndY, catatanWaliEndY);
-                    }
-
-                    // Tanggapan Orang Tua
-                    yAfterTable += 5;
-                    yAfterTable = await generateTanggapanOrtuTable(doc, yAfterTable, marginSettings);
-
-                    // Signature section
-                    yAfterTable += 5;
-
-                    // Format tanggal
-                    const formatTanggalIndonesia = (isoDate: string): string => {
-                        const date = new Date(isoDate);
-                        const bulanIndonesia = [
-                            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                        ];
-                        const tanggal = date.getDate();
-                        const bulan = bulanIndonesia[date.getMonth()];
-                        const tahun = date.getFullYear();
-                        return `${tanggal} ${bulan} ${tahun}`;
+                    // Generate Rapor Content
+                    const headerInfo = {
+                        student: { nm_siswa: siswa.nm_siswa, nis: siswa.nis, nisn: siswa.nisn, nm_kelas: siswa.nm_kelas },
+                        school: { nama: sekolahData.sekolah?.nama || 'SMAN 1 BANTARUJEG', alamat: sekolahData.sekolah?.alamat || 'Jl. Siliwangi No. 119 Bantarujeg' },
+                        semester: { 
+                            nama_semester: activeSemester?.nama || '2025/2026 Ganjil', 
+                            tahun_ajaran_id: activeSemester?.tahun_ajaran_id || '2025',
+                            semester: activeSemester?.semester
+                        },
+                        kelas: siswa.nm_kelas || '-',
+                        fase: fase
                     };
 
-                    const studentClass = kelasData.kelas?.find((k: any) => k.nm_kelas === siswa.nm_kelas);
-                    let namaWaliKelasWithGelar = studentClass?.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
+                    let yPos = await generateNilaiRaporHeader(doc, headerInfo, marginSettings);
+                    yPos = await generateNilaiRaporTable(doc, yPos, mapelData.kelompok, marginSettings);
 
+                    if (mapelData.kokurikuler) {
+                        yPos += 5;
+                        yPos = await generateKokurikulerTable(doc, yPos, mapelData.kokurikuler, marginSettings);
+                    }
+
+                    if (mapelData.ekstrakurikuler?.length > 0) {
+                        yPos += 5;
+                        yPos = await generateEkstrakurikulerTable(doc, yPos, mapelData.ekstrakurikuler, marginSettings);
+                    }
+
+                    if (kehadiranRes.ok && kehadiranData) {
+                        yPos += 5;
+                        if (yPos + 27 > doc.internal.pageSize.getHeight() - marginSettings.margin_bottom) {
+                            doc.addPage();
+                            yPos = marginSettings.margin_top + 21;
+                        }
+                        const tableStartAt = yPos;
+                        const kEndY = await generateKetidakhadiranTable(doc, tableStartAt, kehadiranData, marginSettings);
+                        const cWaliX = marginSettings.margin_left + 53 + 5;
+                        const cEndY = await generateCatatanWaliTable(doc, tableStartAt, cWaliX, catatanWaliRes.ok ? catatanWaliData : null, marginSettings);
+                        yPos = Math.max(kEndY, cEndY);
+                    }
+
+                    yPos += 5;
+                    yPos = await generateTanggapanOrtuTable(doc, yPos, marginSettings);
+
+                    // Signature for student
+                    const studentClass = kelasData.kelas?.find((k: any) => k.nm_kelas === siswa.nm_kelas);
+                    let namaWaliKelas = studentClass?.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
                     if (studentClass?.ptk_id) {
                         const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
                         if (guruInfo) {
-                            const gelarDepan = guruInfo.gelar_depan || '';
-                            const gelarBelakang = guruInfo.gelar_belakang || '';
-                            const nama = guruInfo.nm_ptk || studentClass.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
-                            namaWaliKelasWithGelar = [gelarDepan, nama, gelarBelakang]
-                                .filter(part => part && part.trim())
-                                .join(' ');
+                            namaWaliKelas = [guruInfo.gelar_depan, guruInfo.nm_ptk, guruInfo.gelar_belakang].filter(Boolean).join(' ');
                         }
                     }
 
-                    const tanggalRaw = tanggalRaporData.data?.[0]?.tanggal;
-                    const tanggalFormatted = tanggalRaw ? formatTanggalIndonesia(tanggalRaw) : '22 Desember 2025';
+                    const formatTgl = (iso: string) => {
+                        const d = new Date(iso);
+                        const b = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                        return `${d.getDate()} ${b[d.getMonth()]} ${d.getFullYear()}`;
+                    };
 
-                    const signatureData = {
+                    const tglRaw = tanggalRaporData.data?.[0]?.tanggal;
+                    const signature = {
                         tempat: tanggalRaporData.data?.[0]?.tempat_ttd || 'Bantarujeg',
-                        tanggal: tanggalFormatted,
-                        namaWaliKelas: namaWaliKelasWithGelar,
+                        tanggal: tglRaw ? formatTgl(tglRaw) : '22 Desember 2025',
+                        namaWaliKelas: namaWaliKelas,
                         nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
                         namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
                         nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : '',
@@ -749,71 +689,77 @@ export default function NilaiRaporPage() {
                         layout: marginSettings.ttd_layout || 'classic'
                     };
 
-                    yAfterTable = await generateSignatureSection(doc, yAfterTable, signatureData, marginSettings);
+                    yPos += 5;
+                    await generateSignatureSection(doc, yPos, signature, marginSettings);
 
-                    // Add headers and footers for this student's pages
-                    const studentHeaderInfo = {
-                        nm_siswa: siswa.nm_siswa,
-                        nm_kelas: siswa.nm_kelas || '-',
-                        nis: siswa.nis || '-',
-                        nisn: siswa.nisn || '-',
-                        fase: fase,
-                        nama_sekolah: headerInfo.school.nama,
-                        alamat_sekolah: headerInfo.school.alamat,
-                        semester: headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2',
+                    // Student Header and Footer for each page
+                    const studentEndPage = doc.getNumberOfPages();
+                    const sHeader = {
+                        nm_siswa: siswa.nm_siswa, nm_kelas: siswa.nm_kelas || '-', nis: siswa.nis || '-', nisn: siswa.nisn || '-', fase,
+                        nama_sekolah: headerInfo.school.nama, alamat_sekolah: headerInfo.school.alamat,
+                        semester: headerInfo.semester.semester || (headerInfo.semester.nama_semester.includes('Ganjil') ? '1' : '2'),
                         tahun_ajaran: `${headerInfo.semester.tahun_ajaran_id}/${parseInt(headerInfo.semester.tahun_ajaran_id) + 1}`
                     };
 
-                    // Calculate page range for this student
-                    const studentEndPage = doc.getNumberOfPages();
-
-                    // Add student header to pages 2+ for this student only
-                    for (let pageIdx = studentStartPage + 1; pageIdx <= studentEndPage; pageIdx++) {
-                        doc.setPage(pageIdx);
-                        await generateStudentHeaderInfo(doc, marginSettings.margin_top, studentHeaderInfo, marginSettings);
+                    let pageNum = 1;
+                    for (let pIdx = studentStartPage; pIdx <= studentEndPage; pIdx++) {
+                        doc.setPage(pIdx);
+                        if (pIdx > studentStartPage) await generateStudentHeaderInfo(doc, marginSettings.margin_top, sHeader, marginSettings);
+                        generateNilaiRaporFooter(doc, { nm_kelas: siswa.nm_kelas || '-', nm_siswa: siswa.nm_siswa, nis: siswa.nis || '-', pageNumber: pageNum++ }, marginSettings);
                     }
-
-                    // Add footer to all pages for this student only
-                    let pageNumberInStudent = 1;
-                    for (let pageIdx = studentStartPage; pageIdx <= studentEndPage; pageIdx++) {
-                        doc.setPage(pageIdx);
-                        generateNilaiRaporFooter(doc, {
-                            nm_kelas: siswa.nm_kelas || '-',
-                            nm_siswa: siswa.nm_siswa,
-                            nis: siswa.nis || '-',
-                            pageNumber: pageNumberInStudent
-                        }, marginSettings);
-                        pageNumberInStudent++;
-                    }
+                    addLog(`[OK] Selesai ${siswa.nm_siswa}`);
 
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    const errS = String(err);
+                    addLog(`!!! GAGAL pada ${siswa.nm_siswa}: ${errS}`);
                     console.error(`Error generating PDF for ${siswa.nm_siswa}:`, err);
-                    failedStudents.push({ name: siswa.nm_siswa, error: errorMessage });
-                    toast.error(`Gagal membuat PDF untuk ${siswa.nm_siswa}: ${errorMessage}`);
-                    // Continue with next student
+                    failedStudents.push({ name: siswa.nm_siswa, error: errS });
                 }
             }
 
-            // Save the combined PDF
-            const kelasName = filteredSiswa[0]?.nm_kelas?.replace(/\s+/g, '_') || 'Kelas';
-            const fileName = `Nilai_Rapor_${kelasName}_Semua_Siswa.pdf`;
-            doc.save(fileName);
-
-            // Show summary
-            const successCount = filteredSiswa.length - failedStudents.length;
-            if (failedStudents.length > 0) {
-                const failedNames = failedStudents.map(f => `${f.name} (${f.error})`).join(', ');
-                toast.warning(
-                    `PDF berhasil dibuat untuk ${successCount}/${filteredSiswa.length} siswa. Gagal: ${failedNames}`,
-                    { duration: 10000 }
-                );
-            } else {
-                toast.success(`PDF berhasil dibuat untuk semua ${filteredSiswa.length} siswa!`);
+            // 5. Save combined PDF (Robust Blob Method)
+            if (filteredSiswa.length > 0) {
+                const sanitizedKelas = (filteredSiswa[0].nm_kelas || 'Kelas').replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
+                const fileName = `Nilai_Rapor_${sanitizedKelas}_Gabungan.pdf`;
+                addLog(`Finishing Combined PDF: ${fileName}`);
+                
+                try {
+                    addLog('Konversi Bulk PDF ke Blob...');
+                    const blob = doc.output('blob');
+                    addLog(`Blob massal dibuat. Ukuran: ${(blob.size / (1024 * 1024)).toFixed(2)} MB`);
+                    
+                    const url = URL.createObjectURL(blob);
+                    addLog(`URL Massal: ${url}`);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                        addLog('URL Massal dibereskan.');
+                    }, 60000);
+                    
+                    if (failedStudents.length > 0) {
+                        toast.warning(`Selesai. ${filteredSiswa.length - failedStudents.length} berhasil, ${failedStudents.length} gagal.`);
+                    } else {
+                        toast.success('Rapor massal berhasil diunduh!');
+                    }
+                    addLog('=== GENSET BULK SELESAI ===');
+                } catch (saveErr) {
+                    addLog('!! GAGAL Simpan Bulk Blob: ' + String(saveErr));
+                    console.error('Error saving bulk PDF:', saveErr);
+                    doc.save(fileName);
+                }
             }
         } catch (err) {
+            const errS = String(err);
+            addLog('!!! ERROR FATAL BULK: ' + errS);
             console.error('Error generating bulk PDFs:', err);
-            toast.error('Gagal generate PDF massal: ' + (err instanceof Error ? err.message : 'Unknown error'));
+            toast.error('Gagal generate PDF massal: ' + errS);
         } finally {
             setGeneratingBulk(false);
             setBulkProgress({ current: 0, total: 0, currentStudent: '' });
@@ -1193,6 +1139,50 @@ export default function NilaiRaporPage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Debug Logs Display */}
+            <div className="flex justify-center mt-6">
+                <Button 
+                    variant="link" 
+                    size="sm" 
+                    onClick={() => setShowDebug(true)}
+                    className="text-xs text-muted-foreground underline decoration-dotted"
+                >
+                    Klik di sini jika PDF tidak terdownload (Fitur Debug)
+                </Button>
+            </div>
+
+            <Dialog open={showDebug} onOpenChange={setShowDebug}>
+                <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col sm:rounded-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <SettingsIcon className="h-5 w-5" />
+                            PDF Debug Console
+                        </DialogTitle>
+                        <DialogDescription>
+                            Log ini mencatat setiap langkah pembuatan PDF. Harap capture log ini jika unduhan gagal.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="bg-slate-950 text-slate-50 p-4 rounded-md font-mono text-xs overflow-y-auto flex-1 space-y-1 my-4 border border-slate-800">
+                        {debugLogs.length === 0 ? (
+                            <p className="text-slate-500 italic">Belum ada log. Silakan coba generate PDF terlebih dahulu.</p>
+                        ) : (
+                            debugLogs.map((log, i) => (
+                                <div key={i} className={
+                                    log.includes('!!!') || log.includes('!!') ? 'text-red-400 font-bold' : 
+                                    log.includes('===') ? 'text-green-400 font-bold border-b border-slate-800 pb-1 mt-2' : 
+                                    log.includes('SUKSES') ? 'text-green-400 font-bold' : ''
+                                }>
+                                    {log}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <DialogFooter className="flex flex-row justify-between sm:justify-between items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setDebugLogs([])}>Bersihkan Log</Button>
+                        <Button size="sm" onClick={() => setShowDebug(false)}>Tutup</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

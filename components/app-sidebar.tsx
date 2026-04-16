@@ -73,6 +73,7 @@ const menuItems: MenuItem[] = [
         icon: Package,
         allowedLevels: ['Admin'],
         submenu: [
+            { title: 'Setting Semester', href: '/dashboard/referensi/semester', icon: Calendar },
             { title: 'Data Sekolah', href: '/dashboard/referensi/sekolah', icon: School },
             { title: 'Data Guru', href: '/dashboard/guru', icon: UserCheck },
             { title: 'Data Siswa', href: '/dashboard/siswa', icon: GraduationCap },

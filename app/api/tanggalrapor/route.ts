@@ -5,12 +5,28 @@ import { retryQuery } from '@/lib/dbRetryHelper';
 export async function GET(request: NextRequest) {
   try {
     const sql = getDbClient();
-    
-    const result = await sql`
-      SELECT *
-      FROM tabel_tanggalrapor
-      ORDER BY semester_id DESC, tanggal DESC
+
+    // Ambil semester aktif
+    const activeSemester = await sql`
+      SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
     `;
+    const activeSemesterId = activeSemester.length > 0 ? activeSemester[0].semester_id : null;
+    
+    let result;
+    if (activeSemesterId) {
+      result = await sql`
+        SELECT *
+        FROM tabel_tanggalrapor
+        WHERE semester_id = ${activeSemesterId}
+        ORDER BY tanggal DESC
+      `;
+    } else {
+      result = await sql`
+        SELECT *
+        FROM tabel_tanggalrapor
+        ORDER BY semester_id DESC, tanggal DESC
+      `;
+    }
 
     const tanggalRaporList = result as TanggalRapor[];
     return NextResponse.json({ data: tanggalRaporList }, { status: 200 });

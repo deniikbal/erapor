@@ -33,42 +33,6 @@ function detectPeminatan(nm_kelas: string): string | null {
     return null; // Kelas X or unknown
 }
 
-/**
- * Filter mapel pilihan based on peminatan
- */
-function filterMapelPilihan(mapels: any[], peminatan: string | null) {
-    if (!peminatan) {
-        // Kelas X - return all mapel pilihan
-        return mapels;
-    }
-
-    // Define mapel groups
-    const mipaMapels = ['MATEMATIKA TINGKAT LANJUT', 'BIOLOGI', 'FISIKA', 'KIMIA'];
-    const ipsMapels = ['GEOGRAFI', 'SEJARAH TINGKAT LANJUT', 'SOSIOLOGI', 'EKONOMI'];
-
-    // Class XII groupings
-    const gbimMapels = ['GEOGRAFI', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
-    const sbimMapels = ['SEJARAH', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
-    const ebimMapels = ['EKONOMI', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
-
-    return mapels.filter(mapel => {
-        const nmUpper = mapel.nm_lokal.toUpperCase();
-
-        if (peminatan === 'MIPA') {
-            return mipaMapels.some(m => nmUpper.includes(m));
-        } else if (peminatan === 'IPS') {
-            return ipsMapels.some(m => nmUpper.includes(m));
-        } else if (peminatan === 'GBIM') {
-            return gbimMapels.some(m => nmUpper.includes(m));
-        } else if (peminatan === 'SBIM') {
-            return sbimMapels.some(m => nmUpper.includes(m));
-        } else if (peminatan === 'EBIM') {
-            return ebimMapels.some(m => nmUpper.includes(m));
-        }
-
-        return false;
-    });
-}
 
 export async function GET(request: NextRequest) {
     try {
@@ -84,6 +48,12 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // Ambil semester aktif
+        const activeSemester = await sql`
+            SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
+        `;
+        const activeSemesterId = activeSemester.length > 0 ? activeSemester[0].semester_id : '20251';
+
         // Get student's class info to detect peminatan
         const siswaKelas = await sql`
       SELECT 
@@ -97,12 +67,13 @@ export async function GET(request: NextRequest) {
       LEFT JOIN tabel_anggotakelas ak ON s.peserta_didik_id = ak.peserta_didik_id
       LEFT JOIN tabel_kelas k ON ak.rombongan_belajar_id = k.rombongan_belajar_id
       WHERE s.peserta_didik_id = ${peserta_didik_id}
+        AND k.semester_id = ${activeSemesterId}
       LIMIT 1
     `;
 
         if (siswaKelas.length === 0) {
             return NextResponse.json(
-                { error: 'Siswa not found' },
+                { error: 'Siswa not found or not registered in any class for the active semester' },
                 { status: 404 }
             );
         }
@@ -111,6 +82,7 @@ export async function GET(request: NextRequest) {
         const peminatan = detectPeminatan(siswa.nm_kelas || '');
 
         // Get mata pelajaran dengan kelompok untuk tingkat tertentu
+        // Relaxing kurikulum filter to be more inclusive if needed
         const mapelData = await sql`
       SELECT 
         m.id_map_mapel,
@@ -124,20 +96,24 @@ export async function GET(request: NextRequest) {
       FROM tabel_map_mapelk2013 m
       LEFT JOIN ref_klp_mapel k ON m.klp_mpl = k.klp_id AND k.jenjang = 'SMA'
       WHERE m.tingkat_pendidikan_id = ${tingkat}
-        AND m.kurikulum_id = ${kurikulum_id}
       ORDER BY m.klp_mpl, m.urut_rapor
     `;
-
+        
         // Group by kelompok
         const kelompokMap = new Map();
 
         mapelData.forEach((mapel) => {
-            const klpId = mapel.klp_mpl;
-            let kelompokName = mapel.nama_kelompok || 'Tanpa Kelompok';
+            const klpId = Number(mapel.klp_mpl);
+            let kelompokName = '';
 
-            // Customize nama kelompok untuk Mata Pelajaran Pilihan
-            if (klpId === 2 && peminatan) {
-                kelompokName = `Mata Pelajaran Pilihan - ${peminatan}`;
+            if (klpId === 1) {
+                kelompokName = 'Mata Pelajaran Wajib';
+            } else if (klpId === 2) {
+                kelompokName = 'Mata Pelajaran Pilihan';
+            } else if (klpId === 6) {
+                kelompokName = 'Muatan Lokal';
+            } else {
+                kelompokName = mapel.nama_kelompok || 'Lainnya';
             }
 
             if (!kelompokMap.has(klpId)) {
@@ -160,18 +136,10 @@ export async function GET(request: NextRequest) {
             });
         });
 
-        // Filter mapel pilihan based on peminatan
-        kelompokMap.forEach((kelompok, klpId) => {
-            if (klpId === 2) { // Mata Pelajaran Pilihan
-                kelompok.mapels = filterMapelPilihan(kelompok.mapels, peminatan);
-            }
-        });
 
         const kelompokData = Array.from(kelompokMap.values());
 
-        // Fetch nilai akhir from tabel_nilaiakhir
-        // For Class XII with multi-enrollment: merge nilai from main class and per-subject classes
-        // Priority: jenis_rombel=16 (per-subject) > jenis_rombel=1 (main class)
+        // Fetch nilai akhir from tabel_nilaiakhir (Simpler query to be more inclusive)
         const nilaiAkhir = await sql`
       SELECT DISTINCT ON (n.mata_pelajaran_id)
         n.mata_pelajaran_id,
@@ -180,13 +148,10 @@ export async function GET(request: NextRequest) {
         n.predikat_peng,
         n.predikat_ket
       FROM tabel_nilaiakhir n
-      LEFT JOIN tabel_anggotakelas ak ON n.anggota_rombel_id = ak.anggota_rombel_id
-      LEFT JOIN tabel_kelas k ON ak.rombongan_belajar_id = k.rombongan_belajar_id
+      JOIN tabel_anggotakelas ak ON n.anggota_rombel_id = ak.anggota_rombel_id
       WHERE ak.peserta_didik_id = ${peserta_didik_id}
-        AND n.semester_id = '20251'
-      ORDER BY 
-        n.mata_pelajaran_id,
-        k.jenis_rombel DESC NULLS LAST
+        AND n.semester_id = ${activeSemesterId}
+      ORDER BY n.mata_pelajaran_id, n.nilai_peng DESC NULLS LAST
     `;
 
         // Fetch capaian kompetensi from tabel_deskripsi
@@ -197,7 +162,7 @@ export async function GET(request: NextRequest) {
         d.deskripsi_ket_m
       FROM tabel_deskripsi d
       WHERE d.peserta_didik_id = ${peserta_didik_id}
-        AND d.semester_id = '20251'
+        AND d.semester_id = ${activeSemesterId}
     `;
 
         // Create maps for quick lookup
@@ -213,11 +178,10 @@ export async function GET(request: NextRequest) {
 
         const deskripsiMap = new Map();
         deskripsi.forEach(d => {
-            // Combine deskripsi_peng_m and deskripsi_ket_m with newline
             const capaianParts = [];
             if (d.deskripsi_peng_m) capaianParts.push(d.deskripsi_peng_m);
             if (d.deskripsi_ket_m) capaianParts.push(d.deskripsi_ket_m);
-            const combinedCapaian = capaianParts.join('\n'); // Newline separator
+            const combinedCapaian = capaianParts.join('\n');
             deskripsiMap.set(d.mata_pelajaran_id, combinedCapaian);
         });
 
@@ -228,7 +192,6 @@ export async function GET(request: NextRequest) {
                 const capaian = deskripsiMap.get(mapel.mata_pelajaran_id);
 
                 if (nilai) {
-                    // Use nilai_peng directly as nilai_akhir (no averaging)
                     mapel.nilai_akhir = parseFloat(nilai.nilai_peng) || 0;
                 }
 
@@ -241,15 +204,18 @@ export async function GET(request: NextRequest) {
             kelompok.mapels = kelompok.mapels.filter((mapel: any) => mapel.nilai_akhir !== null && mapel.nilai_akhir !== 0);
         });
 
+        // Filter out groups that ended up with 0 subjects
+        const finalKelompokData = kelompokData.filter(k => k.mapels.length > 0);
+
         // Calculate total mapel after filtering
-        const totalMapel = kelompokData.reduce((sum, k) => sum + k.mapels.length, 0);
+        const totalMapel = finalKelompokData.reduce((sum, k) => sum + k.mapels.length, 0);
 
         // Fetch kokurikuler deskripsi
         const kokurikuler = await sql`
             SELECT deskripsi
             FROM tabel_deskripsikurikuler
             WHERE peserta_didik_id = ${peserta_didik_id}
-              AND semester_id = '20251'
+              AND semester_id = ${activeSemesterId}
             LIMIT 1
         `;
 
@@ -264,7 +230,7 @@ export async function GET(request: NextRequest) {
             FROM tabel_nilai_ekstra ne
             LEFT JOIN refekstra_kurikuler re ON ne.id_ekskul_baru = re.id_ekskul
             WHERE ne.peserta_didik_id = ${peserta_didik_id}
-              AND ne.semester_id = '20251'
+              AND ne.semester_id = ${activeSemesterId}
               AND ne.deskripsi IS NOT NULL
             ORDER BY re.nm_ekskul
         `;
@@ -282,9 +248,9 @@ export async function GET(request: NextRequest) {
             nm_kelas: siswa.nm_kelas,
             peminatan: peminatan || 'Belum ada peminatan (Kelas X)',
             tingkat,
-            total_kelompok: kelompokData.length,
+            total_kelompok: finalKelompokData.length,
             total_mapel: totalMapel,
-            kelompok: kelompokData,
+            kelompok: finalKelompokData,
             kokurikuler: kokurikulerDeskripsi,
             ekstrakurikuler: ekstraList
         });

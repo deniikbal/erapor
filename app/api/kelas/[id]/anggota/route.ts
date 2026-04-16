@@ -8,16 +8,11 @@ export async function GET(
   try {
     const sql = getDbClient();
     
-    // Support both sync and async params
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const rombongan_belajar_id = params?.id;
-
-    console.log('API anggota called!');
-    console.log('Context:', context);
-    console.log('Params:', params);
-    console.log('Fetching anggota for rombongan_belajar_id:', rombongan_belajar_id);
+    // Process params accurately for Next.js 15+
+    const routeParams = context.params instanceof Promise ? await context.params : context.params;
+    const rombel_id = routeParams?.id;
     
-    if (!rombongan_belajar_id) {
+    if (!rombel_id) {
       return NextResponse.json(
         { error: 'rombongan_belajar_id is required' },
         { status: 400 }
@@ -28,24 +23,23 @@ export async function GET(
     const result = await sql`
       SELECT 
         s.peserta_didik_id,
+        s.nis,
         s.nisn,
         s.nm_siswa,
         k.nm_kelas,
+        k.tingkat_pendidikan_id,
         ak.anggota_rombel_id
       FROM tabel_siswa s
       JOIN tabel_anggotakelas ak ON s.peserta_didik_id = ak.peserta_didik_id
       JOIN tabel_kelas k ON ak.rombongan_belajar_id = k.rombongan_belajar_id
-      WHERE ak.rombongan_belajar_id = ${rombongan_belajar_id}
+      WHERE ak.rombongan_belajar_id = ${rombel_id}
       ORDER BY s.nm_siswa ASC
     `;
-
-    console.log(`Found ${result.length} siswa in this class`);
-    console.log('Sample siswa:', result.slice(0, 2));
 
     return NextResponse.json({ 
       siswa: result,
       debug: {
-        rombongan_belajar_id,
+        rombongan_belajar_id: rombel_id,
         total: result.length
       }
     }, { status: 200 });
