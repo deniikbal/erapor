@@ -232,8 +232,6 @@ export default function DataSiswaPage() {
   const handleExportExcel = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
-
-      // Gunakan data yang sedang difilter di UI
       const exportData = filteredSiswa;
 
       if (exportData.length === 0) {
@@ -241,79 +239,47 @@ export default function DataSiswaPage() {
         return;
       }
 
-      // Grouping data per kelas
-      const groupedData = exportData.reduce((acc, siswa) => {
-        const kelas = siswa.nm_kelas || 'Tanpa Kelas';
-        if (!acc[kelas]) acc[kelas] = [];
-        acc[kelas].push(siswa);
-        return acc;
-      }, {} as Record<string, typeof filteredSiswa>);
+      const worksheet = workbook.addWorksheet('Data Siswa');
 
-      // Helper format tanggal Indonesia
-      const formatDateIndo = (dateStr: string | null) => {
-        if (!dateStr) return '-';
-        try {
-          const date = new Date(dateStr);
-          return date.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          });
-        } catch (e) {
-          return dateStr || '-';
-        }
-      };
+      worksheet.columns = [
+        { header: 'No', key: 'no', width: 8 },
+        { header: 'Nama Siswa', key: 'nm_siswa', width: 40 },
+        { header: 'NISN', key: 'nisn', width: 20 },
+        { header: 'Kelas', key: 'nm_kelas', width: 20 },
+      ];
 
-      // Buat sheet untuk setiap kelas
-      Object.entries(groupedData).forEach(([kelasName, students]) => {
-        // Excel sheet names have a limit of 31 characters and some forbidden characters
-        const safeSheetName = kelasName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '-');
-        const worksheet = workbook.addWorksheet(safeSheetName);
-
-        worksheet.columns = [
-          { header: 'No', key: 'no', width: 5 },
-          { header: 'Nama Siswa', key: 'nm_siswa', width: 35 },
-          { header: 'Jenis Kelamin', key: 'jenis_kelamin', width: 15 },
-          { header: 'Tempat Lahir', key: 'tempat_lahir', width: 20 },
-          { header: 'Tanggal Lahir', key: 'tanggal_lahir', width: 25 },
-          { header: 'Agama', key: 'agama', width: 15 },
-          { header: 'NIS', key: 'nis', width: 15 },
-          { header: 'NISN', key: 'nisn', width: 15 },
-          { header: 'Alamat', key: 'alamat_siswa', width: 50 },
-        ];
-
-        students.forEach((siswa, index) => {
-          worksheet.addRow({
-            no: index + 1,
-            nm_siswa: siswa.nm_siswa,
-            jenis_kelamin: siswa.jenis_kelamin || '-',
-            tempat_lahir: siswa.tempat_lahir || '-',
-            tanggal_lahir: formatDateIndo(siswa.tanggal_lahir),
-            agama: siswa.agama || '-',
-            nis: siswa.nis || '-',
-            nisn: siswa.nisn || '-',
-            alamat_siswa: siswa.alamat_siswa || '-',
-          });
+      exportData.forEach((siswa, index) => {
+        worksheet.addRow({
+          no: index + 1,
+          nm_siswa: siswa.nm_siswa,
+          nisn: siswa.nisn || '-',
+          nm_kelas: siswa.nm_kelas || '-',
         });
+      });
 
-        // Styling header
-        const headerRow = worksheet.getRow(1);
-        headerRow.font = { bold: true };
-        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-        headerRow.height = 20;
+      // Styling header
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      headerRow.height = 25;
 
-        // Styling borders
-        worksheet.eachRow((row, rowNumber) => {
-          row.eachCell((cell) => {
-            cell.border = {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' }
+      // Styling borders & alignment
+      worksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+          cell.alignment = { vertical: 'middle', horizontal: rowNumber === 1 ? 'center' : 'left' };
+          if (rowNumber === 1) {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFE0E0E0' }
             };
-            // Vertical middle for all cells
-            cell.alignment = { ...cell.alignment, vertical: 'middle' };
-          });
+          }
         });
       });
 
@@ -329,7 +295,7 @@ export default function DataSiswaPage() {
       document.body.removeChild(a);
 
       toast.success('Berhasil export Excel', {
-        description: `Berhasil mengeksport ${exportData.length} data siswa dalam ${Object.keys(groupedData).length} sheet.`
+        description: `Berhasil mengeksport ${exportData.length} data siswa.`
       });
     } catch (error) {
       console.error('Export error:', error);
