@@ -19,6 +19,7 @@ import {
     Table,
     LogOut,
     ChevronRight,
+    TrendingUp,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -69,6 +70,33 @@ const menuItems: MenuItem[] = [
         allowedLevels: ['Admin', 'Guru'],
     },
     {
+        title: 'Input Kelengkapan',
+        icon: ClipboardEdit,
+        allowedLevels: ['Guru'],
+        submenu: [
+            { title: 'Update Data Siswa', href: '/dashboard/guru-input/update-data-siswa', icon: GraduationCap },
+        ],
+    },
+    {
+        title: 'Perkembangan Nilai',
+        icon: TrendingUp,
+        allowedLevels: ['Guru'],
+        submenu: [
+            { title: 'Status Penilaian', href: '/dashboard/guru/status-penilaian', icon: Table },
+            { title: 'Grafik Penilaian', href: '/dashboard/guru/grafik-perkembangan', icon: TrendingUp },
+        ],
+    },
+    {
+        title: 'Cetak Nilai',
+        icon: Printer,
+        allowedLevels: ['Guru'],
+        submenu: [
+            { title: 'Pelengkap Raport', href: '/dashboard/cetak-nilai/pelengkap-raport', icon: FileText },
+            { title: 'Nilai Rapor', href: '/dashboard/cetak-nilai/nilai-rapor', icon: GraduationCap },
+            { title: 'Leger Rapor', href: '/dashboard/cetak-nilai/leger-rapor', icon: Table },
+        ],
+    },
+    {
         title: 'Data Referensi',
         icon: Package,
         allowedLevels: ['Admin'],
@@ -91,24 +119,6 @@ const menuItems: MenuItem[] = [
             { title: 'Pelengkap Raport', href: '/dashboard/admin-cetak-nilai/pelengkap-raport', icon: FileText },
             { title: 'Nilai Rapor', href: '/dashboard/admin-cetak-nilai/nilai-rapor', icon: GraduationCap },
             { title: 'Leger Rapor', href: '/dashboard/admin-cetak-nilai/leger-rapor', icon: Table },
-        ],
-    },
-    {
-        title: 'Input Kelengkapan',
-        icon: ClipboardEdit,
-        allowedLevels: ['Guru'],
-        submenu: [
-            { title: 'Update Data Siswa', href: '/dashboard/guru-input/update-data-siswa', icon: GraduationCap },
-        ],
-    },
-    {
-        title: 'Cetak Nilai',
-        icon: Printer,
-        allowedLevels: ['Guru'],
-        submenu: [
-            { title: 'Pelengkap Raport', href: '/dashboard/cetak-nilai/pelengkap-raport', icon: FileText },
-            { title: 'Nilai Rapor', href: '/dashboard/cetak-nilai/nilai-rapor', icon: GraduationCap },
-            { title: 'Leger Rapor', href: '/dashboard/cetak-nilai/leger-rapor', icon: Table },
         ],
     },
     {
@@ -172,7 +182,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                     >
                                         <SidebarMenuItem>
                                             <CollapsibleTrigger asChild>
-                                                <SidebarMenuButton tooltip={item.title}>
+                                                <SidebarMenuButton tooltip={item.title} isActive={item.submenu.some((sub) => pathname === sub.href)}>
                                                     <item.icon className="h-4 w-4" />
                                                     <span>{item.title}</span>
                                                     <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -185,9 +195,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                                             <SidebarMenuSubButton
                                                                 asChild
                                                                 isActive={pathname === subItem.href}
+                                                                className={cn(
+                                                                    "relative transition-all duration-200",
+                                                                    pathname === subItem.href && "bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100"
+                                                                )}
                                                             >
                                                                 <Link href={subItem.href}>
-                                                                    <subItem.icon className="h-4 w-4" />
+                                                                    {pathname === subItem.href && (
+                                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-blue-600" />
+                                                                    )}
+                                                                    <subItem.icon className={cn("h-4 w-4", pathname === subItem.href && "text-blue-600")} />
                                                                     <span>{subItem.title}</span>
                                                                 </Link>
                                                             </SidebarMenuSubButton>
@@ -203,9 +220,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                             asChild
                                             tooltip={item.title}
                                             isActive={pathname === item.href}
+                                            className={cn(
+                                                "relative transition-all duration-200",
+                                                pathname === item.href && "bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 hover:text-blue-800"
+                                            )}
                                         >
                                             <Link href={item.href!}>
-                                                <item.icon className="h-4 w-4" />
+                                                {pathname === item.href && (
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-blue-600" />
+                                                )}
+                                                <item.icon className={cn("h-4 w-4", pathname === item.href && "text-blue-600")} />
                                                 <span>{item.title}</span>
                                             </Link>
                                         </SidebarMenuButton>
