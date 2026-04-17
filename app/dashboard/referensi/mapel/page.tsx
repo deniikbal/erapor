@@ -143,40 +143,45 @@ export default function DataMapelPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Data Mata Pelajaran</h1>
-                <p className="text-muted-foreground">Kelola nama mata pelajaran dan nama ringkas</p>
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                    <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+                    <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+                        Data Mata Pelajaran
+                    </h1>
+                </div>
+                <p className="text-slate-500 text-[11px] ml-3 italic">
+                    Kelola nama mata pelajaran dan nama ringkas untuk e-Rapor.
+                </p>
             </div>
 
-            <Card className="rounded-sm border-l-4 border-l-emerald-600">
-                <CardHeader>
+            <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+                <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-primary" />
-                        <CardTitle>Daftar Mata Pelajaran</CardTitle>
+                        <BookOpen className="h-4 w-4 text-[#1e3a8a]" />
+                        <CardTitle className="text-sm font-bold text-[#1e3a8a]">Daftar Mata Pelajaran</CardTitle>
                     </div>
-                    <CardDescription>
-                        Menampilkan {filteredMapel.length} dari {mapelList.length} mata pelajaran
-                    </CardDescription>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL: {mapelList.length}</p>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-4">
                     {/* Search Input */}
-                    <div className="mb-4">
+                    <div className="mb-3">
                         <Input
-                            placeholder="Cari nama mata pelajaran atau nama ringkas..."
+                            placeholder="Cari mapel..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="max-w-sm"
+                            className="max-w-xs h-8 text-xs border-slate-200"
                         />
                     </div>
 
-                    <div className="rounded-md border">
+                    <div className="rounded-sm border border-slate-100 overflow-hidden">
                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[100px] py-2">No</TableHead>
-                                    <TableHead className="py-2">Nama Mata Pelajaran</TableHead>
-                                    <TableHead className="py-2">Nama Ringkas</TableHead>
-                                    <TableHead className="w-[100px] text-center py-2">Aksi</TableHead>
+                            <TableHeader className="bg-[#1e3a8a]">
+                                <TableRow className="hover:bg-transparent border-none">
+                                    <TableHead className="w-[60px] text-white font-bold text-[10px] h-9 uppercase tracking-wider pl-4">No</TableHead>
+                                    <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Nama Mata Pelajaran</TableHead>
+                                    <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Nama Ringkas</TableHead>
+                                    <TableHead className="w-[80px] text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider pr-4">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -194,17 +199,18 @@ export default function DataMapelPage() {
                                     </TableRow>
                                 ) : (
                                     currentMapelList.map((mapel, index) => (
-                                        <TableRow key={mapel.mata_pelajaran_id}>
-                                            <TableCell className="font-medium py-2">{startIndex + index + 1}</TableCell>
-                                            <TableCell className="font-medium py-2">{mapel.nm_mapel || '-'}</TableCell>
-                                            <TableCell className="py-2">{mapel.nm_ringkas || '-'}</TableCell>
-                                            <TableCell className="text-center py-2">
+                                        <TableRow key={mapel.mata_pelajaran_id} className="hover:bg-slate-50 transition-colors">
+                                            <TableCell className="py-1.5 pl-4 text-xs font-medium text-slate-400">{startIndex + index + 1}</TableCell>
+                                            <TableCell className="py-1.5 font-bold text-[#1e3a8a] text-xs">{mapel.nm_mapel || '-'}</TableCell>
+                                            <TableCell className="py-1.5 text-xs text-slate-600 italic font-medium">{mapel.nm_ringkas || '-'}</TableCell>
+                                            <TableCell className="text-center py-1.5 pr-4">
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
                                                     onClick={() => handleEdit(mapel)}
+                                                    className="h-7 w-7 p-0 text-[#1e3a8a] hover:bg-blue-50 hover:text-blue-700"
                                                 >
-                                                    <Pencil className="h-4 w-4" />
+                                                    <Pencil className="h-3 w-3" />
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -227,9 +233,10 @@ export default function DataMapelPage() {
                                     size="sm"
                                     onClick={() => goToPage(currentPage - 1)}
                                     disabled={currentPage === 1}
+                                    className="h-7 text-[10px] font-bold border-slate-200"
                                 >
-                                    <ChevronLeft className="h-4 w-4 mr-1" />
-                                    Previous
+                                    <ChevronLeft className="h-3 w-3 mr-1" />
+                                    Prev
                                 </Button>
 
                                 <div className="flex items-center gap-1">
@@ -245,7 +252,7 @@ export default function DataMapelPage() {
                                                     variant={currentPage === page ? 'default' : 'outline'}
                                                     size="sm"
                                                     onClick={() => goToPage(page)}
-                                                    className="w-10"
+                                                    className={currentPage === page ? "bg-[#1e3a8a] hover:bg-black h-7 w-7 p-0 text-[10px] font-bold" : "h-7 w-7 p-0 text-[10px] border-slate-200"}
                                                 >
                                                     {page}
                                                 </Button>
@@ -262,9 +269,10 @@ export default function DataMapelPage() {
                                     size="sm"
                                     onClick={() => goToPage(currentPage + 1)}
                                     disabled={currentPage === totalPages}
+                                    className="h-7 text-[10px] font-bold border-slate-200"
                                 >
                                     Next
-                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                    <ChevronRight className="h-3 w-3 ml-1" />
                                 </Button>
                             </div>
                         </div>
@@ -273,41 +281,49 @@ export default function DataMapelPage() {
             </Card>
 
             <Dialog open={editDialog} onOpenChange={setEditDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Data Mata Pelajaran</DialogTitle>
-                        <DialogDescription>
-                            Ubah nama mata pelajaran dan nama ringkas
+                <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden border-none shadow-2xl">
+                    <DialogHeader className="py-3 px-6 bg-[#1e3a8a] text-white">
+                        <DialogTitle className="text-white text-base">Edit Mata Pelajaran</DialogTitle>
+                        <DialogDescription className="text-blue-100 text-[11px]">
+                            Sesuaikan nama dan singkatan mata pelajaran.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="nm_mapel">Nama Mata Pelajaran</Label>
+                    <div className="space-y-4 px-6 py-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="nm_mapel" className="text-[11px] font-bold uppercase text-slate-500">Nama Mata Pelajaran</Label>
                             <Input
                                 id="nm_mapel"
                                 value={formData.nm_mapel}
                                 onChange={(e) => setFormData({ ...formData, nm_mapel: e.target.value })}
                                 placeholder="Masukkan nama mata pelajaran"
+                                className="h-9 text-xs border-slate-200"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="nm_ringkas">Nama Ringkas</Label>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="nm_ringkas" className="text-[11px] font-bold uppercase text-slate-500">Nama Ringkas</Label>
                             <Input
                                 id="nm_ringkas"
                                 value={formData.nm_ringkas}
                                 onChange={(e) => setFormData({ ...formData, nm_ringkas: e.target.value })}
                                 placeholder="Masukkan nama ringkas"
+                                className="h-9 text-xs border-slate-200"
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleCancel} disabled={saving}>
-                            <X className="mr-2 h-4 w-4" />
+                    <DialogFooter className="px-6 py-3 bg-slate-50 border-t">
+                        <Button variant="outline" onClick={handleCancel} disabled={saving} className="h-8 text-[11px] font-bold uppercase border-slate-200">
+                            <X className="mr-1.5 h-3.5 w-3.5" />
                             Batal
                         </Button>
-                        <Button onClick={handleSave} disabled={saving}>
-                            <Save className="mr-2 h-4 w-4" />
-                            {saving ? 'Menyimpan...' : 'Simpan'}
+                        <Button onClick={handleSave} disabled={saving} className="h-8 text-[11px] font-bold uppercase bg-[#1e3a8a] text-white hover:bg-black">
+                            {saving ? (
+                                'Menyimpan...'
+                            ) : (
+                                <>
+                                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                                    Simpan
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

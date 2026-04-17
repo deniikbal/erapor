@@ -701,27 +701,31 @@ export default function AdminNilaiRaporPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Nilai Rapor (Admin)</h1>
-                <p className="text-muted-foreground">
-                    Generate PDF nilai rapor siswa semua kelas
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                    <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+                    <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+                        Cetak Nilai Rapor
+                    </h1>
+                </div>
+                <p className="text-slate-500 text-[11px] ml-3 italic">
+                    Generate PDF nilai rapor siswa untuk seluruh kelas reguler.
                 </p>
             </div>
 
             {/* Kelas Selection Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Pilih Kelas</CardTitle>
-                    <CardDescription>Pilih kelas untuk menampilkan daftar siswa</CardDescription>
+            <Card className="rounded-sm shadow-sm border border-blue-100">
+                <CardHeader className="py-2 px-4 bg-slate-50/50 border-b">
+                    <CardTitle className="text-xs font-bold text-[#1e3a8a]">Pilih Kelas</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="py-3 px-4">
                     <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={openCombobox}
-                                className="w-full justify-between"
+                                className="h-9 w-full justify-between text-xs font-bold text-[#1e3a8a] bg-slate-50 border-blue-100"
                             >
                                 {selectedKelas
                                     ? kelasList.find(k => k.rombongan_belajar_id === selectedKelas)?.nm_kelas +
@@ -769,88 +773,91 @@ export default function AdminNilaiRaporPage() {
 
             {/* Margin Settings Card */}
             {currentUser?.ptk_id && (
-                <Card>
-                    <CardHeader>
+                <Card className="rounded-sm shadow-sm border border-blue-100 mt-4">
+                    <CardHeader className="py-3 px-4 bg-slate-50/50 border-b">
                         <div className="flex items-center gap-2">
-                            <SettingsIcon className="h-5 w-5 text-primary" />
-                            <CardTitle>Pengaturan Margin PDF</CardTitle>
+                            <SettingsIcon className="h-4 w-4 text-[#1e3a8a]" />
+                            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Pengaturan Margin PDF (mm)</CardTitle>
                         </div>
-                        <CardDescription>Atur margin untuk dokumen PDF (dalam mm)</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="grid gap-4 md:grid-cols-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="margin_top">Margin Atas (mm)</Label>
+                    <CardContent className="py-3 px-4">
+                        <div className="grid gap-x-4 gap-y-3 md:grid-cols-5">
+                            <div className="space-y-1">
+                                <Label htmlFor="margin_top" className="text-[10px] font-bold text-slate-500 uppercase ml-1">Atas</Label>
                                 <Input
                                     id="margin_top"
                                     type="number"
                                     step="0.1"
+                                    className="h-8 text-xs font-bold border-blue-100 focus:ring-[#1e3a8a]"
                                     value={marginSettings.margin_top}
                                     onChange={(e) => setMarginSettings({ ...marginSettings, margin_top: parseFloat(e.target.value) || 0 })}
                                     disabled={savingMargin}
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="margin_bottom">Margin Bawah (mm)</Label>
+                            <div className="space-y-1">
+                                <Label htmlFor="margin_bottom" className="text-[10px] font-bold text-slate-500 uppercase ml-1">Bawah</Label>
                                 <Input
                                     id="margin_bottom"
                                     type="number"
                                     step="0.1"
+                                    className="h-8 text-xs font-bold border-blue-100 focus:ring-[#1e3a8a]"
                                     value={marginSettings.margin_bottom}
                                     onChange={(e) => setMarginSettings({ ...marginSettings, margin_bottom: parseFloat(e.target.value) || 0 })}
                                     disabled={savingMargin}
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="margin_left">Margin Kiri (mm)</Label>
+                            <div className="space-y-1">
+                                <Label htmlFor="margin_left" className="text-[10px] font-bold text-slate-500 uppercase ml-1">Kiri</Label>
                                 <Input
                                     id="margin_left"
                                     type="number"
                                     step="0.1"
+                                    className="h-8 text-xs font-bold border-blue-100 focus:ring-[#1e3a8a]"
                                     value={marginSettings.margin_left}
                                     onChange={(e) => setMarginSettings({ ...marginSettings, margin_left: parseFloat(e.target.value) || 0 })}
                                     disabled={savingMargin}
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="margin_right">Margin Kanan (mm)</Label>
+                            <div className="space-y-1">
+                                <Label htmlFor="margin_right" className="text-[10px] font-bold text-slate-500 uppercase ml-1">Kanan</Label>
                                 <Input
                                     id="margin_right"
                                     type="number"
                                     step="0.1"
+                                    className="h-8 text-xs font-bold border-blue-100 focus:ring-[#1e3a8a]"
                                     value={marginSettings.margin_right}
                                     onChange={(e) => setMarginSettings({ ...marginSettings, margin_right: parseFloat(e.target.value) || 0 })}
                                     disabled={savingMargin}
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="ttd_layout">Layout TTD</Label>
+                            <div className="space-y-1">
+                                <Label htmlFor="ttd_layout" className="text-[10px] font-bold text-slate-500 uppercase ml-1">Layout TTD</Label>
                                 <select 
                                     id="ttd_layout"
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="flex h-8 w-full rounded-md border border-blue-100 bg-slate-50 px-3 py-1 text-xs font-bold focus:ring-[#1e3a8a] disabled:cursor-not-allowed disabled:opacity-50"
                                     value={marginSettings.ttd_layout}
                                     onChange={(e) => setMarginSettings({ ...marginSettings, ttd_layout: e.target.value })}
                                     disabled={savingMargin}
                                 >
-                                    <option value="classic">Klasik (Sejajar)</option>
-                                    <option value="stacked">Bertingkat (Kepsek di bawah)</option>
+                                    <option value="classic">Klasik</option>
+                                    <option value="stacked">Bertingkat</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div className="mt-4">
-                            <Button onClick={handleSaveMargin} disabled={savingMargin}>
+                        <div className="mt-4 flex justify-end">
+                            <Button onClick={handleSaveMargin} disabled={savingMargin} size="sm" className="bg-[#1e3a8a] hover:bg-indigo-900 text-xs font-bold">
                                 {savingMargin ? (
                                     <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Menyimpan...
+                                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                        MENYIMPAN...
                                     </>
                                 ) : (
-                                    'Simpan Pengaturan'
+                                    'SIMPAN PENGATURAN MARGIN'
                                 )}
                             </Button>
                         </div>
@@ -861,19 +868,11 @@ export default function AdminNilaiRaporPage() {
             {/* Student List Card */}
             {selectedKelas && (
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="py-3 px-4 bg-slate-50/50 border-b">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <FileText className="h-5 w-5 text-primary" />
-                                    <CardTitle>Daftar Siswa</CardTitle>
-                                </div>
-                                <CardDescription>
-                                    {loadingSiswa
-                                        ? 'Memuat data siswa...'
-                                        : `Klik tombol "Cetak PDF" untuk generate dokumen nilai rapor siswa (${siswaList.length} siswa)`
-                                    }
-                                </CardDescription>
+                            <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-[#1e3a8a]" />
+                                <CardTitle className="text-sm font-bold text-[#1e3a8a]">Daftar Siswa</CardTitle>
                             </div>
 
                             {/* Bulk Generate Button */}
@@ -882,19 +881,18 @@ export default function AdminNilaiRaporPage() {
                                     <Button
                                         onClick={handleGenerateBulkPDFs}
                                         size="sm"
-                                        variant="default"
-                                        className="bg-blue-600 hover:bg-blue-700"
+                                        className="bg-[#1e3a8a] hover:bg-indigo-900 text-[10px] font-black shadow-md"
                                         disabled={generatingBulk || siswaList.length === 0}
                                     >
                                         {generatingBulk ? (
                                             <>
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Membuat ({bulkProgress.current} dari {bulkProgress.total})
+                                                PROSES ({bulkProgress.current}/{bulkProgress.total})
                                             </>
                                         ) : (
                                             <>
                                                 <DownloadCloud className="h-4 w-4 mr-2" />
-                                                Cetak PDF Semua Siswa
+                                                CETAK SEMUA SISWA (GABUNGAN)
                                             </>
                                         )}
                                     </Button>
@@ -907,20 +905,20 @@ export default function AdminNilaiRaporPage() {
                             )}
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-4">
                         {loadingSiswa ? (
                             <Skeleton className="h-64 w-full" />
                         ) : (
                             <>
-                                <div className="rounded-md border">
+                                <div className="rounded-md border mt-2">
                                     <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="w-[60px] py-2">No</TableHead>
-                                                <TableHead className="py-2">Nama Lengkap</TableHead>
-                                                <TableHead className="py-2">NIS</TableHead>
-                                                <TableHead className="py-2">Kelas</TableHead>
-                                                <TableHead className="text-right w-[150px] py-2">Aksi</TableHead>
+                                    <TableHeader className="bg-[#1e3a8a]">
+                                            <TableRow className="hover:bg-transparent border-none">
+                                                <TableHead className="text-white font-bold w-[40px] border-r border-white/10 text-center uppercase text-[10px] py-1.5 px-2">No</TableHead>
+                                                <TableHead className="text-white font-bold border-r border-white/10 uppercase text-[10px] py-1.5 px-3 font-black">Nama Lengkap</TableHead>
+                                                <TableHead className="text-white font-bold border-r border-white/10 uppercase text-[10px] py-1.5 px-3 text-center">NIS</TableHead>
+                                                <TableHead className="text-white font-bold border-r border-white/10 uppercase text-[10px] py-1.5 px-3 text-center">Kelas</TableHead>
+                                                <TableHead className="text-white font-bold text-right uppercase text-[10px] py-1.5 px-3">Aksi</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -938,28 +936,27 @@ export default function AdminNilaiRaporPage() {
                                                     const paginatedSiswa = siswaList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
                                                     return paginatedSiswa.map((siswa, index) => (
-                                                        <TableRow key={siswa.peserta_didik_id}>
-                                                            <TableCell className="font-medium py-2">{startIndex + index + 1}</TableCell>
-                                                            <TableCell className="font-medium py-2">{siswa.nm_siswa}</TableCell>
-                                                            <TableCell className="py-2">{siswa.nis}</TableCell>
-                                                            <TableCell className="py-2">{siswa.nm_kelas || '-'}</TableCell>
-                                                            <TableCell className="text-right py-2">
+                                                        <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50/50">
+                                                            <TableCell className="text-center font-bold text-slate-500 py-1.5 text-xs border-r">{startIndex + index + 1}</TableCell>
+                                                            <TableCell className="font-bold text-[#1e3a8a] py-1.5 text-sm border-r leading-tight">{siswa.nm_siswa}</TableCell>
+                                                            <TableCell className="text-center text-xs font-medium text-slate-600 py-1.5 border-r">{siswa.nis}</TableCell>
+                                                            <TableCell className="text-center text-xs font-bold text-indigo-600 py-1.5 border-r">{siswa.nm_kelas || '-'}</TableCell>
+                                                            <TableCell className="text-right py-1 px-3">
                                                                 <Button
                                                                     onClick={() => handleGeneratePDF(siswa)}
                                                                     size="sm"
-                                                                    variant="default"
-                                                                    className="bg-red-600 hover:bg-red-700"
+                                                                    className="h-7 px-3 bg-[#1e3a8a] hover:bg-indigo-950 text-[10px] font-black shadow-sm"
                                                                     disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
                                                                 >
                                                                     {generatingPdf === siswa.peserta_didik_id ? (
                                                                         <>
                                                                             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                                            Membuat PDF...
+                                                                            LOAD...
                                                                         </>
                                                                     ) : (
                                                                         <>
-                                                                            <Download className="h-3 w-3 mr-1" />
-                                                                            Cetak PDF
+                                                                            <Download className="h-3.5 w-3.5 mr-1" />
+                                                                            CETAK PDF
                                                                         </>
                                                                     )}
                                                                 </Button>
@@ -1008,7 +1005,7 @@ export default function AdminNilaiRaporPage() {
                                                                     variant={currentPage === page ? "default" : "outline"}
                                                                     size="sm"
                                                                     onClick={() => setCurrentPage(page)}
-                                                                    className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700 w-10" : "w-10"}
+                                                                    className={currentPage === page ? "bg-[#1e3a8a] hover:bg-indigo-900 w-8 h-8 text-xs font-bold" : "w-8 h-8 text-xs"}
                                                                 >
                                                                     {page}
                                                                 </Button>

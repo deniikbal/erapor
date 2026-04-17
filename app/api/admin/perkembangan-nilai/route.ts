@@ -5,7 +5,6 @@ import { retryQuery } from '@/lib/dbRetryHelper';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const ptk_id = searchParams.get('ptk_id');
     const rombongan_belajar_id = searchParams.get('rombongan_belajar_id');
     const peserta_didik_id = searchParams.get('peserta_didik_id');
 
@@ -17,14 +16,13 @@ export async function GET(request: NextRequest) {
     `;
     const activeSemesterId = activeSemester.length > 0 ? activeSemester[0].semester_id : '20251';
 
-    // 2. If only ptk_id provided, get classes for this teacher
-    if (ptk_id && !rombongan_belajar_id && !peserta_didik_id) {
+    // 2. FOR ADMIN: If no ID provided, get ALL classes
+    if (!rombongan_belajar_id && !peserta_didik_id) {
       const classes = await retryQuery(async () => {
         const rows = await sql`
           SELECT rombongan_belajar_id, nm_kelas 
           FROM tabel_kelas 
-          WHERE ptk_id = ${ptk_id} 
-            AND semester_id = ${activeSemesterId}
+          WHERE semester_id = ${activeSemesterId}
             AND jenis_rombel = 1
           ORDER BY nm_kelas
         `;
@@ -52,7 +50,6 @@ export async function GET(request: NextRequest) {
 
     // 4. If peserta_didik_id provided, fetch historical grades
     if (peserta_didik_id) {
-      // Get grade history across all semesters
       const history = await retryQuery(async () => {
         return await sql`
           SELECT 
@@ -72,8 +69,6 @@ export async function GET(request: NextRequest) {
         `;
       });
 
-      // Transform history into a format suitable for Recharts
-      // Goal: [ { subject: "PP", "20241": 85, "20242": 88, ... }, ... ]
       const subjectsMap: Record<string, any> = {};
       const semestersSet = new Set<string>();
 
@@ -85,15 +80,10 @@ export async function GET(request: NextRequest) {
             fullName: row.nm_mapel
           };
         }
-        
-        // Use the last part of semester_id or friendly name for label
-        // Example: 20241 -> Smt 1 (if we can map it)
-        // For simplicity, use semester_id as key, we'll label it in frontend
         subjectsMap[subjectCode][row.semester_id] = Number(row.nilai);
         semestersSet.add(row.semester_id);
       });
 
-      // Calculate averages per semester
       const semesterAverages: Record<string, number> = {};
       const semestersArr = Array.from(semestersSet).sort();
       
@@ -125,7 +115,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
 
   } catch (error) {
-    console.error('Perkembangan Nilai API error:', error);
+    console.error('Admin Perkembangan Nilai API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -293,23 +293,27 @@ export default function AdminPelengkapRaportPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Pelengkap Raport (Admin)</h1>
-                <p className="text-muted-foreground">
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                    <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+                    <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+                        Cetak Pelengkap Raport
+                    </h1>
+                </div>
+                <p className="text-slate-500 text-[11px] ml-3 italic">
                     Generate PDF identitas siswa - Semua Kelas Reguler ({filteredSiswa.length} dari {siswaList.length} siswa)
                 </p>
             </div>
 
             {/* Class Filter Card */}
-            <Card>
-                <CardHeader>
+            <Card className="rounded-sm shadow-sm border border-blue-100">
+                <CardHeader className="py-3 px-4 bg-slate-50/50 border-b">
                     <div className="flex items-center gap-2">
-                        <Filter className="h-5 w-5 text-primary" />
-                        <CardTitle>Filter Kelas</CardTitle>
+                        <Filter className="h-4 w-4 text-[#1e3a8a]" />
+                        <CardTitle className="text-sm font-bold text-[#1e3a8a]">Filter Kelas</CardTitle>
                     </div>
-                    <CardDescription>Pilih kelas untuk generate PDF pelengkap raport</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="py-3 px-4">
                     <div className="space-y-3">
                         <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
                             <PopoverTrigger asChild>
@@ -317,7 +321,7 @@ export default function AdminPelengkapRaportPage() {
                                     variant="outline"
                                     role="combobox"
                                     aria-expanded={openCombobox}
-                                    className="w-full justify-between"
+                                    className="h-9 w-full justify-between text-sm font-bold text-[#1e3a8a] bg-slate-50 border-blue-100"
                                 >
                                     {selectedKelas === 'all'
                                         ? 'Pilih Kelas ......'
@@ -374,10 +378,10 @@ export default function AdminPelengkapRaportPage() {
 
             {/* Instruction Card - Show when no class selected */}
             {selectedKelas === 'all' && (
-                <Card className="border-blue-200 bg-blue-50/50">
-                    <CardContent className="pt-6">
-                        <p className="text-sm text-blue-700 flex items-center gap-2">
-                            <span className="text-lg">📌</span>
+                <Card className="border-blue-100 bg-blue-50/30">
+                    <CardContent className="py-3">
+                        <p className="text-[11px] text-[#1e3a8a] font-medium flex items-center gap-2">
+                            <span className="text-base text-indigo-500">📌</span>
                             <span>Silakan pilih kelas terlebih dahulu untuk menampilkan daftar siswa</span>
                         </p>
                     </CardContent>
@@ -426,16 +430,16 @@ export default function AdminPelengkapRaportPage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="rounded-md border">
+                    <CardContent className="pt-4">
+                        <div className="rounded-md border mt-2">
                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[60px]">No</TableHead>
-                                        <TableHead>Nama Lengkap</TableHead>
-                                        <TableHead>NIS</TableHead>
-                                        <TableHead>Kelas</TableHead>
-                                        <TableHead className="text-right w-[150px]">Aksi</TableHead>
+                                <TableHeader className="bg-[#1e3a8a]">
+                                    <TableRow className="hover:bg-transparent border-none">
+                                        <TableHead className="text-white font-bold w-[50px] border-r border-white/10 text-center uppercase text-[10px] py-1.5 px-2">No</TableHead>
+                                        <TableHead className="text-white font-bold border-r border-white/10 uppercase text-[10px] py-1.5 px-3">Nama Lengkap</TableHead>
+                                        <TableHead className="text-white font-bold border-r border-white/10 uppercase text-[10px] py-1.5 px-3">NIS</TableHead>
+                                        <TableHead className="text-white font-bold border-r border-white/10 uppercase text-[10px] py-1.5 px-3 text-center">Kelas</TableHead>
+                                        <TableHead className="text-white font-bold w-[120px] text-right uppercase text-[10px] py-1.5 px-3">Aksi</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -447,30 +451,29 @@ export default function AdminPelengkapRaportPage() {
                                         </TableRow>
                                     ) : (
                                         paginatedSiswa.map((siswa, index) => (
-                                            <TableRow key={siswa.peserta_didik_id}>
-                                                <TableCell className="font-medium">
+                                            <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50/50">
+                                                <TableCell className="py-1.5 text-xs font-bold text-slate-500 text-center border-r">
                                                     {startIndex + index + 1}
                                                 </TableCell>
-                                                <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
-                                                <TableCell>{siswa.nis}</TableCell>
-                                                <TableCell>{siswa.nm_kelas || '-'}</TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="py-1.5 font-bold text-sm text-[#1e3a8a] border-r">{siswa.nm_siswa}</TableCell>
+                                                <TableCell className="py-1.5 text-xs font-medium text-slate-600 border-r">{siswa.nis}</TableCell>
+                                                <TableCell className="py-1.5 text-xs font-bold text-indigo-600 text-center border-r">{siswa.nm_kelas || '-'}</TableCell>
+                                                <TableCell className="text-right py-1 px-3">
                                                     <Button
                                                         onClick={() => handleGeneratePDF(siswa)}
                                                         size="sm"
-                                                        variant="default"
-                                                        className="bg-red-600 hover:bg-red-700"
+                                                        className="h-7 px-3 bg-[#1e3a8a] hover:bg-indigo-900 text-white text-[10px] font-bold shadow-sm"
                                                         disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
                                                     >
                                                         {generatingPdf === siswa.peserta_didik_id ? (
                                                             <>
                                                                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                                Membuat PDF...
+                                                                LOAD...
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <Download className="h-3 w-3 mr-1" />
-                                                                Cetak PDF
+                                                                <Download className="h-3.5 w-3.5 mr-1" />
+                                                                CETAK PDF
                                                             </>
                                                         )}
                                                     </Button>
@@ -511,7 +514,7 @@ export default function AdminPelengkapRaportPage() {
                                                         variant={currentPage === page ? "default" : "outline"}
                                                         size="sm"
                                                         onClick={() => handlePageChange(page)}
-                                                        className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                                                        className={currentPage === page ? "bg-[#1e3a8a] hover:bg-indigo-900" : "h-8 w-8 text-xs"}
                                                     >
                                                         {page}
                                                     </Button>

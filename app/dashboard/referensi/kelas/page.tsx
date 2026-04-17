@@ -192,8 +192,9 @@ export default function DataKelasPage() {
             size="sm"
             onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
             disabled={currentPage === 1}
+            className="h-7 text-[10px] font-bold border-slate-200"
           >
-            Previous
+            Prev
           </Button>
 
           <div className="flex gap-1">
@@ -209,7 +210,7 @@ export default function DataKelasPage() {
                     variant={currentPage === page ? "default" : "outline"}
                     size="sm"
                     onClick={() => setCurrentPage(page)}
-                    className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                    className={currentPage === page ? "bg-[#1e3a8a] hover:bg-black h-7 w-7 p-0 text-[10px] font-bold" : "h-7 w-7 p-0 text-[10px] border-slate-200"}
                   >
                     {page}
                   </Button>
@@ -226,6 +227,7 @@ export default function DataKelasPage() {
             size="sm"
             onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
             disabled={currentPage === totalPages}
+            className="h-7 text-[10px] font-bold border-slate-200"
           >
             Next
           </Button>
@@ -239,17 +241,17 @@ export default function DataKelasPage() {
 
     return (
       <>
-        <div className="rounded-md border">
+        <div className="rounded-sm border border-slate-100 overflow-hidden">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]">No</TableHead>
-                <TableHead>Nama Kelas</TableHead>
-                <TableHead className="text-center">Jenis Rombel</TableHead>
-                <TableHead className="text-center">Tingkat</TableHead>
-                <TableHead>Nama Wali Kelas</TableHead>
-                <TableHead className="text-center">Jumlah Siswa</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+            <TableHeader className="bg-[#1e3a8a]">
+              <TableRow className="hover:bg-transparent border-none">
+                <TableHead className="w-[50px] text-white font-bold text-[10px] h-9 uppercase tracking-wider pl-4">No</TableHead>
+                <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Nama Kelas</TableHead>
+                <TableHead className="text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider">Jenis Rombel</TableHead>
+                <TableHead className="text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider">Tingkat</TableHead>
+                <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Wali Kelas</TableHead>
+                <TableHead className="text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider">Siswa</TableHead>
+                <TableHead className="text-right text-white font-bold text-[10px] h-9 uppercase tracking-wider pr-4">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -261,20 +263,24 @@ export default function DataKelasPage() {
                 </TableRow>
               ) : (
                 items.map((item, index) => (
-                  <TableRow key={item.rombongan_belajar_id}>
-                    <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
-                    <TableCell className="font-medium">{item.nm_kelas}</TableCell>
-                    <TableCell className="text-center">{item.jenis_rombel}</TableCell>
-                    <TableCell className="text-center">{item.tingkat_pendidikan_id || '-'}</TableCell>
-                    <TableCell>{item.nama_wali_kelas || '-'}</TableCell>
-                    <TableCell className="text-center">{item.jumlah_siswa || 0}</TableCell>
-                    <TableCell className="text-right">
+                  <TableRow key={item.rombongan_belajar_id} className="hover:bg-slate-50 transition-colors">
+                    <TableCell className="py-1.5 pl-4 text-xs font-medium text-slate-400">{indexOfFirstItem + index + 1}</TableCell>
+                    <TableCell className="py-1.5 font-bold text-[#1e3a8a] text-xs">{item.nm_kelas}</TableCell>
+                    <TableCell className="py-1.5 text-center text-[10px] font-medium text-slate-500">{item.jenis_rombel}</TableCell>
+                    <TableCell className="py-1.5 text-center text-xs font-bold text-slate-600">{item.tingkat_pendidikan_id || '-'}</TableCell>
+                    <TableCell className="py-1.5 text-xs text-slate-700">{item.nama_wali_kelas || '-'}</TableCell>
+                    <TableCell className="py-1.5 text-center">
+                      <span className="text-[10px] font-black bg-blue-50 text-[#1e3a8a] px-2 py-0.5 rounded-full border border-blue-100">
+                        {item.jumlah_siswa || 0}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right pr-4">
                       <Button
                         onClick={() => handleAnggotaClick(item)}
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="h-7 px-3 bg-[#1e3a8a] hover:bg-black text-white text-[10px] font-bold uppercase transition-all"
                       >
-                        <Users className="h-3 w-3 mr-1" />
+                        <Users className="h-3 w-3 mr-1.5" />
                         Anggota
                       </Button>
                     </TableCell>
@@ -296,7 +302,7 @@ export default function DataKelasPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Kelas</h1>
           <p className="text-muted-foreground">Kelola data kelas dan rombongan belajar</p>
         </div>
-        <Card className="rounded-sm border-l-4 border-l-emerald-600">
+        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -324,27 +330,32 @@ export default function DataKelasPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Data Kelas</h1>
-        <p className="text-muted-foreground">Kelola data kelas dan rombongan belajar</p>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+          <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+            Data Kelas
+          </h1>
+        </div>
+        <p className="text-slate-500 text-[11px] ml-3 italic">
+          Kelola rombongan belajar reguler, pilihan, dan ekstrakurikuler.
+        </p>
       </div>
 
-      <Card className="rounded-sm border-l-4 border-l-emerald-600">
-        <CardHeader>
+      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
-            <School className="h-5 w-5 text-primary" />
-            <CardTitle>Daftar Kelas</CardTitle>
+            <School className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Daftar Kelas</CardTitle>
           </div>
-          <CardDescription>
-            Total: {kelasList.length} kelas
-          </CardDescription>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL: {kelasList.length}</p>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="reguler" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="reguler">Reguler ({kelasReguler.length})</TabsTrigger>
-              <TabsTrigger value="pilihan">Pilihan ({kelasPilihan.length})</TabsTrigger>
-              <TabsTrigger value="ekskul">Ekskul ({kelasEkskul.length})</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 p-1 bg-slate-100 rounded-lg h-9">
+              <TabsTrigger value="reguler" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">REGULER ({kelasReguler.length})</TabsTrigger>
+              <TabsTrigger value="pilihan" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">PILIHAN ({kelasPilihan.length})</TabsTrigger>
+              <TabsTrigger value="ekskul" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">EKSKUL ({kelasEkskul.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="reguler" className="mt-4">
@@ -364,56 +375,56 @@ export default function DataKelasPage() {
 
       {/* Modal Anggota Kelas */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Anggota Kelas</DialogTitle>
-            <DialogDescription>
-              Daftar siswa di kelas: {selectedKelas?.nm_kelas}
+        <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="py-3 px-6 bg-[#1e3a8a] text-white">
+            <DialogTitle className="text-white text-base">Anggota Kelas</DialogTitle>
+            <DialogDescription className="text-blue-100 text-[11px]">
+               Daftar siswa terdaftar di kelas <span className="font-black text-white">{selectedKelas?.nm_kelas}</span>
             </DialogDescription>
           </DialogHeader>
 
+          <div className="p-0">
           {loadingAnggota ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-[#1e3a8a]" />
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Mengambil data...</p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[60px]">No</TableHead>
-                    <TableHead>Nama Siswa</TableHead>
-                    <TableHead>NISN</TableHead>
-                    <TableHead>Rombel</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
+                <TableHeader className="bg-slate-50 sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent shadow-sm">
+                    <TableHead className="w-[50px] font-black text-[10px] h-9 uppercase pl-4">No</TableHead>
+                    <TableHead className="font-black text-[10px] h-9 uppercase">Nama Siswa</TableHead>
+                    <TableHead className="font-black text-[10px] h-9 uppercase">NISN</TableHead>
+                    <TableHead className="font-black text-[10px] h-9 uppercase">Rombel</TableHead>
+                    <TableHead className="text-right font-black text-[10px] h-9 uppercase pr-4 text-rose-500">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {anggotaList.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-10 text-[11px] text-slate-400 italic">
                         Tidak ada siswa di kelas ini
                       </TableCell>
                     </TableRow>
                   ) : (
                     anggotaList.map((siswa, index) => (
-                      <TableRow key={siswa.peserta_didik_id}>
-                        <TableCell className="font-medium">{index + 1}</TableCell>
-                        <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
-                        <TableCell>{siswa.nisn || '-'}</TableCell>
-                        <TableCell>{siswa.nm_kelas}</TableCell>
-                        <TableCell className="text-right">
+                      <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="py-1.5 pl-4 text-xs font-medium text-slate-400">{index + 1}</TableCell>
+                        <TableCell className="py-1.5 text-xs font-bold text-slate-700">{siswa.nm_siswa}</TableCell>
+                        <TableCell className="py-1.5 text-xs font-medium text-slate-500">{siswa.nisn || '-'}</TableCell>
+                        <TableCell className="py-1.5 text-[10px] font-bold text-slate-400">{siswa.nm_kelas}</TableCell>
+                        <TableCell className="py-1.5 text-right pr-4">
                           <Button
                             onClick={() => handleDeleteAnggota(siswa)}
                             size="sm"
-                            variant="destructive"
+                            variant="ghost"
+                            className="h-6 px-2 text-[10px] font-black text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all uppercase"
                             disabled={deletingId === siswa.anggota_rombel_id}
                           >
                             {deletingId === siswa.anggota_rombel_id ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                Menghapus...
-                              </>
+                              <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               'Hapus'
                             )}
@@ -426,6 +437,7 @@ export default function DataKelasPage() {
               </Table>
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

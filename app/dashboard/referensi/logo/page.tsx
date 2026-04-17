@@ -264,7 +264,7 @@ export default function DataLogoPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Logo</h1>
           <p className="text-muted-foreground">Kelola logo sekolah dan pemda</p>
         </div>
-        <Card className="rounded-sm border-l-4 border-l-emerald-600">
+        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -298,7 +298,7 @@ export default function DataLogoPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Card className="rounded-sm border-l-4 border-l-emerald-600">
+        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
           <CardHeader>
             <div className="flex items-center gap-2">
               <ImageIcon className="h-5 w-5 text-primary" />
@@ -384,7 +384,7 @@ export default function DataLogoPage() {
               <Button
                 type="submit"
                 disabled={uploading}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white"
               >
                 {uploading ? (
                   <>

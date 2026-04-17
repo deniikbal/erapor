@@ -36,6 +36,7 @@ export function SemesterSwitcher() {
     setIsUpdating(true);
     await updateActiveSemester(semesterId);
     setIsUpdating(false);
+    window.location.reload();
   };
 
   if (loading && !activeSemester) {

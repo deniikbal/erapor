@@ -17,9 +17,34 @@ import {
     CommandList,
 } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { FileSpreadsheet, Download, Check, ChevronsUpDown } from 'lucide-react';
+import { 
+    FileSpreadsheet, 
+    Download, 
+    Check, 
+    ChevronsUpDown, 
+    Info, 
+    BookOpen, 
+    Users, 
+    Rocket,
+    LayoutDashboard,
+    FileOutput,
+    Loader2
+} from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth-client';
+import { useSemester } from '@/components/providers/semester-context';
 import type { User, Kelas } from '@/lib/db';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+    Alert,
+    AlertDescription,
+} from "@/components/ui/alert";
 import ExcelJS from 'exceljs';
 
 // Helper to get Excel column letter from index (0 = A, 1 = B, etc.)
@@ -34,6 +59,7 @@ function getExcelCol(index: number): string {
 }
 
 export default function LegerRaporPage() {
+    const { activeSemester } = useSemester();
     const [user, setUser] = useState<User | null>(null);
     const [kelasData, setKelasData] = useState<{ kelas: Kelas[] }>({ kelas: [] });
     const [selectedKelas, setSelectedKelas] = useState<string>('');
@@ -85,18 +111,16 @@ export default function LegerRaporPage() {
                 return;
             }
 
-            // Fetch semester & sekolah data in parallel
-            const [semesterRes, sekolahRes] = await Promise.all([
-                fetch('/api/semester'),
-                fetch('/api/sekolah')
-            ]);
-
-            const semesterData = await semesterRes.json();
+            // Fetch sekolah data
+            const sekolahRes = await fetch('/api/sekolah');
             const sekolahData = await sekolahRes.json();
+            
+            // Get active semester ID from context
+            const semesterId = activeSemester?.semester_id;
+            const semesterText = activeSemester?.nama_semester || '2025/2026';
 
             // Fetch BULK Leger Data (Single Request)
-            console.log('Fetching bulk leger data for rombel:', kelasInfo.rombongan_belajar_id);
-            const legerRes = await fetch(`/api/leger?rombongan_belajar_id=${kelasInfo.rombongan_belajar_id}`);
+            const legerRes = await fetch(`/api/leger?rombongan_belajar_id=${kelasInfo.rombongan_belajar_id}${semesterId ? `&semester_id=${semesterId}` : ''}`);
 
             if (!legerRes.ok) {
                 throw new Error('Gagal mengambil data leger');
@@ -180,7 +204,7 @@ export default function LegerRaporPage() {
             worksheet.columns = columnConfig;
 
             // ROW 1: Title
-            const semesterText = semesterData.data?.[0]?.nama_semester || semesterData.semester?.nama_semester || '2025/2026';
+            // semesterText already defined from activeSemester
 
             // Calculate last column letter (A=0, D=3, + subjects + 3 (stats) + 3 (attendance) + ekskul)
             const totalCols = 4 + allSubjects.length + 3 + 3 + ekskulList.length;
@@ -201,19 +225,24 @@ export default function LegerRaporPage() {
             worksheet.getCell('A3').font = { bold: true };
             worksheet.getCell('C3').value = `: ${kelasInfo?.nm_kelas || selectedKelas}`;
 
-            // ROWS 4-7: Headers (merged)
+            // ROW 4: Semester
+            worksheet.getCell('A4').value = 'SEMESTER';
+            worksheet.getCell('A4').font = { bold: true };
+            worksheet.getCell('C4').value = `: ${semesterText}`;
+
+            // ROWS 5-8: Headers (merged)
             const headers = ['NO', 'NAMA SISWA', 'NISN', 'NIS'];
 
-            // Merge rows 4-7 for each header column
-            worksheet.mergeCells('A4:A7');
-            worksheet.mergeCells('B4:B7');
-            worksheet.mergeCells('C4:C7');
-            worksheet.mergeCells('D4:D7');
+            // Merge rows 5-8 for each header column
+            worksheet.mergeCells('A5:A8');
+            worksheet.mergeCells('B5:B8');
+            worksheet.mergeCells('C5:C8');
+            worksheet.mergeCells('D5:D8');
 
             // Set header values and styling
             headers.forEach((header, index) => {
                 const col = String.fromCharCode(65 + index); // A, B, C, D
-                const cell = worksheet.getCell(`${col}4`);
+                const cell = worksheet.getCell(`${col}5`);
                 cell.value = header;
                 cell.font = { bold: true };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -230,12 +259,12 @@ export default function LegerRaporPage() {
                 };
             });
 
-            // ROW 4: Add "MATA PELAJARAN" header (merged across all subject columns)
+            // ROW 5: Add "MATA PELAJARAN" header (merged across all subject columns)
             if (allSubjects.length > 0) {
                 const startCol = 'E';
                 const endCol = getExcelCol(4 + allSubjects.length - 1); // E + count - 1
-                worksheet.mergeCells(`${startCol}4:${endCol}4`);
-                const mataPelajaranCell = worksheet.getCell('E4');
+                worksheet.mergeCells(`${startCol}5:${endCol}5`);
+                const mataPelajaranCell = worksheet.getCell('E5');
                 mataPelajaranCell.value = 'MATA PELAJARAN';
                 mataPelajaranCell.font = { bold: true };
                 mataPelajaranCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -251,15 +280,15 @@ export default function LegerRaporPage() {
                     right: { style: 'thin' }
                 };
 
-                // ROWS 5-7: Add subject names (each column merged vertically)
+                // ROWS 6-8: Add subject names (each column merged vertically)
                 allSubjects.forEach((subject: any, index: number) => {
                     const colIdx = 4 + index;
                     const col = getExcelCol(colIdx);
 
-                    // Merge rows 5-7 for this subject column
-                    worksheet.mergeCells(`${col}5:${col}7`);
+                    // Merge rows 6-8 for this subject column
+                    worksheet.mergeCells(`${col}6:${col}8`);
 
-                    const cell = worksheet.getCell(`${col}5`);
+                    const cell = worksheet.getCell(`${col}6`);
                     cell.value = subject.nm_ringkas || subject.nm_mapel || subject.nm_lokal || 'Mapel';
                     cell.font = { bold: true, size: 9 };
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -281,11 +310,11 @@ export default function LegerRaporPage() {
             const statsStartIdx = 4 + allSubjects.length;
             const statsHeaders = ['JUMLAH', 'RATA-RATA', 'RANGKING'];
 
-            // Row 4: Header Group "WALI KELAS"
+            // Row 5: Header Group "WALI KELAS"
             const startStatsCol = getExcelCol(statsStartIdx);
             const endStatsCol = getExcelCol(statsStartIdx + 2);
-            worksheet.mergeCells(`${startStatsCol}4:${endStatsCol}4`);
-            const statsGroupHeader = worksheet.getCell(`${startStatsCol}4`);
+            worksheet.mergeCells(`${startStatsCol}5:${endStatsCol}5`);
+            const statsGroupHeader = worksheet.getCell(`${startStatsCol}5`);
             statsGroupHeader.value = 'WALI KELAS';
             statsGroupHeader.font = { bold: true };
             statsGroupHeader.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -296,11 +325,11 @@ export default function LegerRaporPage() {
             };
             statsGroupHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            // Row 5-7: Sub Headers
+            // Row 6-8: Sub Headers
             statsHeaders.forEach((header, idx) => {
                 const col = getExcelCol(statsStartIdx + idx);
-                worksheet.mergeCells(`${col}5:${col}7`);
-                const cell = worksheet.getCell(`${col}5`);
+                worksheet.mergeCells(`${col}6:${col}8`);
+                const cell = worksheet.getCell(`${col}6`);
                 cell.value = header;
                 cell.font = { bold: true, size: 9 };
                 cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -317,9 +346,9 @@ export default function LegerRaporPage() {
             const startAttCol = getExcelCol(attendanceStartIdx);
             const endAttCol = getExcelCol(attendanceStartIdx + 2); // 3 columns total
 
-            // Merge "KETIDAKHADIRAN" Row 4-6
-            worksheet.mergeCells(`${startAttCol}4:${endAttCol}6`);
-            const attHeader = worksheet.getCell(`${startAttCol}4`);
+            // Merge "KETIDAKHADIRAN" Row 5-7
+            worksheet.mergeCells(`${startAttCol}5:${endAttCol}7`);
+            const attHeader = worksheet.getCell(`${startAttCol}5`);
             attHeader.value = 'KETIDAKHADIRAN';
             attHeader.font = { bold: true };
             attHeader.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -330,10 +359,10 @@ export default function LegerRaporPage() {
             };
             attHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            // Sub-headers Row 7: Sakit, Izin, Alpa
+            // Sub-headers Row 8: Sakit, Izin, Alpa
             ['Sakit', 'Izin', 'Alpa'].forEach((label, idx) => {
                 const col = getExcelCol(attendanceStartIdx + idx);
-                const cell = worksheet.getCell(`${col}7`);
+                const cell = worksheet.getCell(`${col}8`);
                 cell.value = label;
                 cell.font = { bold: true };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -351,9 +380,9 @@ export default function LegerRaporPage() {
                 const startEkskulCol = getExcelCol(ekskulStartIdx);
                 const endEkskulCol = getExcelCol(ekskulStartIdx + ekskulList.length - 1);
 
-                // Merge "EKSTRA KURIKULER" Row 4
-                worksheet.mergeCells(`${startEkskulCol}4:${endEkskulCol}4`);
-                const ekskulHeader = worksheet.getCell(`${startEkskulCol}4`);
+                // Merge "EKSTRA KURIKULER" Row 5
+                worksheet.mergeCells(`${startEkskulCol}5:${endEkskulCol}5`);
+                const ekskulHeader = worksheet.getCell(`${startEkskulCol}5`);
                 ekskulHeader.value = 'EKSTRA KURIKULER';
                 ekskulHeader.font = { bold: true };
                 ekskulHeader.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -364,11 +393,11 @@ export default function LegerRaporPage() {
                 };
                 ekskulHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-                // Sub-headers Row 5-7: Ekskul names
+                // Sub-headers Row 6-8: Ekskul names
                 ekskulList.forEach((ekskul: any, idx: number) => {
                     const col = getExcelCol(ekskulStartIdx + idx);
-                    worksheet.mergeCells(`${col}5:${col}7`);
-                    const cell = worksheet.getCell(`${col}5`);
+                    worksheet.mergeCells(`${col}6:${col}8`);
+                    const cell = worksheet.getCell(`${col}6`);
                     cell.value = ekskul.name;
                     cell.font = { bold: true, size: 9 };
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -381,11 +410,11 @@ export default function LegerRaporPage() {
                 });
             }
 
-            // Add student data starting from row 8
+            // Add student data starting from row 9
             console.log(`Adding ${students.length} students to Excel`);
 
             students.forEach((siswa: any, index: number) => {
-                const rowNum = 8 + index;
+                const rowNum = 9 + index;
                 worksheet.getCell(`A${rowNum}`).value = index + 1;
                 worksheet.getCell(`B${rowNum}`).value = siswa.nm_siswa;
                 worksheet.getCell(`C${rowNum}`).value = siswa.nisn || '-';
@@ -485,7 +514,7 @@ export default function LegerRaporPage() {
             });
 
             // Add Keterangan Mapel Section
-            const keteranganStartRow = 8 + students.length + 2; // 2 rows gap after student data
+            const keteranganStartRow = 9 + students.length + 2; // 2 rows gap after student data
 
             // Title: "Keterangan Mapel"
             worksheet.getCell(`A${keteranganStartRow}`).value = 'Keterangan Mapel:';
@@ -507,7 +536,8 @@ export default function LegerRaporPage() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Leger_Nilai_${kelasInfo?.nm_kelas?.replace(/\\s+/g, '_') || 'Rapor'}.xlsx`;
+            const safeSemester = semesterText.replace(/\s+/g, '_');
+            a.download = `Leger_Nilai_${kelasInfo?.nm_kelas?.replace(/\s+/g, '_') || 'Rapor'}_Semester_${safeSemester}.xlsx`;
             a.click();
             window.URL.revokeObjectURL(url);
 
@@ -532,14 +562,13 @@ export default function LegerRaporPage() {
         try {
             toast.info(`Mempersiapkan ${filteredKelas.length} file Excel...`);
 
-            // Fetch semester & sekolah data once (reused for all classes)
-            const [semesterRes, sekolahRes] = await Promise.all([
-                fetch('/api/semester'),
-                fetch('/api/sekolah')
-            ]);
-
-            const semesterData = await semesterRes.json();
+            // Fetch sekolah data once (reused for all classes)
+            const sekolahRes = await fetch('/api/sekolah');
             const sekolahData = await sekolahRes.json();
+
+            // Get active semester ID from context
+            const semesterId = activeSemester?.semester_id;
+            const semesterText = activeSemester?.nama_semester || '2025/2026';
 
             // Process each class
             for (let i = 0; i < filteredKelas.length; i++) {
@@ -548,7 +577,7 @@ export default function LegerRaporPage() {
 
                 try {
                     // Fetch leger data for this class
-                    const legerRes = await fetch(`/api/leger?rombongan_belajar_id=${kelasInfo.rombongan_belajar_id}`);
+                    const legerRes = await fetch(`/api/leger?rombongan_belajar_id=${kelasInfo.rombongan_belajar_id}${semesterId ? `&semester_id=${semesterId}` : ''}`);
 
                     if (!legerRes.ok) {
                         toast.warning(`Gagal mengambil data untuk kelas ${kelasInfo.nm_kelas}`);
@@ -616,7 +645,8 @@ export default function LegerRaporPage() {
                     ];
                     worksheet.columns = columnConfig;
 
-                    const semesterText = semesterData.data?.[0]?.nama_semester || semesterData.semester?.nama_semester || '2025/2026';
+                    // semesterText already defined from activeSemester
+
                     const totalCols = 4 + allSubjects.length + 3 + 3 + ekskulList.length;
                     const lastColChar = getExcelCol(totalCols - 1);
 
@@ -626,17 +656,20 @@ export default function LegerRaporPage() {
                     worksheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
                     worksheet.mergeCells(`A1:${lastColChar}1`);
 
-                    // Row 2-3: School & Class info
+                    // Row 2-4: School, Class, Semester info
                     worksheet.getCell('A2').value = 'SEKOLAH';
                     worksheet.getCell('A2').font = { bold: true };
                     worksheet.getCell('C2').value = `: ${sekolahData.sekolah?.nama || '-'}`;
                     worksheet.getCell('A3').value = 'KELAS';
                     worksheet.getCell('A3').font = { bold: true };
                     worksheet.getCell('C3').value = `: ${kelasInfo.nm_kelas}`;
+                    worksheet.getCell('A4').value = 'SEMESTER';
+                    worksheet.getCell('A4').font = { bold: true };
+                    worksheet.getCell('C4').value = `: ${semesterText}`;
 
                     // Headers (simplified - reuse same logic)
                     const headers = ['NO', 'NAMA SISWA', 'NISN', 'NIS'];
-                    ['A4:A7', 'B4:B7', 'C4:C7', 'D4:D7'].forEach((range, idx) => {
+                    ['A5:A8', 'B5:B8', 'C5:C8', 'D5:D8'].forEach((range, idx) => {
                         worksheet.mergeCells(range);
                         const cell = worksheet.getCell(range.split(':')[0]);
                         cell.value = headers[idx];
@@ -650,8 +683,8 @@ export default function LegerRaporPage() {
                     if (allSubjects.length > 0) {
                         const startCol = 'E';
                         const endCol = getExcelCol(4 + allSubjects.length - 1);
-                        worksheet.mergeCells(`${startCol}4:${endCol}4`);
-                        const cell = worksheet.getCell('E4');
+                        worksheet.mergeCells(`${startCol}5:${endCol}5`);
+                        const cell = worksheet.getCell('E5');
                         cell.value = 'MATA PELAJARAN';
                         cell.font = { bold: true };
                         cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -661,8 +694,8 @@ export default function LegerRaporPage() {
                         allSubjects.forEach((subject: any, index: number) => {
                             const colIdx = 4 + index;
                             const col = getExcelCol(colIdx);
-                            worksheet.mergeCells(`${col}5:${col}7`);
-                            const subCell = worksheet.getCell(`${col}5`);
+                            worksheet.mergeCells(`${col}6:${col}8`);
+                            const subCell = worksheet.getCell(`${col}6`);
                             subCell.value = subject.nm_ringkas || subject.nm_mapel || 'Mapel';
                             subCell.font = { bold: true, size: 9 };
                             subCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -675,8 +708,8 @@ export default function LegerRaporPage() {
                     const statsStartIdx = 4 + allSubjects.length;
                     const startStatsCol = getExcelCol(statsStartIdx);
                     const endStatsCol = getExcelCol(statsStartIdx + 2);
-                    worksheet.mergeCells(`${startStatsCol}4:${endStatsCol}4`);
-                    const statsCell = worksheet.getCell(`${startStatsCol}4`);
+                    worksheet.mergeCells(`${startStatsCol}5:${endStatsCol}5`);
+                    const statsCell = worksheet.getCell(`${startStatsCol}5`);
                     statsCell.value = 'WALI KELAS';
                     statsCell.font = { bold: true };
                     statsCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -685,8 +718,8 @@ export default function LegerRaporPage() {
 
                     ['JUMLAH', 'RATA-RATA', 'RANGKING'].forEach((header, idx) => {
                         const col = getExcelCol(statsStartIdx + idx);
-                        worksheet.mergeCells(`${col}5:${col}7`);
-                        const cell = worksheet.getCell(`${col}5`);
+                        worksheet.mergeCells(`${col}6:${col}8`);
+                        const cell = worksheet.getCell(`${col}6`);
                         cell.value = header;
                         cell.font = { bold: true, size: 9 };
                         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -698,8 +731,8 @@ export default function LegerRaporPage() {
                     const attendanceStartIdx = statsStartIdx + 3;
                     const startAttCol = getExcelCol(attendanceStartIdx);
                     const endAttCol = getExcelCol(attendanceStartIdx + 2);
-                    worksheet.mergeCells(`${startAttCol}4:${endAttCol}6`);
-                    const attCell = worksheet.getCell(`${startAttCol}4`);
+                    worksheet.mergeCells(`${startAttCol}5:${endAttCol}7`);
+                    const attCell = worksheet.getCell(`${startAttCol}5`);
                     attCell.value = 'KETIDAKHADIRAN';
                     attCell.font = { bold: true };
                     attCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -708,7 +741,7 @@ export default function LegerRaporPage() {
 
                     ['Sakit', 'Izin', 'Alpa'].forEach((label, idx) => {
                         const col = getExcelCol(attendanceStartIdx + idx);
-                        const cell = worksheet.getCell(`${col}7`);
+                        const cell = worksheet.getCell(`${col}8`);
                         cell.value = label;
                         cell.font = { bold: true };
                         cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -721,8 +754,8 @@ export default function LegerRaporPage() {
                         const ekskulStartIdx = attendanceStartIdx + 3;
                         const startEkskulCol = getExcelCol(ekskulStartIdx);
                         const endEkskulCol = getExcelCol(ekskulStartIdx + ekskulList.length - 1);
-                        worksheet.mergeCells(`${startEkskulCol}4:${endEkskulCol}4`);
-                        const ekskulCell = worksheet.getCell(`${startEkskulCol}4`);
+                        worksheet.mergeCells(`${startEkskulCol}5:${endEkskulCol}5`);
+                        const ekskulCell = worksheet.getCell(`${startEkskulCol}5`);
                         ekskulCell.value = 'EKSTRA KURIKULER';
                         ekskulCell.font = { bold: true };
                         ekskulCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -731,8 +764,8 @@ export default function LegerRaporPage() {
 
                         ekskulList.forEach((ekskul: any, idx: number) => {
                             const col = getExcelCol(ekskulStartIdx + idx);
-                            worksheet.mergeCells(`${col}5:${col}7`);
-                            const cell = worksheet.getCell(`${col}5`);
+                            worksheet.mergeCells(`${col}6:${col}8`);
+                            const cell = worksheet.getCell(`${col}6`);
                             cell.value = ekskul.name;
                             cell.font = { bold: true, size: 9 };
                             cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -743,7 +776,7 @@ export default function LegerRaporPage() {
 
                     // Student data
                     students.forEach((siswa: any, index: number) => {
-                        const rowNum = 8 + index;
+                        const rowNum = 9 + index;
                         worksheet.getCell(`A${rowNum}`).value = index + 1;
                         worksheet.getCell(`B${rowNum}`).value = siswa.nm_siswa;
                         worksheet.getCell(`C${rowNum}`).value = siswa.nisn || '-';
@@ -812,7 +845,7 @@ export default function LegerRaporPage() {
                     });
 
                     // Keterangan Mapel
-                    const keteranganStartRow = 8 + students.length + 2;
+                    const keteranganStartRow = 9 + students.length + 2;
                     worksheet.getCell(`A${keteranganStartRow}`).value = 'Keterangan Mapel:';
                     worksheet.getCell(`A${keteranganStartRow}`).font = { bold: true, size: 11 };
                     allSubjects.forEach((subject: any, index: number) => {
@@ -829,7 +862,8 @@ export default function LegerRaporPage() {
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `Leger_Nilai_${kelasInfo.nm_kelas.replace(/\s+/g, '_')}.xlsx`;
+                    const safeSemester = semesterText.replace(/\s+/g, '_');
+                    a.download = `Leger_Nilai_${kelasInfo.nm_kelas.replace(/\s+/g, '_')}_Semester_${safeSemester}.xlsx`;
                     a.click();
                     window.URL.revokeObjectURL(url);
 
@@ -863,128 +897,228 @@ export default function LegerRaporPage() {
         return kelas.ptk_id === user?.ptk_id && isRegularClass;
     });
 
+    const totalStudents = filteredKelas.reduce((acc, k) => acc + Number(k.jumlah_siswa || 0), 0);
+    const progressPercentage = bulkProgress.total > 0 
+        ? Math.round((bulkProgress.current / bulkProgress.total) * 100) 
+        : 0;
+
     return (
-        <div className="container mx-auto p-4 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Leger Rapor</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Generate file Excel Leger Nilai Rapor siswa
+        <div className="container mx-auto p-4 space-y-4 max-w-5xl">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                        <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+                        <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+                            Leger Rapor
+                        </h1>
+                        <Badge variant="outline" className="border-blue-100 bg-blue-50 text-[#1e3a8a] font-bold text-[10px] py-0 h-5">
+                             {activeSemester?.nama_semester || '...'}
+                        </Badge>
+                    </div>
+                    <p className="text-slate-500 text-[11px] ml-3 italic">
+                        Generate data kolektif nilai rapor siswa per kelas.
                     </p>
                 </div>
-                <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
+                
+                <div className="flex gap-4 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <div className="flex flex-col items-center px-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kelas</span>
+                        <span className="text-sm font-black text-[#1e3a8a]">{filteredKelas.length}</span>
+                    </div>
+                    <div className="w-[1px] h-6 bg-slate-200 self-center" />
+                    <div className="flex flex-col items-center px-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Siswa</span>
+                        <span className="text-sm font-black text-[#1e3a8a]">{totalStudents}</span>
+                    </div>
+                </div>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Pilih Kelas</CardTitle>
-                    <CardDescription>
-                        Pilih kelas untuk generate Leger Nilai Rapor
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Kelas</label>
-                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={openCombobox}
-                                    className="w-full justify-between"
-                                >
-                                    {selectedKelas
-                                        ? `${selectedKelas} (${filteredKelas.find(k => k.nm_kelas === selectedKelas)?.jumlah_siswa || 0} siswa)`
-                                        : 'Pilih kelas'}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" side="bottom" align="start" avoidCollisions={false} sideOffset={4}>
-                                <Command>
-                                    <CommandInput placeholder="Cari kelas..." />
-                                    <CommandList>
-                                        <CommandEmpty>Kelas tidak ditemukan.</CommandEmpty>
-                                        <CommandGroup>
-                                            {filteredKelas
-                                                .sort((a, b) => a.nm_kelas.localeCompare(b.nm_kelas, 'id', { numeric: true, sensitivity: 'base' }))
-                                                .map((kelas) => (
-                                                    <CommandItem
-                                                        key={kelas.rombongan_belajar_id}
-                                                        value={kelas.nm_kelas}
-                                                        onSelect={() => {
-                                                            setSelectedKelas(kelas.nm_kelas);
-                                                            setOpenCombobox(false);
-                                                        }}
-                                                    >
-                                                        <Check
-                                                            className={`mr-2 h-4 w-4 ${selectedKelas === kelas.nm_kelas ? 'opacity-100' : 'opacity-0'}`}
-                                                        />
-                                                        {kelas.nm_kelas} ({kelas.jumlah_siswa || 0} siswa)
-                                                    </CommandItem>
-                                                ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    <Tabs defaultValue="single" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 p-1 bg-slate-100 rounded-lg h-9">
+                            <TabsTrigger value="single" className="rounded-md font-bold text-xs data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
+                                <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" />
+                                Per Kelas
+                            </TabsTrigger>
+                            <TabsTrigger value="bulk" className="rounded-md font-bold text-xs data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
+                                <Rocket className="w-3.5 h-3.5 mr-1.5" />
+                                Massal (Bulk)
+                            </TabsTrigger>
+                        </TabsList>
 
-                    <Button
-                        onClick={handleGenerateAllExcel}
-                        disabled={isGeneratingAll || isGenerating || filteredKelas.length === 0}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700"
-                        size="lg"
-                    >
-                        {isGeneratingAll ? (
-                            <>
-                                <Download className="mr-2 h-4 w-4 animate-spin" />
-                                Generating ({bulkProgress.current}/{bulkProgress.total})...
-                            </>
-                        ) : (
-                            <>
-                                <Download className="mr-2 h-4 w-4" />
-                                Generate Semua Kelas ({filteredKelas.length} kelas)
-                            </>
-                        )}
-                    </Button>
+                        <TabsContent value="single" className="mt-4">
+                            <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+                                <CardHeader className="py-3 px-4 bg-slate-50/50 border-b">
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="w-4 h-4 text-[#1e3a8a]" />
+                                        <CardTitle className="text-sm font-bold text-[#1e3a8a]">Ekspor Leger Tunggal</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4 py-4 px-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Pilih Unit Kelas</label>
+                                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={openCombobox}
+                                                    className="w-full justify-between h-10 border-blue-50 bg-slate-50 text-xs font-bold text-[#1e3a8a] transition-all"
+                                                >
+                                                    <span className="truncate">
+                                                        {selectedKelas
+                                                            ? `${selectedKelas} (${filteredKelas.find(k => k.nm_kelas === selectedKelas)?.jumlah_siswa || 0} Siswa)`
+                                                            : 'Cari dan pilih kelas...'}
+                                                    </span>
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1e3a8a]" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-2xl border-blue-100" side="bottom" align="start" sideOffset={4}>
+                                                <Command className="rounded-lg">
+                                                    <CommandInput placeholder="Ketik nama kelas..." className="h-11" />
+                                                    <CommandList className="max-h-[300px] overflow-y-auto">
+                                                        <CommandEmpty>Kelas tidak ditemukan.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {filteredKelas
+                                                                .sort((a, b) => a.nm_kelas.localeCompare(b.nm_kelas, 'id', { numeric: true, sensitivity: 'base' }))
+                                                                .map((kelas) => (
+                                                                    <CommandItem
+                                                                        key={kelas.rombongan_belajar_id}
+                                                                        value={kelas.nm_kelas}
+                                                                        onSelect={() => {
+                                                                            setSelectedKelas(kelas.nm_kelas);
+                                                                            setOpenCombobox(false);
+                                                                        }}
+                                                                        className="py-3 px-4 flex items-center justify-between cursor-pointer"
+                                                                    >
+                                                                        <div className="flex items-center">
+                                                                            <Check
+                                                                                className={`mr-3 h-3 w-3 text-[#1e3a8a] ${selectedKelas === kelas.nm_kelas ? 'opacity-100' : 'opacity-0'}`}
+                                                                            />
+                                                                            <span className="font-bold text-xs text-[#1e3a8a]">{kelas.nm_kelas}</span>
+                                                                        </div>
+                                                                        <Badge variant="secondary" className="bg-slate-100 text-[10px] text-slate-500 font-normal py-0">
+                                                                            {kelas.jumlah_siswa || 0}
+                                                                        </Badge>
+                                                                    </CommandItem>
+                                                                ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
 
-                    {isGeneratingAll && bulkProgress.currentClass && (
-                        <div className="text-sm text-center text-muted-foreground">
-                            Sedang memproses: {bulkProgress.currentClass}
+                                    <Button
+                                        onClick={handleGenerateExcel}
+                                        disabled={!selectedKelas || isGenerating || isGeneratingAll}
+                                        className="w-full h-10 bg-[#1e3a8a] hover:bg-indigo-950 text-white shadow-sm transition-all font-black text-xs rounded-lg uppercase tracking-tight"
+                                    >
+                                        {isGenerating ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                MEMPROSES...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                GENERARE & UNDUH LEGER
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="bulk" className="mt-4">
+                            <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+                                <CardHeader className="py-3 px-4 bg-slate-50/50 border-b">
+                                    <div className="flex items-center gap-2">
+                                        <Rocket className="w-4 h-4 text-[#1e3a8a]" />
+                                        <CardTitle className="text-sm font-bold text-[#1e3a8a]">Generate Massal</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4 py-4 px-4">
+                                    <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-start gap-2">
+                                        <Info className="w-4 h-4 text-[#1e3a8a] mt-0.5 shrink-0" />
+                                        <div className="text-[11px] text-[#1e3a8a] leading-relaxed font-medium">
+                                            Proses ini akan mengunduh banyak file Excel secara berurutan. Pastikan koneksi internet stabil.
+                                        </div>
+                                    </div>
+
+                                    {isGeneratingAll && (
+                                        <div className="space-y-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-sm font-bold text-slate-700">Progres Keseluruhan</span>
+                                                <span className="text-sm font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">{progressPercentage}%</span>
+                                            </div>
+                                            <Progress value={progressPercentage} className="h-3 bg-slate-200 text-indigo-600" />
+                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                                                Memproses: <span className="text-indigo-700">{bulkProgress.currentClass}</span> ({bulkProgress.current}/{bulkProgress.total})
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <Button
+                                        onClick={handleGenerateAllExcel}
+                                        disabled={isGeneratingAll || isGenerating || filteredKelas.length === 0}
+                                        className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all font-black text-xs rounded-lg uppercase tracking-tight"
+                                    >
+                                        {isGeneratingAll ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                STOP PROCESS
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                GENERATE ALL ({filteredKelas.length} KELAS)
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+
+                <div className="space-y-4">
+                    <Card className="rounded-sm shadow-sm border border-blue-100 bg-[#1e3a8a] text-white overflow-hidden relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-5">
+                            <FileSpreadsheet className="w-16 h-16" />
                         </div>
-                    )}
+                        <CardHeader className="py-3 px-4 bg-white/5 border-b border-white/10">
+                            <CardTitle className="text-white text-xs font-black uppercase tracking-widest">Informasi Leger</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 py-4 px-4 relative z-10">
+                            <div className="flex justify-between items-center bg-white/5 p-2 rounded border border-white/10">
+                                <p className="text-[10px] uppercase font-bold text-blue-200">Semester</p>
+                                <p className="text-[10px] font-black">{activeSemester?.nama_semester || '-'}</p>
+                            </div>
+                            <div className="flex justify-between items-center bg-white/5 p-2 rounded border border-white/10">
+                                <p className="text-[10px] uppercase font-bold text-blue-200">Th Ajaran</p>
+                                <p className="text-[10px] font-black">{activeSemester?.tahun_ajaran_id || '-'}</p>
+                            </div>
+                            <div className="flex items-start gap-2 mt-2 bg-blue-900/50 p-2 rounded border border-white/5">
+                                <Info className="h-3 w-3 text-blue-300 mt-0.5" />
+                                <p className="text-[10px] text-blue-100 leading-tight">
+                                    Mencakup Nilai Akhir, Absensi, dan Ekstrakurikuler.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">
-                                atau per kelas
-                            </span>
-                        </div>
-                    </div>
-
-                    <Button
-                        onClick={handleGenerateExcel}
-                        disabled={!selectedKelas || isGenerating || isGeneratingAll}
-                        className="w-full"
-                        size="lg"
-                    >
-                        {isGenerating ? (
-                            <>
-                                <Download className="mr-2 h-4 w-4 animate-spin" />
-                                Generating...
-                            </>
-                        ) : (
-                            <>
-                                <Download className="mr-2 h-4 w-4" />
-                                Generate Excel
-                            </>
-                        )}
-                    </Button>
-                </CardContent>
-            </Card>
+                    <Alert className="bg-blue-50 border-blue-100 rounded-sm py-2">
+                        <Info className="h-3.5 w-3.5 text-[#1e3a8a]" />
+                        <AlertDescription className="text-[#1e3a8a] text-[10px] font-bold leading-tight">
+                            Pastikan nilai sudah diposting oleh guru agar data muncul lengkap.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            </div>
         </div>
     );
 }

@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
         const rombongan_belajar_id = searchParams.get('rombongan_belajar_id');
-        const semester_id = searchParams.get('semester_id') || '20251'; // Default to current semester
+        let semester_id = searchParams.get('semester_id');
 
         if (!rombongan_belajar_id) {
             return NextResponse.json(
@@ -83,6 +83,14 @@ export async function GET(request: NextRequest) {
         }
 
         const sql = getDbClient();
+
+        // 1. Get active semester if not provided
+        if (!semester_id) {
+            const activeSemester = await sql`
+                SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
+            `;
+            semester_id = activeSemester.length > 0 ? activeSemester[0].semester_id : '20241';
+        }
 
         // 1. Get Class Info
         const classInfo = await retryQuery(async () => {

@@ -171,7 +171,7 @@ export default function DataGuruPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Guru</h1>
           <p className="text-muted-foreground">Kelola data pendidik dan tenaga kependidikan</p>
         </div>
-        <Card className="rounded-sm border-l-4 border-l-emerald-600">
+        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -204,7 +204,7 @@ export default function DataGuruPage() {
         <p className="text-muted-foreground">Kelola data pendidik dan tenaga kependidikan</p>
       </div>
 
-      <Card className="rounded-sm border-l-4 border-l-emerald-600">
+      <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -228,14 +228,14 @@ export default function DataGuruPage() {
           <div className="rounded-sm border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">No</TableHead>
-                  <TableHead>Nama PTK</TableHead>
-                  <TableHead>NIP</TableHead>
-                  <TableHead>NUPTK</TableHead>
-                  <TableHead className="text-center">JK</TableHead>
-                  <TableHead>Jenis PTK</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                <TableRow className="bg-slate-50/50">
+                  <TableHead className="w-[50px] py-2 text-xs font-bold uppercase text-slate-600">No</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Nama PTK</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">NIP</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">NUPTK</TableHead>
+                  <TableHead className="text-center py-2 text-xs font-bold uppercase text-slate-600">JK</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Jenis PTK</TableHead>
+                  <TableHead className="text-right py-2 text-xs font-bold uppercase text-slate-600 pr-4">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -247,30 +247,29 @@ export default function DataGuruPage() {
                   </TableRow>
                 ) : (
                   currentItems.map((guru, index) => (
-                    <TableRow key={guru.ptk_id}>
-                      <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          {guru.gelar_depan && <span>{guru.gelar_depan} </span>}
+                    <TableRow key={guru.ptk_id} className="hover:bg-slate-50/50">
+                      <TableCell className="py-1.5 text-xs font-medium text-slate-500">{indexOfFirstItem + index + 1}</TableCell>
+                      <TableCell className="py-1.5">
+                        <div className="font-semibold text-sm text-[#1e3a8a]">
+                          {guru.gelar_depan && <span className="text-xs font-normal text-slate-500 mr-1">{guru.gelar_depan}</span>}
                           {guru.nama}
-                          {guru.gelar_belakang && <span>, {guru.gelar_belakang}</span>}
+                          {guru.gelar_belakang && <span className="text-xs font-normal text-slate-500 ml-1">, {guru.gelar_belakang}</span>}
                         </div>
                       </TableCell>
-                      <TableCell>{guru.nip || '-'}</TableCell>
-                      <TableCell>{guru.nuptk || '-'}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="py-1.5 text-xs font-medium text-slate-600">{guru.nip || '-'}</TableCell>
+                      <TableCell className="py-1.5 text-xs text-slate-500">{guru.nuptk || '-'}</TableCell>
+                      <TableCell className="text-center py-1.5 text-xs font-bold text-slate-600">
                         {guru.jenis_kelamin}
                       </TableCell>
-                      <TableCell>{getJenisPTKLabel(guru.jenis_ptk_id)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-1.5 text-xs text-slate-600">{getJenisPTKLabel(guru.jenis_ptk_id)}</TableCell>
+                      <TableCell className="text-right py-1.5 pr-4">
                         <Button
                           onClick={() => handleEditClick(guru)}
                           size="sm"
-                          style={{ backgroundColor: '#059669', color: 'white' }}
-                          className="hover:bg-emerald-700"
+                          className="h-7 px-3 bg-[#1e3a8a] hover:bg-indigo-900 text-white text-[10px] font-bold shadow-sm"
                         >
                           <Pencil className="h-3 w-3 mr-1" />
-                          Edit Gelar
+                          EDIT GELAR
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -310,7 +309,7 @@ export default function DataGuruPage() {
                           variant={currentPage === page ? "default" : "outline"}
                           size="sm"
                           onClick={() => paginate(page)}
-                          className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                          className={currentPage === page ? "bg-[#1e3a8a] hover:bg-[#1e3a8a]/90" : ""}
                         >
                           {page}
                         </Button>

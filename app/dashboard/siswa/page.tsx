@@ -310,7 +310,7 @@ export default function DataSiswaPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Siswa</h1>
           <p className="text-muted-foreground">Kelola data peserta didik</p>
         </div>
-        <Card className="rounded-sm border-l-4 border-l-emerald-600">
+        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -343,7 +343,7 @@ export default function DataSiswaPage() {
         <p className="text-muted-foreground">Kelola data peserta didik</p>
       </div>
 
-      <Card className="rounded-sm border-l-4 border-l-emerald-600">
+      <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -382,7 +382,7 @@ export default function DataSiswaPage() {
             <Button
               onClick={handleExportExcel}
               variant="outline"
-              className="flex items-center gap-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+              className="flex items-center gap-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
             >
               <FileSpreadsheet className="h-4 w-4" />
               Export Excel
@@ -392,17 +392,17 @@ export default function DataSiswaPage() {
           <div className="rounded-md border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">No</TableHead>
-                  <TableHead>Nama Siswa</TableHead>
-                  <TableHead>NIS</TableHead>
-                  <TableHead>NISN</TableHead>
-                  <TableHead className="text-center">JK</TableHead>
-                  <TableHead>TTL</TableHead>
-                  <TableHead>Agama</TableHead>
-                  <TableHead className="text-center">Tingkat</TableHead>
-                  <TableHead>Kelas</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                <TableRow className="bg-slate-50/50">
+                  <TableHead className="w-[50px] py-2 text-xs font-bold uppercase text-slate-600">No</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Nama Siswa</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">NIS</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">NISN</TableHead>
+                  <TableHead className="text-center py-2 text-xs font-bold uppercase text-slate-600">JK</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">TTL</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Agama</TableHead>
+                  <TableHead className="text-center py-2 text-xs font-bold uppercase text-slate-600">Tingkat</TableHead>
+                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Kelas</TableHead>
+                  <TableHead className="text-right py-2 text-xs font-bold uppercase text-slate-600 pr-4">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -414,25 +414,24 @@ export default function DataSiswaPage() {
                   </TableRow>
                 ) : (
                   currentItems.map((siswa, index) => (
-                    <TableRow key={siswa.peserta_didik_id}>
-                      <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
-                      <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
-                      <TableCell>{siswa.nis}</TableCell>
-                      <TableCell>{siswa.nisn || '-'}</TableCell>
-                      <TableCell className="text-center">{siswa.jenis_kelamin || '-'}</TableCell>
-                      <TableCell>{formatTTL(siswa.tempat_lahir, siswa.tanggal_lahir)}</TableCell>
-                      <TableCell>{siswa.agama || '-'}</TableCell>
-                      <TableCell className="text-center">{siswa.tingkat_pendidikan_id || '-'}</TableCell>
-                      <TableCell>{siswa.nm_kelas || '-'}</TableCell>
-                      <TableCell className="text-right">
+                    <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50/50">
+                      <TableCell className="py-1.5 text-xs font-medium text-slate-500">{indexOfFirstItem + index + 1}</TableCell>
+                      <TableCell className="py-1.5 font-semibold text-sm text-[#1e3a8a]">{siswa.nm_siswa}</TableCell>
+                      <TableCell className="py-1.5 text-xs font-medium text-slate-600">{siswa.nis}</TableCell>
+                      <TableCell className="py-1.5 text-xs text-slate-500">{siswa.nisn || '-'}</TableCell>
+                      <TableCell className="text-center py-1.5 text-xs font-bold text-slate-600">{siswa.jenis_kelamin || '-'}</TableCell>
+                      <TableCell className="py-1.5 text-[10px] leading-tight text-slate-500">{formatTTL(siswa.tempat_lahir, siswa.tanggal_lahir)}</TableCell>
+                      <TableCell className="py-1.5 text-xs text-slate-600">{siswa.agama || '-'}</TableCell>
+                      <TableCell className="text-center py-1.5 text-xs font-bold text-slate-600">{siswa.tingkat_pendidikan_id || '-'}</TableCell>
+                      <TableCell className="py-1.5 text-xs font-bold text-indigo-600">{siswa.nm_kelas || '-'}</TableCell>
+                      <TableCell className="text-right py-1.5 pr-4">
                         <Button
                           onClick={() => handleEditClick(siswa)}
                           size="sm"
-                          style={{ backgroundColor: '#059669', color: 'white' }}
-                          className="hover:bg-emerald-700"
+                          className="h-7 px-3 bg-[#1e3a8a] hover:bg-indigo-900 text-white text-[10px] font-bold shadow-sm"
                         >
                           <Pencil className="h-3 w-3 mr-1" />
-                          Edit
+                          EDIT
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -471,7 +470,7 @@ export default function DataSiswaPage() {
                           variant={currentPage === page ? "default" : "outline"}
                           size="sm"
                           onClick={() => paginate(page)}
-                          className={currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                          className={currentPage === page ? "bg-[#1e3a8a] hover:bg-[#1e3a8a]/90" : ""}
                         >
                           {page}
                         </Button>
@@ -507,49 +506,52 @@ export default function DataSiswaPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="space-y-4 py-2">
             {/* Data Siswa Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Data Siswa</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-3 space-y-2">
-                  <Label htmlFor="nm_siswa">Nama Siswa *</Label>
+            <div className="space-y-2">
+              <h3 className="text-base font-bold text-[#1e3a8a] border-b pb-1">Data Siswa</h3>
+              <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+                <div className="col-span-3 space-y-1">
+                  <Label htmlFor="nm_siswa" className="text-xs font-semibold text-slate-600">Nama Siswa *</Label>
                   <Input
                     id="nm_siswa"
+                    className="h-8 text-sm"
                     value={formDataSiswa.nm_siswa}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_siswa: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nis">NIS *</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="nis" className="text-xs font-semibold text-slate-600">NIS *</Label>
                   <Input
                     id="nis"
+                    className="h-8 text-sm"
                     value={formDataSiswa.nis}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nis: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nisn">NISN</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="nisn" className="text-xs font-semibold text-slate-600">NISN</Label>
                   <Input
                     id="nisn"
+                    className="h-8 text-sm"
                     value={formDataSiswa.nisn}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nisn: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="jenis_kelamin">Jenis Kelamin</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="jenis_kelamin" className="text-xs font-semibold text-slate-600">Jenis Kelamin</Label>
                   <Select
                     value={formDataSiswa.jenis_kelamin}
                     onValueChange={(value) => setFormDataSiswa({ ...formDataSiswa, jenis_kelamin: value })}
                     disabled={isSaving}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Pilih" />
                     </SelectTrigger>
                     <SelectContent>
@@ -559,36 +561,38 @@ export default function DataSiswaPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tempat_lahir">Tempat Lahir</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="tempat_lahir" className="text-xs font-semibold text-slate-600">Tempat Lahir</Label>
                   <Input
                     id="tempat_lahir"
+                    className="h-8 text-sm"
                     value={formDataSiswa.tempat_lahir}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, tempat_lahir: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tanggal_lahir">Tanggal Lahir</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="tanggal_lahir" className="text-xs font-semibold text-slate-600">Tanggal Lahir</Label>
                   <Input
                     id="tanggal_lahir"
                     type="date"
+                    className="h-8 text-sm"
                     value={formDataSiswa.tanggal_lahir}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, tanggal_lahir: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="agama">Agama</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="agama" className="text-xs font-semibold text-slate-600">Agama</Label>
                   <Select
                     value={formDataSiswa.agama}
                     onValueChange={(value) => setFormDataSiswa({ ...formDataSiswa, agama: value })}
                     disabled={isSaving}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih agama" />
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Pilih" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Islam">Islam</SelectItem>
@@ -601,40 +605,44 @@ export default function DataSiswaPage() {
                   </Select>
                 </div>
 
-                <div className="col-span-3 space-y-2">
-                  <Label htmlFor="alamat_siswa">Alamat Siswa</Label>
+                <div className="col-span-3 space-y-1">
+                  <Label htmlFor="alamat_siswa" className="text-xs font-semibold text-slate-600">Alamat Siswa</Label>
                   <Input
                     id="alamat_siswa"
+                    className="h-8 text-sm"
                     value={formDataSiswa.alamat_siswa}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, alamat_siswa: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="telepon_siswa">No HP Siswa</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="telepon_siswa" className="text-xs font-semibold text-slate-600">No HP Siswa</Label>
                   <Input
                     id="telepon_siswa"
+                    className="h-8 text-sm"
                     value={formDataSiswa.telepon_siswa}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, telepon_siswa: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nm_ayah">Nama Ayah</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="nm_ayah" className="text-xs font-semibold text-slate-600">Nama Ayah</Label>
                   <Input
                     id="nm_ayah"
+                    className="h-8 text-sm"
                     value={formDataSiswa.nm_ayah}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_ayah: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nm_ibu">Nama Ibu</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="nm_ibu" className="text-xs font-semibold text-slate-600">Nama Ibu</Label>
                   <Input
                     id="nm_ibu"
+                    className="h-8 text-sm"
                     value={formDataSiswa.nm_ibu}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_ibu: e.target.value })}
                     disabled={isSaving}
@@ -642,21 +650,23 @@ export default function DataSiswaPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pekerjaan_ayah">Pekerjaan Ayah</Label>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="space-y-1">
+                  <Label htmlFor="pekerjaan_ayah" className="text-xs font-semibold text-slate-600">Pekerjaan Ayah</Label>
                   <Input
                     id="pekerjaan_ayah"
+                    className="h-8 text-sm"
                     value={formDataSiswa.pekerjaan_ayah}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, pekerjaan_ayah: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="pekerjaan_ibu">Pekerjaan Ibu</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="pekerjaan_ibu" className="text-xs font-semibold text-slate-600">Pekerjaan Ibu</Label>
                   <Input
                     id="pekerjaan_ibu"
+                    className="h-8 text-sm"
                     value={formDataSiswa.pekerjaan_ibu}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, pekerjaan_ibu: e.target.value })}
                     disabled={isSaving}
@@ -665,20 +675,20 @@ export default function DataSiswaPage() {
               </div>
             </div>
 
-            <Separator />
+            <Separator className="my-1" />
 
             {/* Data Pelengkap Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Data Pelengkap</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="status_dalam_kel">Status Dalam Keluarga</Label>
+            <div className="space-y-2">
+              <h3 className="text-base font-bold text-[#1e3a8a] border-b pb-1">Data Pelengkap</h3>
+              <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+                <div className="space-y-1">
+                  <Label htmlFor="status_dalam_kel" className="text-xs font-semibold text-slate-600">Status Dalam Keluarga</Label>
                   <Select
                     value={formDataPelengkap.status_dalam_kel}
                     onValueChange={(value) => setFormDataPelengkap({ ...formDataPelengkap, status_dalam_kel: value })}
                     disabled={isSaving}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Pilih status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -689,32 +699,35 @@ export default function DataSiswaPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="anak_ke">Anak Ke</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="anak_ke" className="text-xs font-semibold text-slate-600">Anak Ke</Label>
                   <Input
                     id="anak_ke"
                     type="number"
+                    className="h-8 text-sm"
                     value={formDataPelengkap.anak_ke}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, anak_ke: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="diterima_kelas">Diterima Di Kelas</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="diterima_kelas" className="text-xs font-semibold text-slate-600">Diterima Di Kelas</Label>
                   <Input
                     id="diterima_kelas"
-                    placeholder="Contoh: X"
+                    placeholder="X"
+                    className="h-8 text-sm"
                     value={formDataPelengkap.diterima_kelas}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, diterima_kelas: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="col-span-3 space-y-2">
-                  <Label htmlFor="alamat_ortu">Alamat Orang Tua</Label>
+                <div className="col-span-3 space-y-1">
+                  <Label htmlFor="alamat_ortu" className="text-xs font-semibold text-slate-600">Alamat Orang Tua</Label>
                   <Input
                     id="alamat_ortu"
+                    className="h-8 text-sm"
                     value={formDataPelengkap.alamat_ortu}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, alamat_ortu: e.target.value })}
                     disabled={isSaving}
@@ -722,21 +735,23 @@ export default function DataSiswaPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sekolah_asal">Sekolah Asal</Label>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="space-y-1">
+                  <Label htmlFor="sekolah_asal" className="text-xs font-semibold text-slate-600">Sekolah Asal</Label>
                   <Input
                     id="sekolah_asal"
+                    className="h-8 text-sm"
                     value={formDataPelengkap.sekolah_asal}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, sekolah_asal: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="telepon_ortu">Telepon Orang Tua</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="telepon_ortu" className="text-xs font-semibold text-slate-600">Telepon Orang Tua</Label>
                   <Input
                     id="telepon_ortu"
+                    className="h-8 text-sm"
                     value={formDataPelengkap.telepon_ortu}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, telepon_ortu: e.target.value })}
                     disabled={isSaving}
@@ -765,7 +780,7 @@ export default function DataSiswaPage() {
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white"
             >
               {isSaving ? (
                 <>

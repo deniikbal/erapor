@@ -20,6 +20,7 @@ import {
     LogOut,
     ChevronRight,
     TrendingUp,
+    Medal,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -84,6 +85,7 @@ const menuItems: MenuItem[] = [
         submenu: [
             { title: 'Status Penilaian', href: '/dashboard/guru/status-penilaian', icon: Table },
             { title: 'Grafik Penilaian', href: '/dashboard/guru/grafik-perkembangan', icon: TrendingUp },
+            { title: 'Peringkat Siswa', href: '/dashboard/guru/peringkat', icon: Medal },
         ],
     },
     {
@@ -109,6 +111,16 @@ const menuItems: MenuItem[] = [
             { title: 'Data Mapel', href: '/dashboard/referensi/mapel', icon: BookOpen },
             { title: 'Data Logo', href: '/dashboard/referensi/logo', icon: ImageIcon },
             { title: 'Data Tanggal Rapor', href: '/dashboard/referensi/tanggalrapor', icon: Calendar },
+        ],
+    },
+    {
+        title: 'Perkembangan Nilai',
+        icon: TrendingUp,
+        allowedLevels: ['Admin'],
+        submenu: [
+            { title: 'Status Penilaian', href: '/dashboard/admin/perkembangan-nilai/status', icon: Table },
+            { title: 'Grafik Perkembangan', href: '/dashboard/admin/perkembangan-nilai/grafik', icon: TrendingUp },
+            { title: 'Peringkat Kelas', href: '/dashboard/admin/perkembangan-nilai/peringkat', icon: Medal },
         ],
     },
     {

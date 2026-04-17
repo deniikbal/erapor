@@ -252,7 +252,7 @@ export default function DataTanggalRaporPage() {
           <h1 className="text-3xl font-bold tracking-tight">Data Tanggal Rapor</h1>
           <p className="text-muted-foreground">Kelola data tanggal pembagian rapor</p>
         </div>
-        <Card className="rounded-sm border-l-4 border-l-emerald-600">
+        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-4 w-96" />
@@ -292,7 +292,7 @@ export default function DataTanggalRaporPage() {
         </Button>
       </div>
 
-      <Card className="rounded-sm border-l-4 border-l-emerald-600">
+      <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />

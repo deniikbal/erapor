@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { Calendar, CheckCircle2, Loader2, RefreshCw, Info } from 'lucide-react';
 import { useSemester } from '@/components/providers/semester-context';
 
 export default function SemesterSettingPage() {
@@ -27,49 +27,51 @@ export default function SemesterSettingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-[#1e3a8a]">Pengaturan Semester</h1>
-        <p className="text-muted-foreground">Pilih semester yang akan digunakan secara global sebagai semester aktif.</p>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+          <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+            Pengaturan Semester
+          </h1>
+        </div>
+        <p className="text-slate-500 text-[11px] ml-3 italic">
+          Pilih semester aktif yang akan digunakan secara global oleh seluruh sistem.
+        </p>
       </div>
 
-      <Card className="rounded-sm border-l-4 border-l-emerald-600 shadow-md overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 bg-slate-50/50 border-b">
-          <div className="space-y-1">
-            <CardTitle className="text-xl flex items-center gap-2 text-[#1e3a8a]">
-              <Calendar className="h-5 w-5 text-emerald-600" />
-              Daftar Semester
-            </CardTitle>
-            <CardDescription>
-              Tentukan semester aktif untuk memfilter data Kelas, Siswa, dan Nilai secara global.
-            </CardDescription>
+      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Daftar Semester</CardTitle>
           </div>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={refreshActiveSemester}
             disabled={loading}
-            className="hover:bg-emerald-50 hover:text-emerald-700 border-emerald-200"
+            className="h-7 text-[10px] font-bold border-blue-200 hover:bg-blue-50 text-[#1e3a8a] py-0 transition-all uppercase"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
+            <RefreshCw className={`h-3 w-3 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            REFRESH DATA
           </Button>
         </CardHeader>
         <CardContent className="p-0">
           {loading && semesters.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
-              <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+              <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
               <p className="text-sm text-muted-foreground animate-pulse">Memuat data semester...</p>
             </div>
           ) : (
             <div className="">
               <Table>
-                <TableHeader className="bg-slate-50/50">
-                  <TableRow>
-                    <TableHead className="w-[100px] font-bold">ID</TableHead>
-                    <TableHead className="font-bold">Nama Semester</TableHead>
-                    <TableHead className="font-bold">Tahun Ajaran</TableHead>
-                    <TableHead className="text-center font-bold">Status</TableHead>
-                    <TableHead className="text-right font-bold pr-6">Aksi</TableHead>
+                <TableHeader className="bg-[#1e3a8a]">
+                  <TableRow className="hover:bg-transparent border-none">
+                    <TableHead className="w-[100px] text-white font-bold text-[10px] h-9 uppercase tracking-wider">ID</TableHead>
+                    <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Nama Semester</TableHead>
+                    <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Tahun Ajaran</TableHead>
+                    <TableHead className="text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider">Status</TableHead>
+                    <TableHead className="text-right text-white font-bold text-[10px] h-9 uppercase tracking-wider pr-4">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -83,33 +85,36 @@ export default function SemesterSettingPage() {
                     semesters.map((s) => (
                       <TableRow 
                         key={s.semester_id} 
-                        className={activeSemester?.semester_id === s.semester_id ? "bg-emerald-50/40" : "hover:bg-slate-50/50 transition-colors"}
+                        className={activeSemester?.semester_id === s.semester_id ? "bg-blue-50/50" : "hover:bg-slate-50 transition-colors"}
                       >
-                        <TableCell className="font-mono text-xs text-slate-500">{s.semester_id}</TableCell>
-                        <TableCell className="font-semibold text-slate-700">{s.nama_semester}</TableCell>
-                        <TableCell>{s.tahun_ajaran_id}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="py-2 text-[10px] font-mono text-slate-400">{s.semester_id}</TableCell>
+                        <TableCell className="py-2">
+                           <span className={`text-xs font-bold ${activeSemester?.semester_id === s.semester_id ? 'text-[#1e3a8a]' : 'text-slate-700'}`}>
+                            {s.nama_semester}
+                           </span>
+                        </TableCell>
+                        <TableCell className="py-2 text-xs text-slate-500 font-medium">{s.tahun_ajaran_id}</TableCell>
+                        <TableCell className="py-2 text-center">
                           {activeSemester?.semester_id === s.semester_id ? (
-                            <Badge className="bg-emerald-600 hover:bg-emerald-700 shadow-sm px-3 py-1">
-                              <CheckCircle2 className="h-3 w-3 mr-1.5" />
-                              Sedang Aktif
+                            <Badge className="bg-[#1e3a8a] text-white shadow-sm px-2 py-0 h-5 text-[9px] font-bold uppercase">
+                              AKTIF
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-muted-foreground border-slate-200 px-3 py-1 bg-white">
-                              Non-Aktif
+                            <Badge variant="outline" className="text-slate-400 border-slate-200 px-2 py-0 h-5 text-[9px] bg-white font-medium">
+                              NON-AKTIF
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-right pr-6">
+                        <TableCell className="py-2 text-right pr-4">
                           <Button
                             size="sm"
-                            variant={activeSemester?.semester_id === s.semester_id ? "secondary" : "outline"}
                             disabled={updatingId === s.semester_id || activeSemester?.semester_id === s.semester_id}
                             onClick={() => handleSetActive(s.semester_id)}
-                            className={activeSemester?.semester_id === s.semester_id 
-                              ? "bg-emerald-100 text-emerald-800 border-none opacity-80 cursor-default" 
-                              : "border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                            }
+                            className={`h-7 px-3 text-[10px] font-bold transition-all uppercase ${
+                              activeSemester?.semester_id === s.semester_id 
+                              ? "bg-blue-50 text-[#1e3a8a] cursor-default border-none" 
+                              : "bg-[#1e3a8a] hover:bg-black text-white shadow-sm"
+                            }`}
                           >
                             {updatingId === s.semester_id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -130,36 +135,16 @@ export default function SemesterSettingPage() {
         </CardContent>
       </Card>
 
-      <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-lg shadow-sm">
-        <div className="flex gap-4">
-          <div className="flex-shrink-0 bg-blue-100 p-2 rounded-full h-fit">
-            <Calendar className="h-5 w-5 text-blue-600" aria-hidden="true" />
+      <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg shadow-sm">
+        <div className="flex gap-3">
+          <div className="flex-shrink-0 bg-white p-1.5 rounded-md h-fit border border-blue-100 shadow-sm">
+            <Info className="h-3.5 w-3.5 text-[#1e3a8a]" aria-hidden="true" />
           </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-bold text-blue-900">Informasi Penting</h3>
-            <div className="text-sm text-blue-700 leading-relaxed">
-              <p>
-                Perubahan semester aktif bersifat <strong>Global</strong>. Ini berarti seluruh pengguna (Guru & Admin) akan melihat data yang difilter berdasarkan semester ini.
-              </p>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                  <span>Daftar Rombongan Belajar</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                  <span>Halaman Input Nilai & Kehadiran</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                  <span>Proses Pencetakan Raport</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                  <span>Statistik Perkembangan Siswa</span>
-                </div>
-              </div>
-            </div>
+          <div className="space-y-1">
+            <h3 className="text-[11px] font-black text-[#1e3a8a] uppercase tracking-tight">Informasi Sinkronisasi Semester</h3>
+            <p className="text-[10px] text-slate-500 leading-relaxed italic">
+              Perubahan semester bersifat global dan akan langsung memengaruhi seluruh modul Guru, Admin, serta filter raport di sistem.
+            </p>
           </div>
         </div>
       </div>

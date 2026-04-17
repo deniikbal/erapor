@@ -41,13 +41,13 @@ export default function DashboardLayout({
     <SidebarProvider>
       <SemesterProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="min-w-0 overflow-x-hidden">
           <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Header />
           </header>
-          <main className="flex-1 overflow-y-auto bg-muted/40 p-4 lg:p-6">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-muted/40 p-4 lg:p-6">
             {children}
           </main>
         </SidebarInset>

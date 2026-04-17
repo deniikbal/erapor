@@ -123,19 +123,20 @@ export default function DataSekolahPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Data Sekolah</h1>
-          <p className="text-muted-foreground">Informasi lengkap tentang sekolah</p>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+            <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">Data Sekolah</h1>
+          </div>
+          <p className="text-slate-500 text-[11px] ml-3 italic">Memuat informasi profil sekolah...</p>
         </div>
-        <Card className="rounded-sm border-l-4 border-l-emerald-600">
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-96" />
+        <Card className="rounded-sm border border-blue-100 shadow-sm animate-pulse">
+          <CardHeader className="py-3">
+            <Skeleton className="h-4 w-48 bg-slate-100" />
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
+          <CardContent className="space-y-3">
+            <Skeleton className="h-10 w-full bg-slate-50" />
+            <Skeleton className="h-10 w-full bg-slate-50" />
           </CardContent>
         </Card>
       </div>
@@ -171,30 +172,36 @@ export default function DataSekolahPage() {
   }
 
   const InfoItem = ({ label, value }: { label: string; value: string | null }) => (
-    <div className="space-y-1">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="text-base">{value || '-'}</p>
+    <div className="space-y-0.5">
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{label}</p>
+      <p className="text-xs font-semibold text-[#1e3a8a]">{value || '-'}</p>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Data Sekolah</h1>
-        <p className="text-muted-foreground">Informasi lengkap tentang sekolah</p>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+          <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+            Data Sekolah
+          </h1>
+        </div>
+        <p className="text-slate-500 text-[11px] ml-3 italic">
+          Informasi lengkap profil dan identitas sekolah.
+        </p>
       </div>
 
       {/* Informasi Umum */}
-      <Card className="rounded-md border-l-4 border-l-emerald-600">
-        <CardHeader>
+      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b">
           <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
-            <CardTitle>Informasi Umum</CardTitle>
+            <Building2 className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Informasi Umum</CardTitle>
           </div>
-          <CardDescription>Data identitas dan informasi dasar sekolah</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
+        <CardContent className="py-3 px-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <InfoItem label="Nama Sekolah" value={sekolah.nama} />
             <InfoItem label="NPSN" value={sekolah.npsn} />
             <InfoItem label="NSS" value={sekolah.nss ? sekolah.nss.trim() : null} />
@@ -204,42 +211,45 @@ export default function DataSekolahPage() {
       </Card>
 
       {/* Alamat & Kontak */}
-      <Card className="rounded-md border-l-4 border-l-emerald-600">
-        <CardHeader>
+      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b">
           <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
-            <CardTitle>Alamat & Kontak</CardTitle>
+            <MapPin className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Alamat & Kontak</CardTitle>
           </div>
-          <CardDescription>Informasi lokasi dan kontak sekolah</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="md:col-span-2">
+        <CardContent className="py-3 px-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="md:col-span-2 lg:col-span-3 pb-2 border-b border-slate-50">
               <InfoItem label="Alamat" value={sekolah.alamat} />
             </div>
             <InfoItem label="Kelurahan" value={sekolah.kelurahan} />
             <InfoItem label="Kecamatan" value={sekolah.kecamatan} />
-            <InfoItem label="Kabupaten/Kota" value={sekolah.kab_kota} />
+            <InfoItem label="Kota/Kab" value={sekolah.kab_kota} />
             <InfoItem label="Provinsi" value={sekolah.propinsi} />
             <InfoItem label="Kode Pos" value={sekolah.kd_pos} />
             <div />
 
-            <Separator className="md:col-span-2" />
+            <div className="md:col-span-2 lg:col-span-3 flex items-center gap-2 pt-2">
+               <div className="h-[1px] flex-1 bg-slate-100" />
+               <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Informasi Kontak</span>
+               <div className="h-[1px] flex-1 bg-slate-100" />
+            </div>
 
-            <div className="flex items-start gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+            <div className="flex items-center gap-3 bg-slate-50/50 p-2 rounded border border-blue-50">
+              <Phone className="h-3.5 w-3.5 text-[#1e3a8a] shrink-0" />
               <InfoItem label="Telepon" value={sekolah.telepon} />
             </div>
-            <div className="flex items-start gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+            <div className="flex items-center gap-3 bg-slate-50/50 p-2 rounded border border-blue-50">
+              <Phone className="h-3.5 w-3.5 text-[#1e3a8a] shrink-0" />
               <InfoItem label="Fax" value={sekolah.fax} />
             </div>
-            <div className="flex items-start gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+            <div className="flex items-center gap-3 bg-slate-50/50 p-2 rounded border border-blue-50">
+              <Mail className="h-3.5 w-3.5 text-[#1e3a8a] shrink-0" />
               <InfoItem label="Email" value={sekolah.email} />
             </div>
-            <div className="flex items-start gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+            <div className="flex items-center gap-3 bg-slate-50/50 p-2 rounded border border-blue-50 lg:col-span-3">
+              <Globe className="h-3.5 w-3.5 text-[#1e3a8a] shrink-0" />
               <InfoItem label="Website" value={sekolah.website} />
             </div>
           </div>
@@ -247,25 +257,25 @@ export default function DataSekolahPage() {
       </Card>
 
       {/* Kepala Sekolah */}
-      <Card className="rounded-md border-l-4 border-l-emerald-600">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              <div>
-                <CardTitle>Kepala Sekolah</CardTitle>
-                <CardDescription>Informasi kepala sekolah</CardDescription>
-              </div>
-            </div>
-            <Button onClick={handleEditClick} size="sm" variant="outline">
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Kepala Sekolah</CardTitle>
           </div>
+          <Button 
+            onClick={handleEditClick} 
+            size="sm" 
+            variant="outline" 
+            className="h-7 text-[10px] font-black border-blue-100 text-[#1e3a8a] bg-white transition-all uppercase"
+          >
+            <Pencil className="h-3 w-3 mr-1.5" />
+            EDIT DATA
+          </Button>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            <InfoItem label="Nama" value={sekolah.nm_kepsek} />
+        <CardContent className="py-3 px-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <InfoItem label="Nama Kepsek" value={sekolah.nm_kepsek} />
             <InfoItem label="NIP" value={sekolah.nip_kepsek} />
             {sekolah.niy_kepsek && <InfoItem label="NIY" value={sekolah.niy_kepsek} />}
           </div>

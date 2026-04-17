@@ -14,7 +14,9 @@ import {
   School,
   Calendar,
   Printer,
-  ArrowRight
+  ArrowRight,
+  Rocket,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -76,8 +78,8 @@ export default function DashboardPage() {
       value: loading ? '...' : stats.totalSiswa.toLocaleString(),
       description: 'Siswa terdaftar',
       icon: GraduationCap,
-      iconColor: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
+      iconColor: 'text-[#1e3a8a]',
+      bgColor: 'bg-blue-50',
       href: '/dashboard/siswa'
     },
     {
@@ -85,8 +87,8 @@ export default function DashboardPage() {
       value: loading ? '...' : stats.totalGuru.toLocaleString(),
       description: 'Guru aktif',
       icon: UserCheck,
-      iconColor: 'text-emerald-500',
-      bgColor: 'bg-emerald-500/10',
+      iconColor: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
       href: '/dashboard/guru'
     },
     {
@@ -94,8 +96,8 @@ export default function DashboardPage() {
       value: loading ? '...' : stats.totalKelas.toLocaleString(),
       description: 'Rombongan belajar',
       icon: BookOpen,
-      iconColor: 'text-purple-500',
-      bgColor: 'bg-purple-500/10',
+      iconColor: 'text-blue-700',
+      bgColor: 'bg-slate-100',
       href: '/dashboard/referensi/kelas'
     },
   ];
@@ -106,28 +108,28 @@ export default function DashboardPage() {
       description: 'Kelola informasi sekolah',
       icon: School,
       href: '/dashboard/referensi/sekolah',
-      color: 'text-blue-600'
+      color: 'text-blue-700'
     },
     {
       title: 'Sync Data',
       description: 'Sinkronisasi database',
       icon: RefreshCw,
       href: '/dashboard/sync',
-      color: 'text-emerald-600'
+      color: 'text-indigo-700'
     },
     {
       title: 'Cetak Nilai',
       description: 'Pelengkap raport siswa',
       icon: Printer,
       href: '/dashboard/admin-cetak-nilai/pelengkap-raport',
-      color: 'text-purple-600'
+      color: 'text-blue-900'
     },
     {
       title: 'Tanggal Rapor',
       description: 'Atur tanggal rapor',
       icon: Calendar,
       href: '/dashboard/referensi/tanggalrapor',
-      color: 'text-orange-600'
+      color: 'text-blue-800'
     },
   ];
 
@@ -137,28 +139,28 @@ export default function DashboardPage() {
       description: 'Input nilai siswa',
       icon: FileText,
       href: '/dashboard/nilai',
-      color: 'text-blue-600'
+      color: 'text-blue-700'
     },
     {
       title: 'Cetak Nilai',
       description: 'Pelengkap & nilai rapor siswa',
       icon: Printer,
       href: '/dashboard/cetak-nilai',
-      color: 'text-purple-600'
+      color: 'text-indigo-700'
     },
     {
       title: 'Update Data Siswa',
       description: 'Lengkapi data siswa',
       icon: GraduationCap,
       href: '/dashboard/guru-input/update-data-siswa',
-      color: 'text-emerald-600'
+      color: 'text-blue-800'
     },
     {
       title: 'Raport',
       description: 'Lihat raport siswa',
       icon: FileText,
       href: '/dashboard/nilai/raport',
-      color: 'text-orange-600'
+      color: 'text-blue-900'
     },
   ];
 
@@ -167,11 +169,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Selamat datang, {user?.nama || 'User'}!
-        </h1>
-        <p className="text-muted-foreground">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+          <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+            Selamat datang, {user?.nama || 'User'}!
+          </h1>
+        </div>
+        <p className="text-slate-500 text-[11px] ml-3 italic">
           {user?.level === 'Admin'
             ? 'Dashboard Administrator - Kelola data sekolah dan sinkronisasi database'
             : 'Dashboard Guru - Kelola nilai dan data siswa Anda'}
@@ -179,19 +184,20 @@ export default function DashboardPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {statisticsCards.map((stat) => (
           <Link key={stat.title} href={stat.href}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer rounded-sm border-l-4 border-l-emerald-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${stat.bgColor}`}>
-                  <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
+            <Card className="hover:shadow-md transition-all cursor-pointer rounded-sm border-none shadow-sm bg-white overflow-hidden group">
+              <div className="h-1 bg-[#1e3a8a] opacity-80 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 py-2.5 px-3">
+                <CardTitle className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{stat.title}</CardTitle>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-md bg-blue-50`}>
+                  <stat.icon className={`h-4 w-4 text-[#1e3a8a]`} />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+              <CardContent className="py-1 px-3 pb-3">
+                <div className="text-xl font-black text-[#1e3a8a]">{stat.value}</div>
+                <p className="text-[9px] text-slate-400 font-medium mt-0.5 italic">{stat.description}</p>
               </CardContent>
             </Card>
           </Link>
@@ -199,28 +205,28 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Access */}
-      <Card className="rounded-sm border-l-4 border-l-emerald-600">
-        <CardHeader>
-          <CardTitle>Akses Cepat</CardTitle>
-          <CardDescription>
-            Fitur yang sering digunakan
-          </CardDescription>
+      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white mt-2">
+        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b">
+          <div className="flex items-center gap-2">
+            <Rocket className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Akses Cepat</CardTitle>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="p-3 pt-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             {quickAccess.map((item) => (
               <Link key={item.title} href={item.href}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer border-2 hover:border-primary/50">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col items-center text-center space-y-3">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-muted`}>
-                        <item.icon className={`h-6 w-6 ${item.color}`} />
+                <Card className="hover:shadow-md hover:border-blue-200 transition-all cursor-pointer border-blue-50 bg-slate-50/30 group">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white border border-blue-50 shadow-sm group-hover:scale-110 transition-transform`}>
+                        <item.icon className={`h-4 w-4 text-[#1e3a8a]`} />
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-sm">{item.title}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-[11px] text-[#1e3a8a] truncate uppercase tracking-tight">{item.title}</h3>
+                        <p className="text-[9px] text-slate-400 truncate mt-0.5">{item.description}</p>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      <ArrowRight className="h-3 w-3 text-slate-300 group-hover:text-[#1e3a8a] transition-colors" />
                     </div>
                   </CardContent>
                 </Card>
@@ -231,59 +237,52 @@ export default function DashboardPage() {
       </Card>
 
       {/* Information Card */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informasi Sistem</CardTitle>
-            <CardDescription>Detail pengguna dan hak akses</CardDescription>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="rounded-sm border border-blue-100 shadow-sm overflow-hidden">
+          <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b">
+            <CardTitle className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider">Informasi Sistem</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Username</span>
-              <span className="text-sm text-muted-foreground">{user?.userid || '-'}</span>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center justify-between p-1.5 bg-slate-50 rounded border border-slate-100">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Username</span>
+              <span className="text-[11px] font-black text-[#1e3a8a]">{user?.userid || '-'}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Nama</span>
-              <span className="text-sm text-muted-foreground">{user?.nama || '-'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Level Akses</span>
-              <span className={`text-sm font-semibold px-2 py-1 rounded ${user?.level === 'Admin'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-blue-100 text-blue-700'
-                }`}>
+            <div className="flex items-center justify-between p-1.5 bg-slate-50 rounded border border-slate-100">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Level</span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded bg-[#1e3a8a] text-white">
                 {user?.level || '-'}
               </span>
             </div>
-            {user?.level === 'Guru' && user?.ptk_id && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">PTK ID</span>
-                <span className="text-sm text-muted-foreground">{user.ptk_id}</span>
-              </div>
-            )}
+            <div className="flex items-center justify-between p-1.5 bg-slate-50 rounded border border-slate-100">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Semester</span>
+              <span className="text-[11px] font-black text-indigo-600 italic">2025/2026 Genap</span>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Bantuan</CardTitle>
-            <CardDescription>Panduan penggunaan sistem</CardDescription>
+        <Card className="rounded-sm border border-blue-100 shadow-sm overflow-hidden lg:col-span-2">
+          <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b">
+            <CardTitle className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider">Panduan Cepat</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Admin</h4>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Kelola data referensi melalui menu Data Referensi</li>
-                <li>Sync database lokal ke cloud melalui menu Sync Data</li>
+          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5 border-r border-slate-100 pr-2">
+              <h4 className="text-[11px] font-black text-[#1e3a8a] flex items-center gap-1 uppercase">
+                <div className="h-2 w-2 rounded-full bg-blue-500" /> Admin
+              </h4>
+              <ul className="text-[10px] text-slate-500 space-y-1 ml-3 list-disc">
+                <li>Kelola referensi & sinkronisasi database</li>
                 <li>Cetak pelengkap raport semua kelas</li>
+                <li>Monitoring progres penilaian guru</li>
               </ul>
             </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Guru</h4>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Input nilai siswa per mata pelajaran</li>
-                <li>Lengkapi data siswa wali kelas</li>
-                <li>Cetak pelengkap raport kelas yang diampu</li>
+            <div className="space-y-1.5">
+              <h4 className="text-[11px] font-black text-indigo-700 flex items-center gap-1 uppercase">
+                <div className="h-2 w-2 rounded-full bg-indigo-500" /> Guru
+              </h4>
+              <ul className="text-[10px] text-slate-500 space-y-1 ml-3 list-disc">
+                <li>Input nilai per mata pelajaran & ekstrakurikuler</li>
+                <li>Lengkapi data siswa untuk wali kelas</li>
+                <li>Cetak raport kelas dan lihat histori peringkat</li>
               </ul>
             </div>
           </CardContent>

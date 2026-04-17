@@ -145,7 +145,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <img src="/erap-icon.png" alt="ERAP+" className="h-8 w-8" />
           <div className="flex items-center">
             <span className="text-xl font-bold text-[#1e3a8a]">ERAP</span>
-            <span className="text-xl font-bold text-[#10b981]">+</span>
+            <span className="text-xl font-bold text-[#1e3a8a] tracking-tight">+</span>
           </div>
         </Link>
       </div>

@@ -104,14 +104,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-[480px] shadow-2xl border-none overflow-hidden rounded-xl bg-white">
-          <CardHeader className="space-y-4 pb-8 bg-gradient-to-r from-[#1e3a8a]/5 to-[#10b981]/5 border-b">
+          <CardHeader className="space-y-4 pb-8 bg-gradient-to-r from-[#1e3a8a]/5 to-[#1e3a8a]/10 border-b">
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-3 mb-2">
                 <img src="/erap-icon.png" alt="ERAP+" className="h-12 w-12 drop-shadow-md" />
                 <div className="flex flex-col">
                   <div className="flex items-center">
                     <span className="text-3xl font-black text-[#1e3a8a] tracking-tighter">ERAP</span>
-                    <span className="text-3xl font-black text-[#10b981] tracking-tighter">+</span>
+                    <span className="text-3xl font-black text-[#1e3a8a] tracking-tighter">+</span>
                   </div>
                   <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500 -mt-1">
                     Interface Modern e-Rapor
@@ -261,7 +261,7 @@ export default function LoginPage() {
       <footer className="w-full py-6 text-center bg-transparent border-t border-slate-200/50 shrink-0">
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 text-sm text-slate-500 font-medium">
           <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#1e3a8a]" />
             <span>&copy; {new Date().getFullYear()} ERAP+</span>
           </div>
           <span className="hidden md:inline text-slate-300">|</span>
