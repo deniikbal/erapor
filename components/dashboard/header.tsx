@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getCurrentUser, removeCurrentUser } from '@/lib/auth-client';
 import type { User } from '@/lib/db';
+import { SemesterSwitcher } from '@/components/dashboard/semester-switcher';
 
 export function Header() {
   const router = useRouter();
@@ -49,6 +50,9 @@ export function Header() {
 
       <div className="flex-1" />
 
+      <div className="mr-3">
+        <SemesterSwitcher />
+      </div>
 
       {/* Hide bell icon on mobile */}
       <Button variant="ghost" size="icon" className="relative hidden sm:flex">

@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { saveCurrentUser } from '@/lib/auth-client';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, School, Calendar, User, Lock } from 'lucide-react';
+import type { Semester, Sekolah as SekolahType } from '@/lib/db';
+import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -16,10 +19,55 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const [sekolahs, setSekolahs] = useState<SekolahType[]>([]);
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [selectedSekolah, setSelectedSekolah] = useState<string>('');
+  const [selectedSemester, setSelectedSemester] = useState<string>('');
+  const [fetchingData, setFetchingData] = useState(true);
+
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [resSekolah, resSemester] = await Promise.all([
+          fetch('/api/sekolah'),
+          fetch('/api/semester')
+        ]);
+        
+        const dataSekolah = await resSekolah.json();
+        const dataSemester = await resSemester.json();
+        
+        if (resSekolah.ok && dataSekolah.sekolah) {
+          // Wrap in array if it's a single object
+          const schools = Array.isArray(dataSekolah.sekolah) ? dataSekolah.sekolah : [dataSekolah.sekolah];
+          setSekolahs(schools);
+          if (schools.length > 0) setSelectedSekolah(schools[0].sekolah_id);
+        }
+        
+        if (resSemester.ok && dataSemester.data) {
+          setSemesters(dataSemester.data);
+          const activeSms = dataSemester.data.find((s: Semester) => s.periode_aktif === '1');
+          if (activeSms) setSelectedSemester(activeSms.semester_id);
+          else if (dataSemester.data.length > 0) setSelectedSemester(dataSemester.data[0].semester_id);
+        }
+      } catch (err) {
+        console.error('Fetch login data error:', err);
+      } finally {
+        setFetchingData(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedSemester) {
+      setError('Silakan pilih semester terlebih dahulu');
+      return;
+    }
+
     setError('');
     setLoading(true);
 
@@ -29,7 +77,11 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ 
+          username, 
+          password,
+          semester_id: selectedSemester 
+        }),
       });
 
       const data = await response.json();
@@ -49,131 +101,171 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="flex-1 flex">
-        {/* Left Column - Image - Hidden on mobile/tablet, shown on large screens */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-600 to-teal-700 relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white">
-            <div className="max-w-md space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <img src="/erap-icon.png" alt="ERAP+" className="h-16 w-16" />
-                <div>
-                  <h1 className="text-4xl font-bold leading-tight">
-                    <span className="text-white">ERAP</span><span className="text-emerald-200">+</span>
-                  </h1>
-                  <p className="text-emerald-100 text-sm">Interface Modern untuk e-Rapor</p>
-                </div>
-              </div>
-              <p className="text-lg text-emerald-50">
-                Portal pintar untuk akses data e-Rapor sekolah. Memudahkan guru dan admin dalam pengelolaan rapor siswa.
-              </p>
-              <div className="grid grid-cols-2 gap-4 pt-8">
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                  <div className="text-3xl font-bold">1500+</div>
-                  <div className="text-sm text-emerald-100">Siswa Aktif</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                  <div className="text-3xl font-bold">60+</div>
-                  <div className="text-sm text-emerald-100">Guru</div>
+    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-[480px] shadow-2xl border-none overflow-hidden rounded-xl bg-white">
+          <CardHeader className="space-y-4 pb-8 bg-gradient-to-r from-[#1e3a8a]/5 to-[#10b981]/5 border-b">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-3 mb-2">
+                <img src="/erap-icon.png" alt="ERAP+" className="h-12 w-12 drop-shadow-md" />
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <span className="text-3xl font-black text-[#1e3a8a] tracking-tighter">ERAP</span>
+                    <span className="text-3xl font-black text-[#10b981] tracking-tighter">+</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500 -mt-1">
+                    Interface Modern e-Rapor
+                  </span>
                 </div>
               </div>
             </div>
-          </div>
-          {/* Decorative Elements */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-500/20 rounded-full blur-3xl"></div>
-        </div>
-
-        {/* Right Column - Login Form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-          <Card className="w-full max-w-md shadow-xl">
-            <CardHeader className="space-y-1">
-              <div className="flex flex-col items-center mb-4">
-                <div className="flex items-center gap-2">
-                  <img src="/erap-icon.png" alt="ERAP+" className="h-10 w-10" />
-                  <div>
-                    <span className="text-2xl font-bold text-[#1e3a8a]">ERAP</span>
-                    <span className="text-2xl font-bold text-[#10b981]">+</span>
-                  </div>
-                </div>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-200" />
               </div>
-              <CardTitle className="text-2xl font-bold text-center">Selamat Datang</CardTitle>
-              <CardDescription className="text-center">
-                Masukkan username dan password untuk mengakses sistem
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-[#f8fafc] px-4 py-1 rounded-full border border-slate-200 text-slate-500 font-semibold shadow-sm">
+                  Silakan Masuk Untuk Memulai Aplikasi
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="pt-10 pb-10 px-8 space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Username Input */}
+              <div className="flex border rounded-lg overflow-hidden group focus-within:ring-2 focus-within:ring-[#1e3a8a]/20 focus-within:border-[#1e3a8a] transition-all">
+                <div className="bg-slate-100 px-4 flex items-center justify-center border-r min-w-[110px] sm:min-w-[130px]">
+                  <Label htmlFor="username" className="text-sm font-bold text-slate-600">Username</Label>
+                </div>
+                <div className="flex-1 bg-[#f0f7ff]">
                   <Input
                     id="username"
                     type="text"
-                    placeholder="Masukkan username"
+                    placeholder="administrator"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
                     disabled={loading}
+                    className="border-none bg-transparent focus-visible:ring-0 h-12 text-slate-700 font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Masukkan password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                      disabled={loading}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
+              </div>
+
+              {/* Password Input */}
+              <div className="flex border rounded-lg overflow-hidden group focus-within:ring-2 focus-within:ring-[#1e3a8a]/20 focus-within:border-[#1e3a8a] transition-all">
+                <div className="bg-slate-100 px-4 flex items-center justify-center border-r min-w-[110px] sm:min-w-[130px]">
+                  <Label htmlFor="password" className="text-sm font-bold text-slate-600">Password</Label>
                 </div>
+                <div className="flex-1 bg-[#f0f7ff] flex items-center">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="border-none bg-transparent focus-visible:ring-0 h-12 text-slate-700 font-medium placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="px-4 h-full bg-slate-400/20 text-slate-500 hover:text-[#1e3a8a] transition-colors border-l border-slate-200"
+                    disabled={loading}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
 
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+              {/* Sekolah Select */}
+              <div className="flex border rounded-lg overflow-hidden group focus-within:ring-2 focus-within:ring-[#1e3a8a]/20 focus-within:border-[#1e3a8a] transition-all">
+                <div className="bg-slate-100 px-4 flex items-center justify-center border-r min-w-[110px] sm:min-w-[130px]">
+                  <Label className="text-sm font-bold text-slate-600">Sekolah :</Label>
+                </div>
+                <div className="flex-1 bg-white">
+                  <Select 
+                    value={selectedSekolah} 
+                    onValueChange={setSelectedSekolah}
+                    disabled={loading || fetchingData}
+                  >
+                    <SelectTrigger className="border-none bg-transparent focus:ring-0 h-12 text-slate-700 font-medium">
+                      <SelectValue placeholder={fetchingData ? "Memuat..." : "Pilih Sekolah"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sekolahs.map((s) => (
+                        <SelectItem key={s.sekolah_id} value={s.sekolah_id}>
+                          {s.nama}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Semester Select */}
+              <div className="flex border rounded-lg overflow-hidden group focus-within:ring-2 focus-within:ring-[#1e3a8a]/20 focus-within:border-[#1e3a8a] transition-all">
+                <div className="bg-slate-100 px-4 flex items-center justify-center border-r min-w-[110px] sm:min-w-[130px]">
+                  <Label className="text-sm font-bold text-slate-600">Semester</Label>
+                </div>
+                <div className="flex-1 bg-white">
+                  <Select 
+                    value={selectedSemester} 
+                    onValueChange={setSelectedSemester}
+                    disabled={loading || fetchingData}
+                  >
+                    <SelectTrigger className="border-none bg-transparent focus:ring-0 h-12 text-slate-700 font-medium">
+                      <SelectValue placeholder={fetchingData ? "Memuat..." : "Pilih Semester"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {semesters.map((s) => (
+                        <SelectItem key={s.semester_id} value={s.semester_id}>
+                          {s.nama_semester}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive" className="bg-red-50 border-red-100 text-red-800 rounded-lg">
+                  <AlertDescription className="font-medium">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-bold text-lg rounded-lg shadow-lg shadow-blue-900/10 transition-all active:scale-[0.98]" 
+                disabled={loading || fetchingData}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  'Masuk'
                 )}
-
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Memproses...
-                    </>
-                  ) : (
-                    'Masuk'
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-        </div>
-
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
 
-      <footer className="w-full py-4 text-center bg-white dark:bg-gray-950 border-t border-slate-200 dark:border-slate-800 shrink-0">
-        <div className="flex justify-center items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
-          <span>&copy; {new Date().getFullYear()} ERAP+ &mdash; Interface Modern untuk e-Rapor</span>
-          <span className="mx-2 text-slate-300 dark:text-slate-700">|</span>
-          <span className="text-xs">Data bersumber dari aplikasi e-Rapor Kemdikbud</span>
+      <footer className="w-full py-6 text-center bg-transparent border-t border-slate-200/50 shrink-0">
+        <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 text-sm text-slate-500 font-medium">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+            <span>&copy; {new Date().getFullYear()} ERAP+</span>
+          </div>
+          <span className="hidden md:inline text-slate-300">|</span>
+          <span>Interface Modern untuk e-Rapor Kemdikbud</span>
         </div>
       </footer>
     </div>

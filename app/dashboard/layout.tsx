@@ -7,6 +7,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Header } from '@/components/dashboard/header';
 import { Separator } from '@/components/ui/separator';
+import { SemesterProvider } from '@/components/providers/semester-context';
 
 export default function DashboardLayout({
   children,
@@ -38,17 +39,19 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Header />
-        </header>
-        <main className="flex-1 overflow-y-auto bg-muted/40 p-4 lg:p-6">
-          {children}
-        </main>
-      </SidebarInset>
+      <SemesterProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Header />
+          </header>
+          <main className="flex-1 overflow-y-auto bg-muted/40 p-4 lg:p-6">
+            {children}
+          </main>
+        </SidebarInset>
+      </SemesterProvider>
     </SidebarProvider>
   );
 }
