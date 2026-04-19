@@ -167,7 +167,7 @@ export async function generateMapelRow(
     // Calculate row height based on content (minimum 8mm, adjust based on max lines)
     const lineHeight = 3.7; // mm per line (reduced from 3.7)
     const maxLines = Math.max(mapelLines.length, capaianLines.length);
-    const rowHeight = Math.max(10, maxLines * lineHeight + 2); // Reduced base height to 8, padding to 2
+    const rowHeight = Math.max(10, maxLines * lineHeight + 3); // Reduced base height to 8, padding to 2
 
     // Check if we need a new page
     if (yPos + rowHeight > pageHeight - margins.margin_bottom) {
