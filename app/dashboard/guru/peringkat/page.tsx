@@ -144,18 +144,20 @@ export default function PeringkatKelasPage() {
 
     return (
         <div className="space-y-6 w-full max-w-full min-w-0 overflow-x-hidden text-slate-900">
-            <div className="flex items-center gap-3">
-                <div className="h-10 w-1 pt-1 bg-orange-600 rounded-full" />
-                <h1 className="text-2xl font-bold tracking-tight text-[#1e3a8a] uppercase">
+            <div className="flex flex-col gap-1.5 pl-1">
+                <h1 className="text-2xl font-black tracking-tight text-[#1e3a8a] uppercase">
                     Peringkat Siswa (Rangking)
                 </h1>
+                <p className="text-[13px] text-slate-500 font-medium">
+                    Pantau peringkat dan capaian kolektif siswa berdasarkan total nilai per semester.
+                </p>
             </div>
-            <Card className="rounded-sm shadow-sm border-none bg-gradient-to-r from-orange-50 to-white">
-                <CardContent className="pt-6">
+            <Card className="rounded-sm shadow-sm border border-blue-100 bg-white">
+                <CardContent className="py-3 px-4">
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <Label htmlFor="class-select" className="text-sm font-bold text-gray-700 min-w-[100px]">
-                                Pilih Kelas Perwalian :
+                            <Label htmlFor="class-select" className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5 pl-1">
+                                <ChevronRight className="h-3 w-3 text-[#1e3a8a]" /> Pilih Kelas Perwalian
                             </Label>
                         </div>
                         <div className="flex-1 max-w-sm">
@@ -164,12 +166,12 @@ export default function PeringkatKelasPage() {
                                 onValueChange={setSelectedClassId}
                                 disabled={loadingData}
                             >
-                                <SelectTrigger id="class-select" className="bg-white border-orange-200 focus:ring-orange-500">
+                                <SelectTrigger id="class-select" className="h-8 bg-slate-50 border-blue-100 font-bold text-sm text-[#1e3a8a]">
                                     <SelectValue placeholder="Pilih kelas..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {classes.map((cls) => (
-                                        <SelectItem key={cls.rombongan_belajar_id} value={cls.rombongan_belajar_id}>
+                                        <SelectItem key={cls.rombongan_belajar_id} value={cls.rombongan_belajar_id} className="text-xs font-medium">
                                             {cls.nm_kelas}
                                         </SelectItem>
                                     ))}
@@ -177,49 +179,62 @@ export default function PeringkatKelasPage() {
                             </Select>
                         </div>
                         {selectedClassId && (
-                           <div className="flex items-center gap-2 text-xs text-orange-600 bg-orange-100/50 px-3 py-1.5 rounded-full border border-orange-200">
-                               <Info className="h-3.5 w-3.5" />
-                               <span>Data dihitung dari total nilai akhir seluruh mata pelajaran yang sudah terisi.</span>
+                           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
+                               <Info className="h-3 w-3 text-blue-500" />
+                               <span>E-Rapor menghitung total nilai akhir seluruh mata pelajaran yang sudah terisi.</span>
                            </div>
                         )}
                     </div>
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="border-none shadow-sm bg-blue-50/50">
-                    <CardContent className="pt-4 flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <User className="h-5 w-5 text-blue-600" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="border-none shadow-sm bg-slate-50 border-l-4 border-l-slate-400">
+                    <CardContent className="pt-4 px-4 pb-4 flex items-center gap-3">
+                        <div className="p-2 bg-slate-200 rounded-lg">
+                            <User className="h-5 w-5 text-slate-800" />
                         </div>
                         <div>
-                            <p className="text-xs text-blue-600 font-medium uppercase tracking-wider">Total Siswa</p>
-                            <p className="text-xl font-bold text-blue-900">{rankingData.length} Siswa</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Siswa</p>
+                            <p className="text-xl font-black text-slate-900">{rankingData.length}</p>
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm bg-emerald-50/50">
-                    <CardContent className="pt-4 flex items-center gap-3">
+                <Card className="border-none shadow-sm bg-emerald-50 border-l-4 border-l-emerald-500">
+                    <CardContent className="pt-4 px-4 pb-4 flex items-center gap-3">
                         <div className="p-2 bg-emerald-100 rounded-lg">
                             <Star className="h-5 w-5 text-emerald-600" />
                         </div>
                         <div>
-                            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wider">Tertinggi</p>
-                            <p className="text-xl font-bold text-emerald-900">
+                            <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Rerata Tertinggi</p>
+                            <p className="text-xl font-black text-emerald-900">
                                 {rankingData.length > 0 ? rankingData[0].average : 0}
                             </p>
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm bg-purple-50/50">
-                    <CardContent className="pt-4 flex items-center gap-3">
+                <Card className="border-none shadow-sm bg-[#1e3a8a]/5 border-l-4 border-l-[#1e3a8a]">
+                    <CardContent className="pt-4 px-4 pb-4 flex items-center gap-3">
+                        <div className="p-2 bg-[#1e3a8a]/10 rounded-lg">
+                            <Trophy className="h-5 w-5 text-[#1e3a8a]" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] text-[#1e3a8a] font-bold uppercase tracking-wider">Peringkat 1</p>
+                            <p className="text-sm font-black text-[#1e3a8a] truncate uppercase">
+                                {rankingData.length > 0 ? rankingData[0].nm_siswa : '-'}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-none shadow-sm bg-purple-50 border-l-4 border-l-purple-500">
+                    <CardContent className="pt-4 px-4 pb-4 flex items-center gap-3">
                         <div className="p-2 bg-purple-100 rounded-lg">
-                            <Trophy className="h-5 w-5 text-purple-600" />
+                            <Medal className="h-5 w-5 text-purple-600" />
                         </div>
                         <div>
-                            <p className="text-xs text-purple-600 font-medium uppercase tracking-wider">Peringkat 1</p>
-                            <p className="text-sm font-bold text-purple-900 truncate max-w-[150px]">
-                                {rankingData.length > 0 ? rankingData[0].nm_siswa : '-'}
+                            <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Capaian Kelas</p>
+                            <p className="text-xl font-black text-purple-900">
+                                {rankingData.length > 0 ? (rankingData.reduce((acc, curr) => acc + curr.average, 0) / rankingData.length).toFixed(1) : 0}
                             </p>
                         </div>
                     </CardContent>
@@ -232,38 +247,39 @@ export default function PeringkatKelasPage() {
                 </Alert>
             )}
 
-            <Card className="rounded-sm shadow-md border-none overflow-hidden w-full max-w-full min-w-0">
+            <Card className="rounded-sm shadow-md border-none overflow-hidden w-full max-w-full min-w-0 bg-white">
                 <CardContent className="p-0">
-                        <Table className="border-collapse">
-                            <TableHeader className="bg-[#4a6b8a]">
-                                <TableRow className="hover:bg-transparent border-none">
-                                    <TableHead className="text-white font-bold w-[60px] border-r border-white/10 text-center sticky left-0 z-[5] bg-[#4a6b8a]">
-                                        Rank
-                                    </TableHead>
-                                    <TableHead className="text-white font-bold border-r border-white/10 min-w-[200px] sticky left-[60px] z-[5] bg-[#4a6b8a]">
-                                        Nama Siswa
-                                    </TableHead>
-                                    <TableHead className="text-white font-bold border-r border-white/10 text-center px-2">
-                                        NISN
-                                    </TableHead>
-                                    
-                                    {/* Dynamic Subject Columns */}
-                                    {subjects.map((sub) => (
-                                        <TableHead 
-                                            key={sub.mata_pelajaran_id}
-                                            className="text-white font-bold border-r border-white/10 text-center text-[10px] min-w-[60px] px-1"
-                                            title={sub.nm_mapel}
-                                        >
-                                            <div className="flex flex-col items-center leading-tight">
-                                                <span>{sub.nm_ringkas || sub.nm_mapel.substring(0, 5)}</span>
-                                            </div>
+                        <div className="overflow-x-auto p-4">
+                            <Table className="border rounded-md border-collapse">
+                                <TableHeader className="bg-[#1e3a8a]">
+                                    <TableRow className="hover:bg-transparent border-none">
+                                        <TableHead className="text-white font-black w-[50px] border-r border-white/10 text-center sticky left-0 z-[10] bg-[#1e3a8a] py-1 md:py-2 text-[10px] uppercase h-10">
+                                            Rank
                                         </TableHead>
-                                    ))}
-
-                                    <TableHead className="text-white font-bold border-r border-white/10 text-center bg-[#3a5b7a] min-w-[80px]">Total</TableHead>
-                                    <TableHead className="text-white font-bold border-r border-white/10 text-center bg-[#3a5b7a] min-w-[80px]">Rata-rata</TableHead>
-                                </TableRow>
-                            </TableHeader>
+                                        <TableHead className="text-white font-black border-r border-white/10 min-w-[200px] sticky left-[50px] z-[10] bg-[#1e3a8a] py-1 md:py-2 text-[10px] uppercase h-10">
+                                            Nama Siswa
+                                        </TableHead>
+                                        <TableHead className="text-white font-black border-r border-white/10 text-center px-1 text-[10px] uppercase h-10">
+                                            NISN
+                                        </TableHead>
+                                        
+                                        {/* Dynamic Subject Columns */}
+                                        {subjects.map((sub) => (
+                                            <TableHead 
+                                                key={sub.mata_pelajaran_id}
+                                                className="text-white font-black border-r border-white/10 text-center text-[9px] min-w-[50px] px-1 h-10 uppercase"
+                                                title={sub.nm_mapel}
+                                            >
+                                                <div className="flex flex-col items-center leading-none">
+                                                    <span>{sub.nm_ringkas || sub.nm_mapel.substring(0, 4)}</span>
+                                                </div>
+                                            </TableHead>
+                                        ))}
+    
+                                        <TableHead className="text-white font-black border-r border-white/10 text-center bg-[#1e3a8a] min-w-[70px] text-[10px] uppercase h-10">Total</TableHead>
+                                        <TableHead className="text-white font-black border-white/10 text-center bg-[#1e3a8a] min-w-[70px] text-[10px] uppercase h-10">Rerata</TableHead>
+                                    </TableRow>
+                                </TableHeader>
                             <TableBody>
                                 {loadingData ? (
                                     Array.from({ length: 10 }).map((_, i) => (
@@ -290,30 +306,27 @@ export default function PeringkatKelasPage() {
                                             key={item.peserta_didik_id} 
                                             className={cn(
                                                 "hover:bg-blue-50/30 transition-colors",
-                                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                                                index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
                                             )}
                                         >
                                             <TableCell className={cn(
-                                                "text-center font-bold border-r sticky left-0 z-[1] w-[60px]",
-                                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                                "text-center font-black border-r sticky left-0 z-[5] w-[50px] py-1.5 text-[11px]",
+                                                index % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                                             )}>
-                                                <div className="flex items-center justify-center gap-1">
+                                                <div className="flex items-center justify-center gap-1 text-[#1e3a8a]">
                                                     {getRankIcon(item.rank)}
-                                                    <span className={cn(item.rank <= 3 ? "text-lg" : "text-sm")}>
+                                                    <span className={cn(item.rank <= 3 ? "text-sm" : "text-[11px]")}>
                                                         {item.rank}
                                                     </span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className={cn(
-                                                "font-medium text-gray-700 border-r sticky left-[60px] z-[1] min-w-[200px]",
-                                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                                "font-bold text-[#1e3a8a] border-r sticky left-[50px] z-[5] min-w-[200px] py-1.5 text-[11px]",
+                                                index % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                                             )}>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold uppercase">{item.nm_siswa}</span>
-                                                    <span className="text-[10px] text-gray-400">ID: {item.peserta_didik_id.substring(0, 8)}...</span>
-                                                </div>
+                                                <span className="uppercase truncate block">{item.nm_siswa}</span>
                                             </TableCell>
-                                            <TableCell className="text-center text-xs text-gray-500 border-r border-gray-100">
+                                            <TableCell className="text-center text-[10px] text-slate-500 font-medium border-r border-gray-100 py-1.5">
                                                 {item.nisn || '-'}
                                             </TableCell>
                                             
@@ -323,28 +336,27 @@ export default function PeringkatKelasPage() {
                                                     <TableCell 
                                                         key={sub.mata_pelajaran_id} 
                                                         className={cn(
-                                                            "text-center border-r border-gray-100 text-sm",
-                                                            val && val < 75 ? "text-red-500 font-medium" : "text-gray-600"
+                                                            "text-center border-r border-gray-100 text-[11px] py-1.5",
+                                                            val && val < 75 ? "text-red-500 font-black" : "text-slate-700 font-medium"
                                                         )}
                                                     >
                                                         {val ?? '-'}
                                                     </TableCell>
                                                 );
                                             })}
-
-                                            <TableCell className="text-center font-bold text-blue-700 border-r border-gray-100 bg-blue-50/20">
+    
+                                            <TableCell className="text-center font-black text-blue-700 border-r border-gray-100 bg-blue-50/30 py-1.5 text-[11px]">
                                                 {item.total}
                                             </TableCell>
-                                            <TableCell className="text-center border-r border-gray-100 bg-orange-50/20">
-                                                <div className="flex flex-col items-center">
-                                                    <span className="font-bold text-orange-700">{item.average}</span>
-                                                </div>
+                                            <TableCell className="text-center border-gray-100 bg-orange-50/30 py-1.5 text-[11px] font-black text-orange-700">
+                                                {item.average}
                                             </TableCell>
                                         </TableRow>
                                     ))
                                 )}
                             </TableBody>
                         </Table>
+                    </div>
                 </CardContent>
             </Card>
 

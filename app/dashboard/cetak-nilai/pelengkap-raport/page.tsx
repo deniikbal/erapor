@@ -322,83 +322,84 @@ export default function PelengkapRaportPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Pelengkap Raport</h1>
-        <p className="text-muted-foreground">
-          Generate PDF identitas siswa ({siswaList.length} siswa)
+    <div className="space-y-6 w-full max-w-full min-w-0 overflow-x-hidden text-slate-900">
+      <div className="flex flex-col gap-1.5 pl-1">
+        <h1 className="text-2xl font-black tracking-tight text-[#1e3a8a] uppercase">
+          Pelengkap Raport
+        </h1>
+        <p className="text-[13px] text-slate-500 font-medium italic">
+          Koleksi dokumen identitas siswa untuk kebutuhan raport ({siswaList.length} siswa terdeteksi).
         </p>
       </div>
 
       {/* Margin Settings Card */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-sm shadow-sm border border-blue-100 bg-white">
+        <CardHeader className="py-3 px-4 border-b border-blue-50">
           <div className="flex items-center gap-2">
-            <SettingsIcon className="h-5 w-5 text-primary" />
-            <CardTitle>Pengaturan Margin PDF</CardTitle>
+            <SettingsIcon className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-black text-[#1e3a8a] uppercase">Pengaturan Margin PDF</CardTitle>
           </div>
-          <CardDescription>Atur margin untuk dokumen PDF (dalam mm)</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="py-3 px-4">
           <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="margin_top">Margin Atas (mm)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="margin_top" className="text-[10px] font-bold text-slate-500 uppercase">Margin Atas (mm)</Label>
               <Input
                 id="margin_top"
                 type="number"
                 step="0.1"
+                className="h-8 text-xs font-bold border-blue-50 bg-slate-50 focus:ring-[#1e3a8a]"
                 value={marginSettings.margin_top}
                 onChange={(e) => setMarginSettings({ ...marginSettings, margin_top: parseFloat(e.target.value) || 0 })}
                 disabled={savingMargin}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="margin_bottom">Margin Bawah (mm)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="margin_bottom" className="text-[10px] font-bold text-slate-500 uppercase">Margin Bawah (mm)</Label>
               <Input
                 id="margin_bottom"
                 type="number"
                 step="0.1"
+                className="h-8 text-xs font-bold border-blue-50 bg-slate-50 focus:ring-[#1e3a8a]"
                 value={marginSettings.margin_bottom}
                 onChange={(e) => setMarginSettings({ ...marginSettings, margin_bottom: parseFloat(e.target.value) || 0 })}
                 disabled={savingMargin}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="margin_left">Margin Kiri (mm)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="margin_left" className="text-[10px] font-bold text-slate-500 uppercase">Margin Kiri (mm)</Label>
               <Input
                 id="margin_left"
                 type="number"
                 step="0.1"
+                className="h-8 text-xs font-bold border-blue-50 bg-slate-50 focus:ring-[#1e3a8a]"
                 value={marginSettings.margin_left}
                 onChange={(e) => setMarginSettings({ ...marginSettings, margin_left: parseFloat(e.target.value) || 0 })}
                 disabled={savingMargin}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="margin_right">Margin Kanan (mm)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="margin_right" className="text-[10px] font-bold text-slate-500 uppercase">Margin Kanan (mm)</Label>
               <Input
                 id="margin_right"
                 type="number"
                 step="0.1"
+                className="h-8 text-xs font-bold border-blue-50 bg-slate-50 focus:ring-[#1e3a8a]"
                 value={marginSettings.margin_right}
                 onChange={(e) => setMarginSettings({ ...marginSettings, margin_right: parseFloat(e.target.value) || 0 })}
                 disabled={savingMargin}
               />
             </div>
           </div>
-
-          <div className="mt-4">
-            <Button onClick={handleSaveMargin} disabled={savingMargin}>
+          <div className="mt-3 flex justify-end px-1">
+            <Button onClick={handleSaveMargin} disabled={savingMargin} size="sm" className="bg-[#1e3a8a] hover:bg-blue-800 h-8 px-4 text-[11px] font-bold uppercase tracking-wider">
               {savingMargin ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                   Menyimpan...
                 </>
               ) : (
-                'Simpan Pengaturan'
+                'Simpan Konfigurasi Margin'
               )}
             </Button>
           </div>
@@ -406,90 +407,88 @@ export default function PelengkapRaportPage() {
       </Card>
 
       {/* Student List Card */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-sm shadow-md border-none overflow-hidden bg-white">
+        <CardHeader className="py-3 px-4 border-b border-blue-50">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <CardTitle>Daftar Siswa</CardTitle>
+                <FileText className="h-4 w-4 text-[#1e3a8a]" />
+                <CardTitle className="text-sm font-black text-[#1e3a8a] uppercase">Daftar Siswa</CardTitle>
               </div>
-              <CardDescription>Klik tombol "Cetak PDF" untuk generate dokumen identitas siswa</CardDescription>
+              <p className="text-[11px] text-slate-500 font-medium">Klik tombol cetak untuk mengunduh identitas siswa.</p>
             </div>
 
             {/* Bulk Generate Button */}
-            <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
+            <div className="flex flex-col items-start sm:items-end gap-1.5 w-full sm:w-auto">
               <Button
                 onClick={handleGenerateBulkPDFs}
                 size="sm"
-                variant="default"
-                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+                className="bg-blue-700 hover:bg-blue-800 w-full sm:w-auto h-8 text-[11px] font-bold uppercase tracking-wider"
                 disabled={generatingBulk || siswaList.length === 0}
               >
                 {generatingBulk ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Membuat ({bulkProgress.current} dari {bulkProgress.total})
+                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                    Membuat ({bulkProgress.current}/{bulkProgress.total})
                   </>
                 ) : (
                   <>
-                    <DownloadCloud className="h-4 w-4 mr-2" />
-                    Cetak PDF Semua Siswa
+                    <DownloadCloud className="h-3.5 w-3.5 mr-2" />
+                    Cetak Massal
                   </>
                 )}
               </Button>
               {generatingBulk && bulkProgress.total > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  Membuat PDF untuk: {bulkProgress.currentStudent || 'Memulai...'}
+                <div className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded truncate max-w-[200px]">
+                  {bulkProgress.currentStudent}
                 </div>
               )}
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {/* Desktop Table - Hidden on mobile */}
-          <div className="hidden md:block rounded-md border">
+          <div className="hidden md:block">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">No</TableHead>
-                  <TableHead>Nama Lengkap</TableHead>
-                  <TableHead>NIS</TableHead>
-                  <TableHead>Kelas</TableHead>
-                  <TableHead className="text-right w-[150px]">Aksi</TableHead>
+              <TableHeader className="bg-[#1e3a8a]">
+                <TableRow className="hover:bg-transparent border-none">
+                  <TableHead className="w-[50px] text-white font-black text-[10px] uppercase text-center h-10 border-r border-white/10">No</TableHead>
+                  <TableHead className="text-white font-black text-[10px] uppercase h-10 border-r border-white/10">Nama Lengkap Siswa</TableHead>
+                  <TableHead className="text-center text-white font-black text-[10px] uppercase h-10 border-r border-white/10">NIS</TableHead>
+                  <TableHead className="text-center text-white font-black text-[10px] uppercase h-10 border-r border-white/10">Kelas</TableHead>
+                  <TableHead className="text-center text-white font-black text-[10px] uppercase h-10">Unduh PDF</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {currentItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      Tidak ada data siswa
+                    <TableCell colSpan={5} className="h-24 text-center text-slate-400 font-medium italic">
+                      Data siswa tidak ditemukan dalam rombel ini.
                     </TableCell>
                   </TableRow>
                 ) : (
                   currentItems.map((siswa, index) => (
-                    <TableRow key={siswa.peserta_didik_id}>
-                      <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
-                      <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
-                      <TableCell>{siswa.nis}</TableCell>
-                      <TableCell>{siswa.nm_kelas || '-'}</TableCell>
-                      <TableCell className="text-right">
+                    <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
+                      <TableCell className="text-center font-bold text-slate-500 text-[11px] py-1.5">{indexOfFirstItem + index + 1}</TableCell>
+                      <TableCell className="font-bold text-[#1e3a8a] text-[11px] py-1.5 uppercase tracking-wide">{siswa.nm_siswa}</TableCell>
+                      <TableCell className="text-center text-slate-600 font-medium text-[11px] py-1.5">{siswa.nis}</TableCell>
+                      <TableCell className="text-center text-slate-600 font-medium text-[11px] py-1.5">{siswa.nm_kelas || '-'}</TableCell>
+                      <TableCell className="text-center py-1.5">
                         <Button
                           onClick={() => handleGeneratePDF(siswa)}
                           size="sm"
-                          variant="default"
-                          className="bg-red-600 hover:bg-red-700"
+                          className="bg-red-700 hover:bg-red-800 h-7 px-3 text-[10px] font-bold uppercase tracking-tighter"
                           disabled={generatingPdf === siswa.peserta_didik_id || generatingBulk}
                         >
                           {generatingPdf === siswa.peserta_didik_id ? (
                             <>
                               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              Membuat PDF...
+                              ...
                             </>
                           ) : (
                             <>
                               <Download className="h-3 w-3 mr-1" />
-                              Cetak PDF
+                              Pelengkap
                             </>
                           )}
                         </Button>

@@ -7,35 +7,64 @@ import { retryQuery } from '@/lib/dbRetryHelper';
  */
 function detectPeminatan(nm_kelas: string): string | null {
     const upper = nm_kelas.toUpperCase();
+
+    // Check Class XII groupings first (GBIM/SBIM/EBIM)
     if (upper.includes('GBIM')) return 'GBIM';
     if (upper.includes('SBIM')) return 'SBIM';
     if (upper.includes('EBIM')) return 'EBIM';
+
+    // Check Class XI traditional peminatan (kurikulum lama)
     if (upper.includes('IPA') || upper.includes('MIPA')) return 'MIPA';
     if (upper.includes('IPS')) return 'IPS';
+
+    // Check kurikulum merdeka pattern (by mapel name in class)
     const mipaMapels = ['MATEMATIKA', 'BIOLOGI', 'FISIKA', 'KIMIA'];
     const ipsMapels = ['EKONOMI', 'GEOGRAFI', 'SEJARAH', 'SOSIOLOGI'];
-    for (const mapel of mipaMapels) if (upper.includes(mapel)) return 'MIPA';
-    for (const mapel of ipsMapels) if (upper.includes(mapel)) return 'IPS';
-    return null;
+
+    for (const mapel of mipaMapels) {
+        if (upper.includes(mapel)) return 'MIPA';
+    }
+
+    for (const mapel of ipsMapels) {
+        if (upper.includes(mapel)) return 'IPS';
+    }
+
+    return null; // Kelas X or unknown
 }
 
 /**
  * Filter mapel pilihan (Logic exactly matching Guru version)
  */
 function filterMapelPilihan(mapels: any[], peminatan: string | null) {
-    if (!peminatan) return mapels;
+    if (!peminatan) {
+        // Kelas X - return all mapel pilihan
+        return mapels;
+    }
+
+    // Define mapel groups
     const mipaMapels = ['MATEMATIKA TINGKAT LANJUT', 'BIOLOGI', 'FISIKA', 'KIMIA'];
     const ipsMapels = ['GEOGRAFI', 'SEJARAH TINGKAT LANJUT', 'SOSIOLOGI', 'EKONOMI'];
+
+    // Class XII groupings
     const gbimMapels = ['GEOGRAFI', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
     const sbimMapels = ['SEJARAH', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
     const ebimMapels = ['EKONOMI', 'BIOLOGI', 'BAHASA INGGRIS', 'MATEMATIKA'];
+
     return mapels.filter(mapel => {
         const nmUpper = (mapel.nm_mapel || mapel.nm_lokal || '').toUpperCase();
-        if (peminatan === 'MIPA') return mipaMapels.some(m => nmUpper.includes(m));
-        if (peminatan === 'IPS') return ipsMapels.some(m => nmUpper.includes(m));
-        if (peminatan === 'GBIM') return gbimMapels.some(m => nmUpper.includes(m));
-        if (peminatan === 'SBIM') return sbimMapels.some(m => nmUpper.includes(m));
-        if (peminatan === 'EBIM') return ebimMapels.some(m => nmUpper.includes(m));
+
+        if (peminatan === 'MIPA') {
+            return mipaMapels.some(m => nmUpper.includes(m));
+        } else if (peminatan === 'IPS') {
+            return ipsMapels.some(m => nmUpper.includes(m));
+        } else if (peminatan === 'GBIM') {
+            return gbimMapels.some(m => nmUpper.includes(m));
+        } else if (peminatan === 'SBIM') {
+            return sbimMapels.some(m => nmUpper.includes(m));
+        } else if (peminatan === 'EBIM') {
+            return ebimMapels.some(m => nmUpper.includes(m));
+        }
+
         return false;
     });
 }
@@ -89,42 +118,80 @@ export async function GET(request: NextRequest) {
         `;
         const totalSiswa = parseInt(studentCountResult[0].total) || 0;
 
-        // 5. Get teacher mapping
+        // 5. Get teacher mapping from tabel_pembelajaran (Expanded search)
         let teacherMapping: any[] = [];
         try {
             teacherMapping = await sql`
                 SELECT DISTINCT
                     tp.mata_pelajaran_id,
-                    p.nama as nama_guru
+                    p.nama as nama_guru,
+                    tp.ptk_terdaftar_id
                 FROM tabel_pembelajaran tp
                 LEFT JOIN tabel_ptk_terdaftar td ON tp.ptk_terdaftar_id = td.ptk_terdaftar_id
                 LEFT JOIN tabel_ptk p ON td.ptk_id = p.ptk_id
                 WHERE tp.semester_id = ${activeSemesterId}
-                  AND tp.rombongan_belajar_id = ${rombongan_belajar_id}
+                  AND tp.rombongan_belajar_id IN (
+                      SELECT DISTINCT ak_other.rombongan_belajar_id
+                      FROM tabel_anggotakelas ak_this
+                      JOIN tabel_anggotakelas ak_other ON ak_this.peserta_didik_id = ak_other.peserta_didik_id
+                      WHERE ak_this.rombongan_belajar_id = ${rombongan_belajar_id}
+                  )
             `;
         } catch (e) {
             console.error('Teacher mapping failed:', e);
+            // Fallback to simple matching if complex one fails
+            try {
+                teacherMapping = await sql`
+                    SELECT DISTINCT
+                        tp.mata_pelajaran_id,
+                        p.nama as nama_guru
+                    FROM tabel_pembelajaran tp
+                    LEFT JOIN tabel_ptk_terdaftar td ON tp.ptk_terdaftar_id = td.ptk_terdaftar_id
+                    LEFT JOIN tabel_ptk p ON td.ptk_id = p.ptk_id
+                    WHERE tp.semester_id = ${activeSemesterId}
+                      AND tp.rombongan_belajar_id = ${rombongan_belajar_id}
+                `;
+            } catch (e2) {
+                console.error('Fallback teacher mapping also failed:', e2);
+            }
         }
 
-        const teacherMap: Record<string, string> = {};
+        const teacherMap: Record<string, string[]> = {};
         teacherMapping.forEach((m: any) => {
-            teacherMap[String(m.mata_pelajaran_id)] = m.nama_guru || '-';
+            const mapelId = String(m.mata_pelajaran_id);
+            if (!teacherMap[mapelId]) {
+                teacherMap[mapelId] = [];
+            }
+            
+            const teacherName = m.nama_guru || (m.ptk_terdaftar_id ? "Guru (ID: " + String(m.ptk_terdaftar_id).substring(0,8) + "...)" : '-');
+            if (teacherName !== '-' && !teacherMap[mapelId].includes(teacherName)) {
+                teacherMap[mapelId].push(teacherName);
+            }
+        });
+
+        // Convert array to string
+        const finalTeacherMap: Record<string, string> = {};
+        Object.keys(teacherMap).forEach(key => {
+            finalTeacherMap[key] = teacherMap[key].length > 0 ? teacherMap[key].join(', ') : '-';
         });
 
         // 6. Get all subjects for this level and filter by peminatan
-        const allSubjects = await sql`
-            SELECT 
-                m.mata_pelajaran_id,
-                m.nm_lokal as nm_mapel,
-                m.klp_mpl
-            FROM tabel_map_mapelk2013 m
-            WHERE m.tingkat_pendidikan_id = ${tingkat}
-            ORDER BY m.urut_rapor
-        `;
+        const allSubjects = await retryQuery(async () => {
+            return await sql`
+                SELECT 
+                    m.mata_pelajaran_id,
+                    m.nm_lokal as nm_mapel,
+                    m.klp_mpl
+                FROM tabel_map_mapelk2013 m
+                WHERE m.tingkat_pendidikan_id = ${tingkat}
+                ORDER BY m.urut_rapor
+            `;
+        });
 
         const filteredSubjects = allSubjects.map((subject: any) => {
             if (subject.klp_mpl === 2) {
-                if (filterMapelPilihan([subject], peminatan).length === 0) return null;
+                const matchesPeminatan = filterMapelPilihan([subject], peminatan).length > 0;
+                if (!matchesPeminatan) return null;
             }
             return subject;
         }).filter((s: any) => s !== null);
@@ -154,7 +221,7 @@ export async function GET(request: NextRequest) {
                 mata_pelajaran_id: subject.mata_pelajaran_id,
                 nm_mapel: subject.nm_mapel,
                 rombel: selectedClass.nm_kelas,
-                nama_guru: teacherMap[String(subject.mata_pelajaran_id)] || '-',
+                nama_guru: finalTeacherMap[String(subject.mata_pelajaran_id)] || '-',
                 total_siswa: totalSiswa,
                 count_nilai: parseInt(gradeCountResult[0].count) || 0,
                 count_deskripsi: parseInt(descCountResult[0].count) || 0

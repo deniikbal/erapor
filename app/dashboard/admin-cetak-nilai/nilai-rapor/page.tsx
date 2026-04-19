@@ -375,7 +375,10 @@ export default function AdminNilaiRaporPage() {
             if (studentClass?.ptk_id) {
                 const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
                 if (guruInfo) {
-                    namaWaliKelas = [guruInfo.gelar_depan, guruInfo.nama, guruInfo.gelar_belakang].filter(Boolean).join(' ');
+                    const gd = (guruInfo.gelar_depan || '').trim();
+                    const gb = (guruInfo.gelar_belakang || '').trim();
+                    const nm = (guruInfo.nama || studentClass.nama_wali_kelas || 'Wali Kelas').trim();
+                    namaWaliKelas = [gd, nm, gb].filter(part => part !== '').join(' ');
                 }
             }
 
@@ -588,7 +591,10 @@ export default function AdminNilaiRaporPage() {
                     if (studentClass?.ptk_id) {
                         const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
                         if (guruInfo) {
-                            namaWaliKelas = [guruInfo.gelar_depan, guruInfo.nm_ptk, guruInfo.gelar_belakang].filter(Boolean).join(' ');
+                            const gd = (guruInfo.gelar_depan || '').trim();
+                            const gb = (guruInfo.gelar_belakang || '').trim();
+                            const nm = (guruInfo.nama || studentClass.nama_wali_kelas || 'Wali Kelas').trim();
+                            namaWaliKelas = [gd, nm, gb].filter(part => part !== '').join(' ');
                         }
                     }
 

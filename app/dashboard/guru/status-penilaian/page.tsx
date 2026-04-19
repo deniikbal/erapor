@@ -119,32 +119,40 @@ export default function StatusPenilaianPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <div className="h-10 w-1 pt-1 bg-blue-600 rounded-full" />
-                <h1 className="text-2xl font-bold tracking-tight text-[#1e3a8a] uppercase">
-                    Status Penilaian oleh Guru Mapel
-                </h1>
+        <div className="space-y-4">
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                    <ClipboardCheck className="h-5 w-5 text-[#1e3a8a]" />
+                    <h1 className="text-xl font-black tracking-tight text-[#1e3a8a] uppercase">
+                        Status Penilaian Guru
+                    </h1>
+                </div>
+                <p className="text-slate-500 text-[11px] italic ml-7">
+                    Pantau kelengkapan penginputan nilai rapor dan deskripsi kompetensi per mata pelajaran.
+                </p>
             </div>
 
-            <Card className="rounded-sm shadow-sm border-none bg-gradient-to-r from-blue-50 to-white">
-                <CardContent className="pt-6">
+            <Card className="rounded-sm shadow-sm border border-blue-100 bg-white">
+                <CardContent className="py-3 px-4">
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
-                        <Label htmlFor="class-select" className="text-sm font-bold text-gray-700 min-w-[100px]">
-                            Pilih Kelas :
-                        </Label>
-                        <div className="flex-1 max-w-sm">
+                        <div className="flex items-center gap-2 min-w-[120px]">
+                            <Search className="h-3.5 w-3.5 text-blue-500" />
+                            <Label htmlFor="class-select" className="text-xs font-bold text-gray-500 uppercase">
+                                Pilih Kelas
+                            </Label>
+                        </div>
+                        <div className="flex-1 max-w-xs">
                             <Select
                                 value={selectedClassId}
                                 onValueChange={setSelectedClassId}
                                 disabled={loadingData}
                             >
-                                <SelectTrigger id="class-select" className="bg-white border-blue-200 focus:ring-blue-500">
+                                <SelectTrigger id="class-select" className="h-8 bg-white border-blue-200 text-xs text-[#1e3a8a] font-semibold">
                                     <SelectValue placeholder="Pilih kelas..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {classes.map((cls) => (
-                                        <SelectItem key={cls.rombongan_belajar_id} value={cls.rombongan_belajar_id}>
+                                        <SelectItem key={cls.rombongan_belajar_id} value={cls.rombongan_belajar_id} className="text-xs">
                                             {cls.nm_kelas}
                                         </SelectItem>
                                     ))}
@@ -161,20 +169,20 @@ export default function StatusPenilaianPage() {
                 </Alert>
             )}
 
-            <Card className="rounded-sm shadow-md border-none overflow-hidden">
+            <Card className="rounded-sm shadow-md border-none overflow-hidden bg-white">
                 <CardContent className="p-0">
                     <Table>
-                        <TableHeader className="bg-[#5c7c9c]">
+                        <TableHeader className="bg-[#1e3a8a]">
                             <TableRow className="hover:bg-transparent border-none">
-                                <TableHead className="text-white font-bold w-[60px] border-r border-blue-400/30 text-center">No</TableHead>
-                                <TableHead className="text-white font-bold border-r border-blue-400/30">Nama Mapel</TableHead>
-                                <TableHead className="text-white font-bold border-r border-blue-400/30">Guru Pengampu</TableHead>
-                                <TableHead className="text-white font-bold border-r border-blue-400/30 text-center">Rombel</TableHead>
-                                <TableHead className="text-white font-bold p-0 text-center" colSpan={2}>
-                                    <div className="border-b border-blue-400/30 py-2">Nilai Rapor</div>
+                                <TableHead className="text-white font-bold text-[10px] uppercase w-[50px] border-r border-white/10 text-center h-10">No</TableHead>
+                                <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">Mata Pelajaran</TableHead>
+                                <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">Guru Pengampu</TableHead>
+                                <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 text-center h-10">Rombel</TableHead>
+                                <TableHead className="text-white font-bold p-0 text-[10px] uppercase text-center h-10" colSpan={2}>
+                                    <div className="border-b border-white/10 py-1">Kelengkapan Data Nilai</div>
                                     <div className="grid grid-cols-2">
-                                        <span className="py-2 border-r border-blue-400/30">Nilai Rapor</span>
-                                        <span className="py-2">Deskripsi</span>
+                                        <span className="py-1 border-r border-white/10">Nilai Pengetahuan</span>
+                                        <span className="py-1">Deskripsi Sikap</span>
                                     </div>
                                 </TableHead>
                             </TableRow>
@@ -199,33 +207,28 @@ export default function StatusPenilaianPage() {
                                 </TableRow>
                             ) : (
                                 statusData.map((item, index) => (
-                                    <TableRow key={item.mata_pelajaran_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                        <TableCell className="text-center font-medium border-r w-[60px]">{index + 1}</TableCell>
-                                        <TableCell className="font-medium text-gray-700 border-r">{item.nm_mapel}</TableCell>
-                                        <TableCell className="border-r">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
+                                    <TableRow key={item.mata_pelajaran_id} className="hover:bg-blue-50/30 transition-colors border-b-slate-100 h-10">
+                                        <TableCell className="text-center font-bold text-slate-400 text-[10px] border-r py-1">{index + 1}</TableCell>
+                                        <TableCell className="font-bold text-[#1e3a8a] text-[11px] border-r py-1">{item.nm_mapel}</TableCell>
+                                        <TableCell className="border-r py-1">
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-1.5 text-[11px]">
                                                     <User className="h-3 w-3 text-blue-500" />
-                                                    <span className="text-sm font-medium text-gray-700">
-                                                        {item.nama_guru !== '-' ? item.nama_guru : 'Belum ditentukan'}
+                                                    <span className="font-semibold text-slate-700 capitalize">
+                                                        {item.nama_guru !== '-' ? item.nama_guru.toLowerCase() : 'Belum ditentukan'}
                                                     </span>
                                                 </div>
-                                                {item.nama_guru === '-' && (
-                                                    <span className="text-[10px] text-red-400 italic font-mono pl-5">
-                                                        Data pengampu tidak ditemukan
-                                                    </span>
-                                                )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-center border-r">{item.rombel}</TableCell>
+                                        <TableCell className="text-center border-r py-1 font-medium text-slate-600 text-[10px]">{item.rombel}</TableCell>
                                         <TableCell className="p-0 border-r w-[110px]">
-                                            <div className={`flex items-center justify-center h-[40px] ${item.count_nilai === item.total_siswa ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-red-100 text-red-700 font-bold'}`}>
-                                                {item.count_nilai} Data
+                                            <div className={`flex items-center justify-center h-10 text-[11px] font-bold ${item.count_nilai === item.total_siswa ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                                                {item.count_nilai} / {item.total_siswa}
                                             </div>
                                         </TableCell>
                                         <TableCell className="p-0 w-[110px]">
-                                            <div className={`flex items-center justify-center h-[40px] ${item.count_deskripsi === item.total_siswa ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-red-100 text-red-700 font-bold'}`}>
-                                                {item.count_deskripsi} Data
+                                            <div className={`flex items-center justify-center h-10 text-[11px] font-bold ${item.count_deskripsi === item.total_siswa ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                                                {item.count_deskripsi} / {item.total_siswa}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -235,17 +238,6 @@ export default function StatusPenilaianPage() {
                     </Table>
                 </CardContent>
             </Card>
-
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-                <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                    <span>Sudah Lengkap</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded-full bg-red-500" />
-                    <span>Belum Lengkap</span>
-                </div>
-            </div>
         </div>
     );
 }
