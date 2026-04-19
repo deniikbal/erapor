@@ -158,16 +158,16 @@ export async function generateMapelRow(
     setOptimizedFontSize(doc, 9);
 
     // Text wrapping for mata pelajaran (using optimized cache)
-    const mapelLines = optimizedSplitTextToSize(doc, mapel.nm_lokal, col2Width - 4);
+    const mapelLines = optimizedSplitTextToSize(doc, mapel.nm_lokal, col2Width - 3); // Reduced padding (from 4 to 3)
 
     // Text wrapping for capaian kompetensi (using optimized cache)
     const capaianText = mapel.capaian_kompetensi || '-';
-    const capaianLines = optimizedSplitTextToSize(doc, capaianText, col4Width - 4);
+    const capaianLines = optimizedSplitTextToSize(doc, capaianText, col4Width - 3); // Reduced padding (from 4 to 3)
 
-    // Calculate row height based on content (minimum 10mm, adjust based on max lines)
-    const lineHeight = 3.7; // mm per line
+    // Calculate row height based on content (minimum 8mm, adjust based on max lines)
+    const lineHeight = 3.7; // mm per line (reduced from 3.7)
     const maxLines = Math.max(mapelLines.length, capaianLines.length);
-    const rowHeight = Math.max(10, maxLines * lineHeight + 4); // +4 for padding
+    const rowHeight = Math.max(10, maxLines * lineHeight + 2); // Reduced base height to 8, padding to 2
 
     // Check if we need a new page
     if (yPos + rowHeight > pageHeight - margins.margin_bottom) {
@@ -198,14 +198,14 @@ export async function generateMapelRow(
     doc.rect(col4X, yPos, col4Width, rowHeight);
 
     // No (centered vertically)
-    const centerY = yPos + (rowHeight / 2) + 2;
+    const centerY = yPos + (rowHeight / 2) + 1.2; // Adjusted offset
     doc.text(rowNumber.toString(), col1X + col1Width / 2, centerY, { align: 'center' });
 
     // Mata Pelajaran (LEFT-aligned and vertically centered)
-    const mapelTextY = yPos + (rowHeight / 2) - ((mapelLines.length - 1) * lineHeight / 2) + 2;
+    const mapelTextY = yPos + (rowHeight / 2) - ((mapelLines.length - 1) * lineHeight / 2) + 1.2; // Adjusted offset
     let currentY = mapelTextY;
     mapelLines.forEach((line: string) => {
-        doc.text(line, col2X + 2, currentY); // Left align with padding
+        doc.text(line, col2X + 1.5, currentY); // Left align with 1.5mm padding
         currentY += lineHeight;
     });
 
@@ -214,11 +214,11 @@ export async function generateMapelRow(
     doc.text(nilaiText, col3X + col3Width / 2, centerY, { align: 'center' });
 
     // Capaian Kompetensi (justify - rata kiri kanan)
-    let textY = yPos + 5;
+    let textY = yPos + 3.2; // Start closer to top
     capaianLines.forEach((line: string) => {
-        doc.text(line, col4X + 2, textY, {
+        doc.text(line, col4X + 1.5, textY, {
             align: 'justify',
-            maxWidth: col4Width - 4
+            maxWidth: col4Width - 3
         });
         textY += lineHeight;
     });
