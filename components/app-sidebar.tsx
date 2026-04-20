@@ -76,6 +76,7 @@ const menuItems: MenuItem[] = [
         allowedLevels: ['Guru'],
         submenu: [
             { title: 'Update Data Siswa', href: '/dashboard/guru-input/update-data-siswa', icon: GraduationCap },
+            { title: 'Cek Catatan Wali', href: '/dashboard/guru/catatan-wali', icon: FileText },
         ],
     },
     {
@@ -121,6 +122,7 @@ const menuItems: MenuItem[] = [
             { title: 'Status Penilaian', href: '/dashboard/admin/perkembangan-nilai/status', icon: Table },
             { title: 'Grafik Perkembangan', href: '/dashboard/admin/perkembangan-nilai/grafik', icon: TrendingUp },
             { title: 'Peringkat Kelas', href: '/dashboard/admin/perkembangan-nilai/peringkat', icon: Medal },
+            { title: 'Cek Catatan Wali', href: '/dashboard/admin/catatan-wali', icon: FileText },
         ],
     },
     {

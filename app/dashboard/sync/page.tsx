@@ -7,6 +7,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, Database, CheckSquare, Square, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type TableInfo = {
   name: string;
@@ -32,6 +43,13 @@ export default function SyncPage() {
   const [syncProgress, setSyncProgress] = useState(0);
   const [currentSyncTable, setCurrentSyncTable] = useState('');
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
+  const [showConfirmSync, setShowConfirmSync] = useState(false);
+
+  const selectiveSyncTables = [
+    'tabel_siswa', 'tabel_siswa_pelengkap',
+    'tabel_kehadiran', 'tabel_cat_wali',
+    'user_login'
+  ];
 
   const handleCheckDatabase = async () => {
     setChecking(true);
@@ -312,7 +330,7 @@ export default function SyncPage() {
 
               {schemas.length > 0 && (
                 <Button
-                  onClick={handleSync}
+                  onClick={() => setShowConfirmSync(true)}
                   size="sm"
                   variant="default"
                   className="h-8 text-[11px] font-bold bg-[#1e3a8a] hover:bg-black text-white uppercase tracking-tight"
@@ -428,7 +446,14 @@ export default function SyncPage() {
                                 className="h-3.5 w-3.5 border-slate-300 data-[state=checked]:bg-[#1e3a8a]"
                               />
                               <div className="flex-1">
-                                <div className="font-mono text-[11px] font-bold text-slate-600 group-hover:text-[#1e3a8a]">{table.name}</div>
+                                <div className="font-mono text-[11px] font-bold text-slate-600 group-hover:text-[#1e3a8a] flex items-center gap-2">
+                                  {table.name}
+                                  {selectiveSyncTables.includes(table.name) ? (
+                                    <Badge variant="outline" className="h-4 text-[7px] px-1 py-0 border-green-200 bg-green-50 text-green-700 font-black uppercase">Selective</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="h-4 text-[7px] px-1 py-0 border-amber-200 bg-amber-50 text-amber-700 font-black uppercase">Forced</Badge>
+                                  )}
+                                </div>
                                 <div className="text-[9px] font-medium text-slate-400">
                                   {table.columnCount} kolom • {table.rowCount.toLocaleString()} record
                                 </div>
@@ -443,17 +468,63 @@ export default function SyncPage() {
               </div>
             )}
 
-            <div className="mt-5 p-3 rounded bg-amber-50 border border-amber-100">
-              <h3 className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <RefreshCw className="h-3 w-3" /> Catatan Penting:
+            <div className="mt-5 p-3 rounded bg-blue-50 border border-blue-100 shadow-sm transition-all hover:shadow-md">
+              <h3 className="text-[10px] font-black text-[#1e3a8a] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <RefreshCw className="h-3 w-3" /> Info Mekanisme Sinkronisasi:
               </h3>
-              <ul className="text-[10px] text-amber-900 font-medium list-disc pl-4 space-y-1">
-                <li>Tabel selain <code className="bg-amber-100/50 px-1 rounded font-bold">tabel_siswa</code> akan disinkronkan secara paksa (data lama dihapus).</li>
-                <li>Data siswa yang sudah diedit di aplikasi ini tidak akan ditimpa.</li>
-                <li>Proses sinkronisasi hanya satu arah: database lokal → database cloud r-Eapor.</li>
-                <li>Pastikan koneksi database lokal aktif sebelum sinkronisasi.</li>
-              </ul>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="h-4 text-[7px] px-1 py-0 border-green-200 bg-green-50 text-green-700 font-black uppercase">Selective Sync</Badge>
+                    <span className="text-[10px] font-bold text-slate-600">Aman (Tidak Menimpa Editan)</span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 leading-relaxed">
+                    Data yang sudah pernah Anda edit di web atau data rahasia seperti Password tidak akan ditimpa oleh data dari database lokal.
+                    <br/><span className="font-bold underline text-green-700">Berlaku untuk: data siswa, kehadiran, catatan wali, & login.</span>
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="h-4 text-[7px] px-1 py-0 border-amber-200 bg-amber-50 text-amber-700 font-black uppercase">Forced Sync</Badge>
+                    <span className="text-[10px] font-bold text-slate-600">Timpa Total (Reset & Update)</span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 leading-relaxed">
+                    Data lama di cloud akan dihapus dahulu, kemudian diisi ulang sepenuhnya dari database lokal. Pastikan data di e-Rapor lokal sudah diperbarui.
+                    <br/><span className="font-bold underline text-amber-700">Berlaku untuk: referensi kelas, mapel, nilai, & data umum lainnya.</span>
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <AlertDialog open={showConfirmSync} onOpenChange={setShowConfirmSync}>
+              <AlertDialogContent className="rounded-sm border-blue-100 max-w-sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-sm font-black text-[#1e3a8a] uppercase tracking-tight flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4" /> Konfirmasi Sinkronisasi
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-[11px] text-slate-500 py-2 leading-relaxed">
+                    Anda akan menyinkronkan <span className="font-bold text-[#1e3a8a]">{totalSelectedTables} tabel</span> dari database lokal ke cloud.
+                    <br/><br/>
+                    Untuk keamanan, sistem akan melakukan <span className="font-black italic">backup otomatis</span> pada tabel yang di-forced sync sebelum data diperbarui.
+                    <br/><br/>
+                    Lanjutkan proses?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row gap-2 sm:justify-end">
+                  <AlertDialogCancel className="h-8 text-[10px] font-bold uppercase tracking-tight rounded-sm flex-1 sm:flex-none">Batal</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowConfirmSync(false);
+                      handleSync();
+                    }}
+                    className="h-8 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-[#1e3a8a] hover:bg-black flex-1 sm:flex-none"
+                  >
+                    Ya, Jalankan Sync
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </CardContent>
       </Card>

@@ -93,21 +93,36 @@ export async function POST(request: Request) {
                 // Sync each table with forced sync (truncate and insert)
                 let totalRecordsProcessed = 0;
 
+                // Tabel yang menggunakan selective sync (data yang diedit di web tidak akan ditimpa)
+                const selectiveSyncTables = [
+                    'tabel_siswa', 'tabel_siswa_pelengkap',
+                    'tabel_kehadiran', 'tabel_cat_wali',
+                    'user_login'
+                ];
+
                 for (const tableInfo of allTables) {
                     const { schema, table: tableName } = tableInfo;
-                    console.log(`Syncing table: ${schema}.${tableName}`);
+                    const isSelective = selectiveSyncTables.includes(tableName);
+                    console.log(`Syncing table: ${schema}.${tableName} [${isSelective ? 'SELECTIVE' : 'FORCED'}]`);
 
                     // Send progress event
                     sendEvent({
                         type: 'progress',
                         schema: schema,
                         table: tableName,
-                        records: 0
+                        records: 0,
+                        mode: isSelective ? 'selective' : 'forced'
                     });
 
                     try {
-                        // Always use forced sync: truncate and insert fresh data
-                        const recordCount = await syncForcedTable(localDb, neonDb, tableName, schema);
+                        let recordCount: number;
+                        if (isSelective) {
+                            // Selective sync: cek per record, data yang sudah diedit di web tidak ditimpa
+                            recordCount = await syncSelectiveTable(localDb, neonDb, tableName, schema);
+                        } else {
+                            // Forced sync: hapus semua data lama lalu insert ulang dari lokal
+                            recordCount = await syncForcedTable(localDb, neonDb, tableName, schema);
+                        }
 
                         totalRecordsProcessed += recordCount;
 
@@ -116,7 +131,8 @@ export async function POST(request: Request) {
                             type: 'complete',
                             schema: schema,
                             table: tableName,
-                            records: recordCount
+                            records: recordCount,
+                            mode: isSelective ? 'selective' : 'forced'
                         });
 
                         console.log(`Synced ${recordCount} records from ${schema}.${tableName}`);
@@ -195,14 +211,10 @@ async function syncSelectiveTable(localDb: Pool, neonDb: any, tableName: string,
         return 0;
     }
 
-    // Process each record selectively
-    let syncedCount = 0;
-    for (const record of localData) {
-        const synced = await syncSingleRecord(neonDb, tableName, record, primaryKey);
-        if (synced) syncedCount++;
-    }
+    // Process records in large batches for massive performance boost
+    const syncedCount = await upsertAllData(neonDb, tableName, localData, primaryKey);
 
-    console.log(`Successfully synced ${syncedCount} out of ${localData.length} records in ${schema}.${tableName}`);
+    console.log(`Successfully synced ${syncedCount} records in ${schema}.${tableName} using Bulk UPSERT`);
     return syncedCount;
 }
 
@@ -239,13 +251,36 @@ async function syncForcedTable(localDb: Pool, neonDb: any, tableName: string, sc
             return 0;
         }
 
+        // Backup data yang ada sebelum dihapus (untuk rollback jika insert gagal)
+        let backupData: any[] = [];
+        try {
+            backupData = await neonDb(`SELECT * FROM "${tableName}"`);
+            console.log(`📦 Backed up ${backupData.length} existing records from ${tableName}`);
+        } catch (e) {
+            console.log(`No existing data to backup in ${tableName}`);
+        }
+
         // Clear the table in Neon database
         const clearResult = await neonDb.query(`DELETE FROM "${tableName}"`, []);
         console.log(`Cleared ${tableName}, affected rows:`, clearResult);
 
-        if (localData.length > 0) {
-            // Insert all data from local to Neon
-            await insertAllData(neonDb, tableName, localData);
+        try {
+            if (localData.length > 0) {
+                // Insert all data from local to Neon
+                await insertAllData(neonDb, tableName, localData);
+            }
+        } catch (insertError) {
+            // Insert gagal — coba restore data backup agar tidak kehilangan data
+            console.error(`❌ Insert failed for ${tableName}, attempting to restore backup...`);
+            if (backupData.length > 0) {
+                try {
+                    await insertAllData(neonDb, tableName, backupData);
+                    console.log(`✅ Backup restored successfully for ${tableName}`);
+                } catch (restoreError) {
+                    console.error(`❌ CRITICAL: Failed to restore backup for ${tableName}:`, restoreError);
+                }
+            }
+            throw insertError;
         }
 
         console.log(`Successfully synced ${localData.length} records in ${schema}.${tableName}`);
@@ -413,23 +448,43 @@ async function syncSingleRecord(neonDb: any, tableName: string, localRecord: any
     }
 }
 
-async function insertRecord(neonDb: any, tableName: string, record: any, primaryKey: string) {
-    const columns = Object.keys(record);
-    const values = Object.values(record);
+async function insertRecord(neonDb: any, tableName: string, localRecord: any, primaryKey: string) {
+    const columns = Object.keys(localRecord);
+    const values = [...Object.values(localRecord)];
 
     // Add sync tracking values
     const insertColumns = [...columns, 'is_locally_edited', 'last_local_sync'];
     const insertValues = [...values, false, new Date()];
 
+    // Untuk user_login baru, generate password default dengan hash
+    if (tableName === 'user_login' && localRecord.userid && localRecord.level) {
+        const defaultPassword = getDefaultPassword(localRecord.userid, localRecord.level);
+        const { hash, salt } = generatePasswordHash(defaultPassword);
+        const passwordIdx = insertColumns.indexOf('password');
+        const saltIdx = insertColumns.indexOf('salt');
+        if (passwordIdx !== -1) insertValues[passwordIdx] = hash;
+        if (saltIdx !== -1) insertValues[saltIdx] = salt;
+        if (passwordIdx === -1) { insertColumns.push('password'); insertValues.push(hash); }
+        if (saltIdx === -1) { insertColumns.push('salt'); insertValues.push(salt); }
+        console.log(`🔐 Password default untuk user baru: ${localRecord.userid} (${localRecord.level})`);
+    }
+
     await executeDynamicInsert(neonDb, tableName, insertColumns, insertValues);
 }
 
-async function updateRecord(neonDb: any, tableName: string, primaryKeyValue: any, record: any, primaryKey: string) {
-    const columns = Object.keys(record);
+async function updateRecord(neonDb: any, tableName: string, primaryKeyValue: any, localRecord: any, primaryKey: string) {
+    const columns = Object.keys(localRecord);
 
-    // Build SET clause for all columns except primary key and sync columns
-    const updateColumns = columns
-        .filter(col => col !== primaryKey && col !== 'is_locally_edited' && col !== 'last_local_sync');
+    // Kolom yang tidak boleh di-update
+    const excludeColumns = [primaryKey, 'is_locally_edited', 'last_local_sync'];
+
+    // Untuk user_login, jangan update password & salt (agar password yang diubah di web tetap tersimpan)
+    if (tableName === 'user_login') {
+        excludeColumns.push('password', 'salt');
+        console.log(`🔒 Preserving password for existing user: ${primaryKeyValue}`);
+    }
+
+    const updateColumns = columns.filter(col => !excludeColumns.includes(col));
 
     if (updateColumns.length === 0) {
         return; // Nothing to update
@@ -437,7 +492,7 @@ async function updateRecord(neonDb: any, tableName: string, primaryKeyValue: any
 
     // Build UPDATE query with parameterized values
     const setClause = updateColumns.map((col, idx) => `"${col}" = $${idx + 2}`).join(', ');
-    const values = [primaryKeyValue, ...updateColumns.map(col => record[col])];
+    const values = [primaryKeyValue, ...updateColumns.map(col => localRecord[col])];
 
     // Execute using .query() method
     const query = `UPDATE "${tableName}" SET ${setClause}, last_local_sync = CURRENT_TIMESTAMP WHERE "${primaryKey}" = $1`;
@@ -547,9 +602,7 @@ async function insertAllData(neonDb: any, tableName: string, data: any[]) {
 
     const columns = structure.map((row: any) => row.column_name);
 
-    // Check if this is user_login table to apply password reset
-    const isUserLoginTable = tableName === 'user_login';
-
+    // user_login sekarang menggunakan selective sync, jadi tidak perlu reset password di sini
     const filteredData = data.map(row => {
         const filteredRow: any = {};
         columns.forEach((col: string) => {
@@ -557,16 +610,6 @@ async function insertAllData(neonDb: any, tableName: string, data: any[]) {
                 filteredRow[col] = row[col];
             }
         });
-
-        // Apply password reset for user_login table
-        if (isUserLoginTable && filteredRow.userid && filteredRow.level) {
-            const defaultPassword = getDefaultPassword(filteredRow.userid, filteredRow.level);
-            const { hash, salt } = generatePasswordHash(defaultPassword);
-            filteredRow.password = hash;
-            filteredRow.salt = salt;
-            console.log(`🔐 Password reset for user: ${filteredRow.userid} (${filteredRow.level}) → ${defaultPassword}`);
-        }
-
         return filteredRow;
     });
 
@@ -618,3 +661,117 @@ async function insertAllData(neonDb: any, tableName: string, data: any[]) {
 
     console.log(`✓ Successfully inserted all ${filteredData.length} records into ${tableName}`);
 }
+
+/**
+ * Perform Bulk UPSERT for selective sync tables
+ * High performance: processes hundreds of records in a single query
+ */
+async function upsertAllData(neonDb: any, tableName: string, data: any[], primaryKey: string) {
+    if (data.length === 0) return 0;
+
+    // Get current table columns from Neon
+    const structure = await neonDb.query(`SELECT column_name, data_type 
+    FROM information_schema.columns 
+    WHERE table_name = $1`, [tableName]);
+    
+    const validColumns = structure.map((row: any) => row.column_name);
+    
+    // Preparation for user_login passwords
+    const isUserLoginTable = tableName === 'user_login';
+    
+    // Batch processing
+    const BATCH_SIZE = 250; 
+    let totalSynced = 0;
+
+    for (let i = 0; i < data.length; i += BATCH_SIZE) {
+        const batch = data.slice(i, i + BATCH_SIZE);
+        if (batch.length === 0) continue;
+
+        // Columns found in first row of this batch that exist in target table
+        const rowColumns = Object.keys(batch[0]).filter(col => validColumns.includes(col));
+        
+        // Add sync tracking columns if missing
+        const insertColumns = [...rowColumns];
+        if (!insertColumns.includes('is_locally_edited')) insertColumns.push('is_locally_edited');
+        if (!insertColumns.includes('last_local_sync')) insertColumns.push('last_local_sync');
+
+        const placeholders: string[] = [];
+        const allValues: any[] = [];
+        let paramIndex = 1;
+
+        for (const row of batch) {
+            const rowValues: any[] = [];
+            
+            // Build values for this row
+            rowColumns.forEach(col => {
+                let val = row[col];
+                
+                // Special handling for new user passwords in user_login
+                if (isUserLoginTable && (col === 'password' || col === 'salt') && row.userid && row.level) {
+                   // We'll pre-check password/salt for user_login below
+                }
+                
+                rowValues.push(val);
+            });
+
+            // Special logic for new users in user_login: pre-generate password hashes
+            if (isUserLoginTable && row.userid && row.level) {
+                const defaultPassword = getDefaultPassword(row.userid, row.level);
+                const { hash, salt } = generatePasswordHash(defaultPassword);
+                
+                const passIdx = rowColumns.indexOf('password');
+                const saltIdx = rowColumns.indexOf('salt');
+                
+                if (passIdx !== -1) rowValues[passIdx] = hash;
+                if (saltIdx !== -1) rowValues[saltIdx] = salt;
+            }
+
+            // Push placeholders and final values (including sync columns)
+            const rowPlaceholders = rowColumns.map(() => `$${paramIndex++}`);
+            
+            // Add is_locally_edited (false for sync) and last_local_sync
+            rowPlaceholders.push(`$${paramIndex++}`); // is_locally_edited
+            rowPlaceholders.push(`$${paramIndex++}`); // last_local_sync
+            
+            placeholders.push(`(${rowPlaceholders.join(', ')})`);
+            
+            allValues.push(...rowValues);
+            allValues.push(false); // is_locally_edited = false
+            allValues.push(new Date()); // last_local_sync = now
+        }
+
+        // Build the DO UPDATE SET part
+        // Exclude primary key, is_locally_edited, and last_local_sync from update
+        const updateColumns = rowColumns.filter(col => col !== primaryKey);
+        
+        // Also exclude password/salt for user_login to preserve web edits
+        let finalUpdateColumns = updateColumns;
+        if (isUserLoginTable) {
+            finalUpdateColumns = updateColumns.filter(col => col !== 'password' && col !== 'salt');
+        }
+
+        const setClause = finalUpdateColumns.map(col => `"${col}" = EXCLUDED."${col}"`).join(', ');
+        
+        const query = `
+            INSERT INTO "${tableName}" (${insertColumns.map(c => `"${c}"`).join(', ')})
+            VALUES ${placeholders.join(', ')}
+            ON CONFLICT ("${primaryKey}") 
+            DO UPDATE SET 
+                ${setClause},
+                last_local_sync = EXCLUDED.last_local_sync
+            WHERE "${tableName}".is_locally_edited = false
+        `;
+
+        try {
+            await neonDb.query(query, allValues);
+            totalSynced += batch.length;
+            console.log(`UPSERT Batch ${Math.floor(i/BATCH_SIZE)+1}: Processed ${batch.length} records for ${tableName}`);
+        } catch (error) {
+            console.error(`Error in Bulk UPSERT for ${tableName}:`, error);
+            throw error;
+        }
+    }
+
+    return totalSynced;
+}
+
