@@ -93,10 +93,8 @@ export async function POST(request: Request) {
                 // Sync each table with forced sync (truncate and insert)
                 let totalRecordsProcessed = 0;
 
-                // Tabel yang menggunakan selective sync (data yang diedit di web tidak akan ditimpa)
+                // Tabel yang menggunakan selective sync (hanya user_login untuk preserve password)
                 const selectiveSyncTables = [
-                    'tabel_siswa', 'tabel_siswa_pelengkap',
-                    'tabel_kehadiran', 'tabel_cat_wali',
                     'user_login'
                 ];
 
@@ -200,7 +198,7 @@ async function syncSelectiveTable(localDb: Pool, neonDb: any, tableName: string,
 
     // Get primary key from LOCAL database (not Neon)
     const primaryKey = await getPrimaryKeyFromLocal(localDb, tableName, schema);
-    console.log(`Using primary key column: ${primaryKey} for table ${tableName}`);
+    console.log(`Using primary key columns: [${primaryKey.join(', ')}] for table ${tableName}`);
 
     // Get all data from local database
     const localDataResult = await localDb.query(`SELECT * FROM "${schema}"."${tableName}"`);
@@ -532,7 +530,8 @@ async function getPrimaryKey(neonDb: any, tableName: string) {
 }
 
 // Get primary key from LOCAL database (source of truth)
-async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: string = 'public') {
+// Returns string[] to support composite primary keys (e.g. peserta_didik_id + semester_id)
+async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: string = 'public'): Promise<string[]> {
     const result = await localDb.query(`
         SELECT kcu.column_name
         FROM information_schema.table_constraints tc
@@ -541,11 +540,13 @@ async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: 
         WHERE tc.table_schema = $1
           AND tc.table_name = $2
           AND tc.constraint_type = 'PRIMARY KEY'
-        LIMIT 1
+        ORDER BY kcu.ordinal_position
     `, [schema, tableName]);
 
     if (result.rows.length > 0) {
-        return result.rows[0].column_name;
+        const keys = result.rows.map((r: any) => r.column_name);
+        console.log(`Primary key for ${tableName}: [${keys.join(', ')}]`);
+        return keys;
     }
 
     // Fallback: try common primary key column names
@@ -557,13 +558,13 @@ async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: 
         for (const col of fallbackColumns) {
             if (record.hasOwnProperty(col) && record[col] !== null && record[col] !== undefined) {
                 console.log(`Using fallback primary key column: ${col} for table ${tableName}`);
-                return col;
+                return [col];
             }
         }
     }
 
     console.warn(`No primary key found for ${tableName}, defaulting to 'id'`);
-    return 'id';
+    return ['id'];
 }
 
 // Function to generate password hash with salt (SHA-512)
@@ -663,10 +664,57 @@ async function insertAllData(neonDb: any, tableName: string, data: any[]) {
 }
 
 /**
+ * Pastikan primary key constraint ada di tabel Neon.
+ * Jika belum ada, buat constraint-nya agar ON CONFLICT bisa bekerja.
+ */
+async function ensurePrimaryKeyConstraint(neonDb: any, tableName: string, primaryKey: string[]): Promise<boolean> {
+    try {
+        // Cek apakah constraint sudah ada
+        const constraintCheck = await neonDb.query(`
+            SELECT tc.constraint_name, kcu.column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu 
+              ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name = $1
+              AND tc.constraint_type = 'PRIMARY KEY'
+            ORDER BY kcu.ordinal_position
+        `, [tableName]);
+
+        if (constraintCheck.length > 0) {
+            // Cek apakah kolom PK yang ada cocok dengan yang diharapkan
+            const existingPkCols = constraintCheck.map((r: any) => r.column_name);
+            const expectedPkCols = [...primaryKey].sort();
+            const actualPkCols = [...existingPkCols].sort();
+            
+            if (JSON.stringify(expectedPkCols) === JSON.stringify(actualPkCols)) {
+                return true; // Constraint sudah benar
+            }
+            
+            // PK ada tapi kolom tidak cocok — drop dan buat ulang
+            const constraintName = constraintCheck[0].constraint_name;
+            console.log(`⚠️  PK mismatch for ${tableName}: existing=[${existingPkCols.join(',')}] expected=[${primaryKey.join(',')}]`);
+            console.log(`Dropping old constraint "${constraintName}"...`);
+            await neonDb.query(`ALTER TABLE "${tableName}" DROP CONSTRAINT "${constraintName}"`, []);
+            console.log(`Old constraint dropped. Creating new composite PK...`);
+        }
+
+        // Buat primary key constraint (composite jika lebih dari 1 kolom)
+        const pkColumns = primaryKey.map(k => `"${k}"`).join(', ');
+        console.log(`Creating PRIMARY KEY constraint on "${tableName}"(${pkColumns})...`);
+        await neonDb.query(`ALTER TABLE "${tableName}" ADD PRIMARY KEY (${pkColumns})`, []);
+        console.log(`✅ PRIMARY KEY constraint created for ${tableName}(${pkColumns})`);
+        return true;
+    } catch (err: any) {
+        console.warn(`⚠️  Cannot create PK constraint for ${tableName}: ${err.message}`);
+        return false; // Gagal buat constraint
+    }
+}
+
+/**
  * Perform Bulk UPSERT for selective sync tables
  * High performance: processes hundreds of records in a single query
  */
-async function upsertAllData(neonDb: any, tableName: string, data: any[], primaryKey: string) {
+async function upsertAllData(neonDb: any, tableName: string, data: any[], primaryKey: string[]) {
     if (data.length === 0) return 0;
 
     // Get current table columns from Neon
@@ -678,6 +726,15 @@ async function upsertAllData(neonDb: any, tableName: string, data: any[], primar
     
     // Preparation for user_login passwords
     const isUserLoginTable = tableName === 'user_login';
+
+    // Pastikan primary key constraint ada sebelum UPSERT
+    const hasConstraint = await ensurePrimaryKeyConstraint(neonDb, tableName, primaryKey);
+    
+    if (!hasConstraint) {
+        // Fallback: gunakan DELETE + INSERT per record jika constraint tidak bisa dibuat
+        console.warn(`⚠️  Falling back to record-by-record sync for ${tableName} (no PK constraint)`);
+        return await fallbackRecordByRecord(neonDb, tableName, data, primaryKey, validColumns, isUserLoginTable);
+    }
     
     // Batch processing
     const BATCH_SIZE = 250; 
@@ -705,12 +762,6 @@ async function upsertAllData(neonDb: any, tableName: string, data: any[], primar
             // Build values for this row
             rowColumns.forEach(col => {
                 let val = row[col];
-                
-                // Special handling for new user passwords in user_login
-                if (isUserLoginTable && (col === 'password' || col === 'salt') && row.userid && row.level) {
-                   // We'll pre-check password/salt for user_login below
-                }
-                
                 rowValues.push(val);
             });
 
@@ -740,9 +791,8 @@ async function upsertAllData(neonDb: any, tableName: string, data: any[], primar
             allValues.push(new Date()); // last_local_sync = now
         }
 
-        // Build the DO UPDATE SET part
-        // Exclude primary key, is_locally_edited, and last_local_sync from update
-        const updateColumns = rowColumns.filter(col => col !== primaryKey);
+        // Build the DO UPDATE SET part - exclude ALL primary key columns
+        const updateColumns = rowColumns.filter(col => !primaryKey.includes(col));
         
         // Also exclude password/salt for user_login to preserve web edits
         let finalUpdateColumns = updateColumns;
@@ -752,10 +802,13 @@ async function upsertAllData(neonDb: any, tableName: string, data: any[], primar
 
         const setClause = finalUpdateColumns.map(col => `"${col}" = EXCLUDED."${col}"`).join(', ');
         
+        // ON CONFLICT dengan composite key: ("col1", "col2")
+        const conflictColumns = primaryKey.map(k => `"${k}"`).join(', ');
+        
         const query = `
             INSERT INTO "${tableName}" (${insertColumns.map(c => `"${c}"`).join(', ')})
             VALUES ${placeholders.join(', ')}
-            ON CONFLICT ("${primaryKey}") 
+            ON CONFLICT (${conflictColumns}) 
             DO UPDATE SET 
                 ${setClause},
                 last_local_sync = EXCLUDED.last_local_sync
@@ -766,12 +819,63 @@ async function upsertAllData(neonDb: any, tableName: string, data: any[], primar
             await neonDb.query(query, allValues);
             totalSynced += batch.length;
             console.log(`UPSERT Batch ${Math.floor(i/BATCH_SIZE)+1}: Processed ${batch.length} records for ${tableName}`);
-        } catch (error) {
-            console.error(`Error in Bulk UPSERT for ${tableName}:`, error);
-            throw error;
+        } catch (error: any) {
+            console.error(`Error in Bulk UPSERT batch for ${tableName}:`, error.message);
+            // Fallback ke record-by-record untuk batch ini
+            console.warn(`⚠️  Retrying batch ${Math.floor(i/BATCH_SIZE)+1} record-by-record...`);
+            const batchSynced = await fallbackRecordByRecord(neonDb, tableName, batch, primaryKey, validColumns, isUserLoginTable);
+            totalSynced += batchSynced;
         }
     }
 
     return totalSynced;
+}
+
+/**
+ * Fallback sync: DELETE existing then INSERT, record by record
+ * Digunakan jika tabel tidak memiliki constraint yang valid untuk ON CONFLICT
+ */
+async function fallbackRecordByRecord(
+    neonDb: any, tableName: string, data: any[], primaryKey: string[], 
+    validColumns: string[], isUserLoginTable: boolean
+): Promise<number> {
+    let count = 0;
+    for (const row of data) {
+        try {
+            // Cek semua PK columns ada nilainya
+            const pkValues = primaryKey.map(k => row[k]);
+            if (pkValues.some(v => v === null || v === undefined)) continue;
+
+            const rowColumns = Object.keys(row).filter(col => validColumns.includes(col));
+            const insertColumns = [...rowColumns];
+            if (!insertColumns.includes('is_locally_edited')) insertColumns.push('is_locally_edited');
+            if (!insertColumns.includes('last_local_sync')) insertColumns.push('last_local_sync');
+
+            const rowValues = rowColumns.map(col => row[col]);
+
+            if (isUserLoginTable && row.userid && row.level) {
+                const { hash, salt } = generatePasswordHash(getDefaultPassword(row.userid, row.level));
+                const passIdx = rowColumns.indexOf('password');
+                const saltIdx = rowColumns.indexOf('salt');
+                if (passIdx !== -1) rowValues[passIdx] = hash;
+                if (saltIdx !== -1) rowValues[saltIdx] = salt;
+            }
+
+            // DELETE existing record - composite WHERE clause
+            const whereClause = primaryKey.map((k, idx) => `"${k}" = $${idx + 1}`).join(' AND ');
+            await neonDb.query(`DELETE FROM "${tableName}" WHERE ${whereClause}`, pkValues);
+
+            // INSERT baru
+            const allValues = [...rowValues, false, new Date()];
+            const colList = insertColumns.map(c => `"${c}"`).join(', ');
+            const phList = allValues.map((_, idx) => `$${idx + 1}`).join(', ');
+            await neonDb.query(`INSERT INTO "${tableName}" (${colList}) VALUES (${phList})`, allValues);
+            count++;
+        } catch (err: any) {
+            console.error(`Fallback record error in ${tableName}:`, err.message);
+        }
+    }
+    console.log(`Fallback sync completed: ${count}/${data.length} records in ${tableName}`);
+    return count;
 }
 

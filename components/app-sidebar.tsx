@@ -21,6 +21,8 @@ import {
     ChevronRight,
     TrendingUp,
     Medal,
+    Activity,
+    Users,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -115,6 +117,16 @@ const menuItems: MenuItem[] = [
         ],
     },
     {
+        title: 'Data Kokurikuler',
+        icon: ClipboardEdit,
+        allowedLevels: ['Admin'],
+        submenu: [
+            { title: 'Daftar Tema', href: '/dashboard/admin/kokurikuler/tema', icon: FileText },
+            { title: 'Kegiatan Kokurikuler', href: '/dashboard/admin/kokurikuler/kegiatan', icon: Activity },
+            { title: 'Kelompok Kokurikuler', href: '/dashboard/admin/kokurikuler/kelompok', icon: Users },
+        ],
+    },
+    {
         title: 'Perkembangan Nilai',
         icon: TrendingUp,
         allowedLevels: ['Admin'],
@@ -155,9 +167,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             setUser(currentUser);
 
             if (currentUser) {
-                const filtered = menuItems.filter((item) =>
-                    !item.allowedLevels || item.allowedLevels.includes(currentUser.level)
-                );
+                const filtered = menuItems.filter((item) => {
+                    if (!item.allowedLevels) return true;
+                    const userLevel = (currentUser.level || '').trim().toLowerCase();
+                    return item.allowedLevels.some(level => 
+                        level.toLowerCase() === userLevel
+                    );
+                });
                 setFilteredMenuItems(filtered);
             }
         };

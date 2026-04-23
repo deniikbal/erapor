@@ -153,6 +153,37 @@ export type Kehadiran = {
   alpha: number;
 };
 
+export type TemaKokurikuler = {
+  id_tema: string;
+  nama_tema: string;
+  urut: number;
+  status: string; // '1' untuk Aktif, '0' untuk Tidak Aktif
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type KegiatanKokurikuler = {
+  id_kegiatan: string;
+  id_tema: string;
+  fase: string;
+  nama_kegiatan: string;
+  tujuan_akhir: string;
+  deskripsi_kegiatan: string;
+};
+
+export type KelompokKokurikuler = {
+  kelompok_id: string;
+  nm_kelompok: string;
+  tingkat_pendidikan_id: string | number;
+  fase: string;
+  ptk_id: string; // Koordinator
+  semester_id: string;
+  sekolah_id?: string;
+  status?: number;
+  // Join fields
+  nama_pembimbing?: string;
+};
+
 export function getDbClient() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL must be set in environment variables');

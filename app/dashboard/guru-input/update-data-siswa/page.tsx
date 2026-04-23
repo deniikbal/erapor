@@ -32,7 +32,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Siswa, User } from '@/lib/db';
-import { Users, Pencil, Loader2 } from 'lucide-react';
+import { Users, Pencil, Loader2, Search, ChevronLeft, ChevronRight, Save, X, UserCog, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCurrentUser } from '@/lib/auth-client';
 
@@ -152,6 +152,7 @@ export default function GuruUpdateDataSiswaPage() {
   const formatDateForInput = (dateString: string | null) => {
     if (!dateString) return '';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -246,16 +247,18 @@ export default function GuruUpdateDataSiswaPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Update Data Siswa</h1>
-          <p className="text-muted-foreground">Update data siswa yang Anda wali kelasi</p>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+            <Skeleton className="h-7 w-64" />
+          </div>
+          <Skeleton className="h-4 w-96 ml-3" />
         </div>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-96" />
+        <Card className="rounded-sm border-blue-100 shadow-sm">
+          <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b">
+            <Skeleton className="h-5 w-48" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <Skeleton className="h-64 w-full" />
           </CardContent>
         </Card>
@@ -266,12 +269,15 @@ export default function GuruUpdateDataSiswaPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Update Data Siswa</h1>
-          <p className="text-muted-foreground">Update data siswa yang Anda wali kelasi</p>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+            <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">Update Data Siswa</h1>
+          </div>
+          <p className="text-slate-500 text-[11px] ml-3 italic">Terjadi kesalahan pada sistem.</p>
         </div>
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="rounded-sm border-red-200">
+          <AlertDescription className="text-xs font-medium">{error}</AlertDescription>
         </Alert>
       </div>
     );
@@ -279,69 +285,78 @@ export default function GuruUpdateDataSiswaPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Update Data Siswa</h1>
-        <p className="text-muted-foreground">
-          Update data siswa yang Anda wali kelasi ({siswaList.length} siswa)
+      {/* Header Halaman */}
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
+          <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
+            Update Data Siswa
+          </h1>
+        </div>
+        <p className="text-slate-500 text-[11px] ml-3 italic">
+          Lengkapi dan perbarui data profil siswa yang Anda wali kelasi ({siswaList.length} siswa).
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            <CardTitle>Daftar Siswa Wali Kelas</CardTitle>
+            <Users className="h-4 w-4 text-[#1e3a8a]" />
+            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Daftar Siswa Wali Kelas</CardTitle>
           </div>
-          <CardDescription>Siswa dari kelas yang Anda wali kelasi</CardDescription>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">KELAS: {siswaList[0]?.nm_kelas || '-'}</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {/* Search */}
-          <div className="mb-4">
-            <Input
-              placeholder="Cari nama siswa..."
-              value={searchNama}
-              onChange={(e) => setSearchNama(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="mb-3 flex items-center gap-2">
+            <div className="relative max-w-sm w-full">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                placeholder="Cari nama siswa..."
+                value={searchNama}
+                onChange={(e) => setSearchNama(e.target.value)}
+                className="pl-8 h-8 text-xs border-slate-200"
+              />
+            </div>
           </div>
 
-          {/* Desktop Table View - Hidden on mobile */}
-          <div className="hidden md:block rounded-md border">
+          {/* Table Container */}
+          <div className="rounded-sm border border-slate-100 overflow-hidden hidden md:block">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">No</TableHead>
-                  <TableHead>NIS</TableHead>
-                  <TableHead>Nama Siswa</TableHead>
-                  <TableHead>Kelas</TableHead>
-                  <TableHead>Jenis Kelamin</TableHead>
-                  <TableHead className="text-right w-[100px]">Aksi</TableHead>
+              <TableHeader className="bg-[#1e3a8a]">
+                <TableRow className="hover:bg-transparent border-none">
+                  <TableHead className="w-[50px] text-white font-bold text-[10px] h-9 uppercase tracking-wider pl-4">No</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">NIS / NISN</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Nama Siswa</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Jenis Kelamin</TableHead>
+                  <TableHead className="w-[80px] text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider pr-4">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {currentItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs italic">
                       {searchNama ? 'Tidak ada siswa yang sesuai pencarian' : 'Tidak ada data siswa'}
                     </TableCell>
                   </TableRow>
                 ) : (
                   currentItems.map((siswa, index) => (
-                    <TableRow key={siswa.peserta_didik_id}>
-                      <TableCell className="font-medium">{indexOfFirstItem + index + 1}</TableCell>
-                      <TableCell>{siswa.nis}</TableCell>
-                      <TableCell className="font-medium">{siswa.nm_siswa}</TableCell>
-                      <TableCell>{siswa.nm_kelas || '-'}</TableCell>
-                      <TableCell>{siswa.jenis_kelamin || '-'}</TableCell>
-                      <TableCell className="text-right">
+                    <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50 transition-colors">
+                      <TableCell className="py-1.5 pl-4 text-xs font-medium text-slate-400">{indexOfFirstItem + index + 1}</TableCell>
+                      <TableCell className="py-1.5 text-xs text-slate-600 font-medium">
+                        <div>{siswa.nis || '-'}</div>
+                        <div className="text-[10px] text-slate-400">{siswa.nisn || '-'}</div>
+                      </TableCell>
+                      <TableCell className="py-1.5 font-bold text-[#1e3a8a] text-xs uppercase tracking-tight">{siswa.nm_siswa}</TableCell>
+                      <TableCell className="py-1.5 text-xs text-slate-600 italic">{siswa.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</TableCell>
+                      <TableCell className="text-center py-1.5 pr-4">
                         <Button
                           onClick={() => handleEditClick(siswa)}
                           size="sm"
-                          variant="outline"
-                          className="h-8"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-[#1e3a8a] hover:bg-blue-50 hover:text-blue-700"
                         >
-                          <Pencil className="h-3 w-3 mr-1" />
-                          Edit
+                          <Pencil className="h-3 w-3" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -351,102 +366,92 @@ export default function GuruUpdateDataSiswaPage() {
             </Table>
           </div>
 
-          {/* Mobile Card View - Hidden on desktop */}
-          <div className="md:hidden space-y-4">
+          {/* Mobile View */}
+          <div className="md:hidden space-y-3">
             {currentItems.length === 0 ? (
-              <Card>
-                <CardContent className="flex items-center justify-center py-8">
-                  <p className="text-sm text-muted-foreground">
-                    {searchNama ? 'Tidak ada siswa yang sesuai pencarian' : 'Tidak ada data siswa'}
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="text-center py-8 text-slate-400 text-xs italic border rounded-sm">
+                {searchNama ? 'Tidak ada siswa yang sesuai pencarian' : 'Tidak ada data siswa'}
+              </div>
             ) : (
               currentItems.map((siswa, index) => (
-                <Card key={siswa.peserta_didik_id} className="overflow-hidden">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
-                          {indexOfFirstItem + index + 1}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-base">{siswa.nm_siswa}</h3>
-                          <p className="text-sm text-muted-foreground">NIS: {siswa.nis}</p>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => handleEditClick(siswa)}
-                        size="sm"
-                        variant="outline"
-                        className="h-8"
-                      >
-                        <Pencil className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                    </div>
-                    <Separator className="my-3" />
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Kelas</p>
-                        <p className="font-medium">{siswa.nm_kelas || '-'}</p>
+                <div key={siswa.peserta_didik_id} className="p-3 border border-blue-50 rounded-sm bg-slate-50/30">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-blue-50 flex items-center justify-center text-[#1e3a8a] text-[10px] font-bold border border-blue-100">
+                        {indexOfFirstItem + index + 1}
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Jenis Kelamin</p>
-                        <p className="font-medium">{siswa.jenis_kelamin || '-'}</p>
+                        <div className="text-xs font-bold text-[#1e3a8a] uppercase">{siswa.nm_siswa}</div>
+                        <div className="text-[10px] text-slate-400 font-medium">NIS: {siswa.nis}</div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <Button
+                      onClick={() => handleEditClick(siswa)}
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[10px] font-bold border-slate-200"
+                    >
+                      EDIT
+                    </Button>
+                  </div>
+                  <Separator className="bg-slate-100" />
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
+                    <div>
+                      <span className="text-slate-400 font-medium mr-1">JK:</span>
+                      <span className="text-slate-600 font-bold">{siswa.jenis_kelamin || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium mr-1">KELAS:</span>
+                      <span className="text-slate-600 font-bold">{siswa.nm_kelas || '-'}</span>
+                    </div>
+                  </div>
+                </div>
               ))
             )}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
-              <div className="text-sm text-muted-foreground text-center sm:text-left">
-                Menampilkan {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredSiswa.length)} dari {filteredSiswa.length} siswa
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 pb-2">
+              <div className="text-[11px] text-slate-500 font-medium">
+                Menampilkan <span className="font-bold text-[#1e3a8a]">{indexOfFirstItem + 1}</span> - <span className="font-bold text-[#1e3a8a]">{Math.min(indexOfLastItem, filteredSiswa.length)}</span> dari <span className="font-bold text-[#1e3a8a]">{filteredSiswa.length}</span> siswa
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-1">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={prevPage}
                   disabled={currentPage === 1}
-                  className="h-8"
+                  className="h-7 text-[10px] font-bold border-slate-200"
                 >
-                  Previous
+                  <ChevronLeft className="h-3 w-3 mr-1" />
+                  PREV
                 </Button>
 
-                {/* Page numbers - Hide some on mobile */}
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum: number;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                    if (
+                        pageNum === 1 ||
+                        pageNum === totalPages ||
+                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                    ) {
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => paginate(pageNum)}
+                            className={currentPage === pageNum 
+                              ? "bg-[#1e3a8a] hover:bg-black h-7 w-7 p-0 text-[10px] font-bold border-none" 
+                              : "h-7 w-7 p-0 text-[10px] font-bold border-slate-200"}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                    } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                        return <span key={pageNum} className="text-[10px] text-slate-300">...</span>;
                     }
-
-                    // On mobile, only show 3 page numbers
-                    const isMobileHidden = i > 0 && i < 4 && totalPages > 3;
-
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => paginate(pageNum)}
-                        className={`w-8 h-8 p-0 ${isMobileHidden ? 'hidden sm:inline-flex' : ''}`}
-                      >
-                        {pageNum}
-                      </Button>
-                    );
+                    return null;
                   })}
                 </div>
 
@@ -455,9 +460,10 @@ export default function GuruUpdateDataSiswaPage() {
                   size="sm"
                   onClick={nextPage}
                   disabled={currentPage === totalPages}
-                  className="h-8"
+                  className="h-7 text-[10px] font-bold border-slate-200"
                 >
-                  Next
+                  NEXT
+                  <ChevronRight className="h-3 w-3 ml-1" />
                 </Button>
               </div>
             </div>
@@ -467,288 +473,343 @@ export default function GuruUpdateDataSiswaPage() {
 
       {/* Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Data Siswa</DialogTitle>
-            <DialogDescription>
-              Update data siswa dan data pelengkap. Klik simpan untuk menyimpan perubahan.
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-md">
+          <DialogHeader className="py-3 px-6 bg-[#1e3a8a] text-white">
+            <div className="flex items-center gap-2">
+              <UserCog className="h-5 w-5 text-blue-200" />
+              <DialogTitle className="text-white text-base">Edit Data Siswa</DialogTitle>
+            </div>
+            <DialogDescription className="text-blue-100 text-[11px] italic">
+              Formulir pembaruan data profil dan pelengkap siswa.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-            {/* Data Siswa */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Data Siswa</h3>
-              <div className="grid gap-4 md:grid-cols-3">
-                {/* Peserta Didik ID - Read Only */}
-                <div className="space-y-2 md:col-span-3">
-                  <Label htmlFor="peserta_didik_id">Peserta Didik ID</Label>
+          <div className="max-h-[70vh] overflow-y-auto px-6 py-4 space-y-6">
+            {/* Section: Data Utama */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-blue-50 pb-1">
+                <GraduationCap className="h-4 w-4 text-[#1e3a8a]" />
+                <h3 className="text-[11px] font-black uppercase text-[#1e3a8a] tracking-wider">Data Identitas Siswa</h3>
+              </div>
+              
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-1 md:col-span-3">
+                  <Label htmlFor="peserta_didik_id" className="text-[10px] font-bold uppercase text-slate-500">ID Peserta Didik</Label>
                   <Input
                     id="peserta_didik_id"
                     value={selectedSiswa?.peserta_didik_id || ''}
                     readOnly
                     disabled
-                    className="bg-muted font-mono text-sm"
+                    className="h-8 bg-slate-50 font-mono text-[10px] border-slate-200 text-slate-400"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nm_siswa">Nama Siswa *</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="nm_siswa" className="text-[10px] font-bold uppercase text-slate-500">Nama Lengkap *</Label>
                   <Input
                     id="nm_siswa"
                     value={formDataSiswa.nm_siswa}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_siswa: e.target.value })}
                     disabled={isSaving}
+                    placeholder="Nama lengkap siswa"
+                    className="h-8 text-xs border-slate-200 font-bold text-[#1e3a8a]"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nis">NIS *</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="nis" className="text-[10px] font-bold uppercase text-slate-500">NIS (Nomor Induk) *</Label>
                   <Input
                     id="nis"
                     value={formDataSiswa.nis}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nis: e.target.value })}
                     disabled={isSaving}
+                    placeholder="NIS"
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nisn">NISN</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="nisn" className="text-[10px] font-bold uppercase text-slate-500">NISN (Nasional)</Label>
                   <Input
                     id="nisn"
                     value={formDataSiswa.nisn}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nisn: e.target.value })}
                     disabled={isSaving}
+                    placeholder="NISN"
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tempat_lahir">Tempat Lahir</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="tempat_lahir" className="text-[10px] font-bold uppercase text-slate-500">Tempat Lahir</Label>
                   <Input
                     id="tempat_lahir"
                     value={formDataSiswa.tempat_lahir}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, tempat_lahir: e.target.value })}
                     disabled={isSaving}
+                    placeholder="Kota/Kab"
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tanggal_lahir">Tanggal Lahir</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="tanggal_lahir" className="text-[10px] font-bold uppercase text-slate-500">Tanggal Lahir</Label>
                   <Input
                     id="tanggal_lahir"
                     type="date"
                     value={formDataSiswa.tanggal_lahir}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, tanggal_lahir: e.target.value })}
                     disabled={isSaving}
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="jenis_kelamin">Jenis Kelamin</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="jenis_kelamin" className="text-[10px] font-bold uppercase text-slate-500">Jenis Kelamin</Label>
                   <Select
                     value={formDataSiswa.jenis_kelamin}
                     onValueChange={(value) => setFormDataSiswa({ ...formDataSiswa, jenis_kelamin: value })}
                     disabled={isSaving}
                   >
-                    <SelectTrigger id="jenis_kelamin">
-                      <SelectValue placeholder="Pilih jenis kelamin" />
+                    <SelectTrigger id="jenis_kelamin" className="h-8 text-xs border-slate-200">
+                      <SelectValue placeholder="Pilih JK" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="L">Laki-laki</SelectItem>
-                      <SelectItem value="P">Perempuan</SelectItem>
+                      <SelectItem value="L" className="text-xs">Laki-laki</SelectItem>
+                      <SelectItem value="P" className="text-xs">Perempuan</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="agama">Agama</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="agama" className="text-[10px] font-bold uppercase text-slate-500">Agama</Label>
                   <Select
                     value={formDataSiswa.agama}
                     onValueChange={(value) => setFormDataSiswa({ ...formDataSiswa, agama: value })}
                     disabled={isSaving}
                   >
-                    <SelectTrigger id="agama">
-                      <SelectValue placeholder="Pilih agama" />
+                    <SelectTrigger id="agama" className="h-8 text-xs border-slate-200">
+                      <SelectValue placeholder="Pilih Agama" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Islam">Islam</SelectItem>
-                      <SelectItem value="Kristen">Kristen</SelectItem>
-                      <SelectItem value="Katolik">Katolik</SelectItem>
-                      <SelectItem value="Hindu">Hindu</SelectItem>
-                      <SelectItem value="Buddha">Buddha</SelectItem>
-                      <SelectItem value="Konghucu">Konghucu</SelectItem>
+                      <SelectItem value="Islam" className="text-xs">Islam</SelectItem>
+                      <SelectItem value="Kristen" className="text-xs">Kristen</SelectItem>
+                      <SelectItem value="Katolik" className="text-xs">Katolik</SelectItem>
+                      <SelectItem value="Hindu" className="text-xs">Hindu</SelectItem>
+                      <SelectItem value="Buddha" className="text-xs">Buddha</SelectItem>
+                      <SelectItem value="Konghucu" className="text-xs">Konghucu</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="telepon_siswa">Telepon Siswa</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="telepon_siswa" className="text-[10px] font-bold uppercase text-slate-500">Telepon Siswa</Label>
                   <Input
                     id="telepon_siswa"
                     value={formDataSiswa.telepon_siswa}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, telepon_siswa: e.target.value })}
                     disabled={isSaving}
+                    placeholder="08..."
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="alamat_siswa">Alamat Siswa</Label>
+                <div className="space-y-1 md:col-span-2">
+                  <Label htmlFor="alamat_siswa" className="text-[10px] font-bold uppercase text-slate-500">Alamat Lengkap Siswa</Label>
                   <Input
                     id="alamat_siswa"
                     value={formDataSiswa.alamat_siswa}
                     onChange={(e) => setFormDataSiswa({ ...formDataSiswa, alamat_siswa: e.target.value })}
                     disabled={isSaving}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="nm_ayah">Nama Ayah</Label>
-                  <Input
-                    id="nm_ayah"
-                    value={formDataSiswa.nm_ayah}
-                    onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_ayah: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pekerjaan_ayah">Pekerjaan Ayah</Label>
-                  <Input
-                    id="pekerjaan_ayah"
-                    value={formDataSiswa.pekerjaan_ayah}
-                    onChange={(e) => setFormDataSiswa({ ...formDataSiswa, pekerjaan_ayah: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="nm_ibu">Nama Ibu</Label>
-                  <Input
-                    id="nm_ibu"
-                    value={formDataSiswa.nm_ibu}
-                    onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_ibu: e.target.value })}
-                    disabled={isSaving}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pekerjaan_ibu">Pekerjaan Ibu</Label>
-                  <Input
-                    id="pekerjaan_ibu"
-                    value={formDataSiswa.pekerjaan_ibu}
-                    onChange={(e) => setFormDataSiswa({ ...formDataSiswa, pekerjaan_ibu: e.target.value })}
-                    disabled={isSaving}
+                    placeholder="Jl. ..."
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
               </div>
             </div>
 
-            <Separator />
+            {/* Section: Data Orang Tua */}
+            <div className="space-y-4">
+               <div className="flex items-center gap-2 border-b border-blue-50 pb-1 pt-2">
+                <Users className="h-4 w-4 text-[#1e3a8a]" />
+                <h3 className="text-[11px] font-black uppercase text-[#1e3a8a] tracking-wider">Data Orang Tua</h3>
+              </div>
+              
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-3 p-3 bg-slate-50/50 rounded-sm border border-slate-100">
+                  <div className="space-y-1">
+                    <Label htmlFor="nm_ayah" className="text-[10px] font-bold uppercase text-slate-500">Nama Ayah</Label>
+                    <Input
+                      id="nm_ayah"
+                      value={formDataSiswa.nm_ayah}
+                      onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_ayah: e.target.value })}
+                      disabled={isSaving}
+                      placeholder="Nama ayah"
+                      className="h-8 text-xs border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="pekerjaan_ayah" className="text-[10px] font-bold uppercase text-slate-500">Pekerjaan Ayah</Label>
+                    <Input
+                      id="pekerjaan_ayah"
+                      value={formDataSiswa.pekerjaan_ayah}
+                      onChange={(e) => setFormDataSiswa({ ...formDataSiswa, pekerjaan_ayah: e.target.value })}
+                      disabled={isSaving}
+                      placeholder="Pekerjaan"
+                      className="h-8 text-xs border-slate-200"
+                    />
+                  </div>
+                </div>
 
-            {/* Data Pelengkap */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Data Pelengkap</h3>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="status_dalam_kel">Status Dalam Keluarga</Label>
+                <div className="space-y-3 p-3 bg-slate-50/50 rounded-sm border border-slate-100">
+                  <div className="space-y-1">
+                    <Label htmlFor="nm_ibu" className="text-[10px] font-bold uppercase text-slate-500">Nama Ibu</Label>
+                    <Input
+                      id="nm_ibu"
+                      value={formDataSiswa.nm_ibu}
+                      onChange={(e) => setFormDataSiswa({ ...formDataSiswa, nm_ibu: e.target.value })}
+                      disabled={isSaving}
+                      placeholder="Nama ibu"
+                      className="h-8 text-xs border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="pekerjaan_ibu" className="text-[10px] font-bold uppercase text-slate-500">Pekerjaan Ibu</Label>
+                    <Input
+                      id="pekerjaan_ibu"
+                      value={formDataSiswa.pekerjaan_ibu}
+                      onChange={(e) => setFormDataSiswa({ ...formDataSiswa, pekerjaan_ibu: e.target.value })}
+                      disabled={isSaving}
+                      placeholder="Pekerjaan"
+                      className="h-8 text-xs border-slate-200"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Data Pelengkap */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-blue-50 pb-1 pt-2">
+                <UserCog className="h-4 w-4 text-[#1e3a8a]" />
+                <h3 className="text-[11px] font-black uppercase text-[#1e3a8a] tracking-wider">Data Pelengkap Riwayat</h3>
+              </div>
+              
+              <div className="grid gap-3 md:grid-cols-3 text-xs">
+                <div className="space-y-1">
+                  <Label htmlFor="status_dalam_kel" className="text-[10px] font-bold uppercase text-slate-500">Status Keluarga</Label>
                   <Select
                     value={formDataPelengkap.status_dalam_kel}
                     onValueChange={(value) => setFormDataPelengkap({ ...formDataPelengkap, status_dalam_kel: value })}
                     disabled={isSaving}
                   >
-                    <SelectTrigger id="status_dalam_kel">
-                      <SelectValue placeholder="Pilih status dalam keluarga" />
+                    <SelectTrigger id="status_dalam_kel" className="h-8 text-xs border-slate-200">
+                      <SelectValue placeholder="Pilih status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Anak Kandung">Anak Kandung</SelectItem>
-                      <SelectItem value="Anak Angkat">Anak Angkat</SelectItem>
-                      <SelectItem value="Anak Tiri">Anak Tiri</SelectItem>
+                      <SelectItem value="Anak Kandung" className="text-xs">Anak Kandung</SelectItem>
+                      <SelectItem value="Anak Angkat" className="text-xs">Anak Angkat</SelectItem>
+                      <SelectItem value="Anak Tiri" className="text-xs">Anak Tiri</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="anak_ke">Anak Ke-</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="anak_ke" className="text-[10px] font-bold uppercase text-slate-500">Anak Ke-</Label>
                   <Input
                     id="anak_ke"
-                    placeholder="Contoh: 1"
+                    placeholder="0"
                     value={formDataPelengkap.anak_ke}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, anak_ke: e.target.value })}
                     disabled={isSaving}
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="sekolah_asal">Sekolah Asal</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="sekolah_asal" className="text-[10px] font-bold uppercase text-slate-500">Sekolah Asal</Label>
                   <Input
                     id="sekolah_asal"
                     value={formDataPelengkap.sekolah_asal}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, sekolah_asal: e.target.value })}
                     disabled={isSaving}
+                    placeholder="SMP/MTs..."
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="diterima_kelas">Diterima di Kelas</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="diterima_kelas" className="text-[10px] font-bold uppercase text-slate-500">Diterima di Kelas</Label>
                   <Input
                     id="diterima_kelas"
-                    placeholder="Contoh: X"
+                    placeholder="X / XI / XII"
                     value={formDataPelengkap.diterima_kelas}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, diterima_kelas: e.target.value })}
                     disabled={isSaving}
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="telepon_ortu">Telepon Orang Tua</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="telepon_ortu" className="text-[10px] font-bold uppercase text-slate-500">Telepon Orang Tua</Label>
                   <Input
                     id="telepon_ortu"
                     value={formDataPelengkap.telepon_ortu}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, telepon_ortu: e.target.value })}
                     disabled={isSaving}
+                    placeholder="08..."
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-3">
-                  <Label htmlFor="alamat_ortu">Alamat Orang Tua</Label>
+                <div className="space-y-1 md:col-span-3">
+                  <Label htmlFor="alamat_ortu" className="text-[10px] font-bold uppercase text-slate-500">Alamat Orang Tua</Label>
                   <Input
                     id="alamat_ortu"
                     value={formDataPelengkap.alamat_ortu}
                     onChange={(e) => setFormDataPelengkap({ ...formDataPelengkap, alamat_ortu: e.target.value })}
                     disabled={isSaving}
+                    placeholder="Sesuai domisili ortu..."
+                    className="h-8 text-xs border-slate-200"
                   />
                 </div>
               </div>
             </div>
 
             {modalError && (
-              <Alert variant="destructive">
-                <AlertDescription>{modalError}</AlertDescription>
+              <Alert variant="destructive" className="rounded-sm border-red-100 py-2">
+                <AlertDescription className="text-[10px] font-bold italic">{modalError}</AlertDescription>
               </Alert>
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-3 bg-slate-50 border-t flex items-center justify-between flex-row">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsModalOpen(false)}
               disabled={isSaving}
+              className="h-8 text-[11px] font-bold uppercase border-slate-200"
             >
+              <X className="mr-1.5 h-3 w-3" />
               Batal
             </Button>
             <Button
               type="button"
               onClick={handleSave}
               disabled={isSaving}
+              className="h-8 text-[11px] font-bold uppercase bg-[#1e3a8a] text-white hover:bg-black"
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
                   Menyimpan...
                 </>
               ) : (
-                'Simpan'
+                <>
+                  <Save className="mr-1.5 h-3 w-3" />
+                  Simpan Perubahan
+                </>
               )}
             </Button>
           </DialogFooter>

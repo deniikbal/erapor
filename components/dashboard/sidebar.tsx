@@ -29,6 +29,7 @@ import {
   Printer,
   RefreshCw,
   Table,
+  Activity,
 } from 'lucide-react';
 import { removeCurrentUser, getCurrentUser } from '@/lib/auth-client';
 import type { User } from '@/lib/db';
@@ -67,6 +68,16 @@ const menuItems: MenuItem[] = [
       { title: 'Data Mapel', href: '/dashboard/referensi/mapel', icon: BookOpen },
       { title: 'Data Logo', href: '/dashboard/referensi/logo', icon: ImageIcon },
       { title: 'Data Tanggal Rapor', href: '/dashboard/referensi/tanggalrapor', icon: Calendar },
+    ],
+  },
+  {
+    title: 'Data Kokurikuler',
+    icon: ClipboardEdit,
+    allowedLevels: ['Admin', 'Administrator'],
+    submenu: [
+      { title: 'Daftar Tema', href: '/dashboard/admin/kokurikuler/tema', icon: FileText },
+      { title: 'Kegiatan Kokurikuler', href: '/dashboard/admin/kokurikuler/kegiatan', icon: Activity },
+      { title: 'Kelompok Kokurikuler', href: '/dashboard/admin/kokurikuler/kelompok', icon: Users },
     ],
   },
   {
@@ -118,9 +129,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       setUser(currentUser);
 
       if (currentUser) {
-        const filtered = menuItems.filter((item) =>
-          !item.allowedLevels || item.allowedLevels.includes(currentUser.level)
-        );
+        const filtered = menuItems.filter((item) => {
+          if (!item.allowedLevels) return true;
+          const userLevel = (currentUser.level || '').trim().toLowerCase();
+          return item.allowedLevels.some(level => 
+            level.toLowerCase() === userLevel
+          );
+        });
         setFilteredMenuItems(filtered);
       }
     };

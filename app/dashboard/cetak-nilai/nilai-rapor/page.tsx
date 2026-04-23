@@ -233,6 +233,7 @@ export default function NilaiRaporPage() {
                 { generateEkstrakurikulerTable },
                 { generateKetidakhadiranTable },
                 { generateCatatanWaliTable },
+                { generateKeteranganKelulusanTable },
                 { generateTanggapanOrtuTable },
                 { generateSignatureSection },
                 { generateNilaiRaporFooter },
@@ -246,6 +247,7 @@ export default function NilaiRaporPage() {
                 import('@/lib/pdf/ekstrakurikulerTable'),
                 import('@/lib/pdf/ketidakhadiranTable'),
                 import('@/lib/pdf/catatanWaliTable'),
+                import('@/lib/pdf/keteranganKelulusanTable'),
                 import('@/lib/pdf/tanggapanOrtuTable'),
                 import('@/lib/pdf/signatureSection'),
                 import('@/lib/pdf/nilaiRaporFooter'),
@@ -260,6 +262,7 @@ export default function NilaiRaporPage() {
                 mapelRes, 
                 kehadiranRes, 
                 catatanWaliRes, 
+                kenaikanRes,
                 tanggalRaporRes, 
                 kelasRes,
                 guruRes
@@ -267,7 +270,8 @@ export default function NilaiRaporPage() {
                 fetch('/api/sekolah'),
                 fetch(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`),
                 fetch(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`),
-                fetch(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`),
+                fetch(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}${activeSemester?.semester_id ? `&semester_id=${activeSemester.semester_id}` : ''}`).then(r => { addLog(`[CatatanWali] URL: /api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}, status=${r.status}`); return r; }),
+                fetch(`/api/kenaikan?peserta_didik_id=${siswa.peserta_didik_id}${activeSemester?.semester_id ? `&semester_id=${activeSemester.semester_id}` : ''}`),
                 fetch('/api/tanggalrapor'),
                 fetch('/api/kelas'),
                 fetch('/api/guru')
@@ -279,6 +283,7 @@ export default function NilaiRaporPage() {
                 mapelData,
                 kehadiranData,
                 catatanWaliData,
+                kenaikanData,
                 tanggalRaporData,
                 walasData,
                 guruData
@@ -287,10 +292,12 @@ export default function NilaiRaporPage() {
                 mapelRes.json(),
                 kehadiranRes.json(),
                 catatanWaliRes.json(),
+                kenaikanRes.json(),
                 tanggalRaporRes.json(),
                 kelasRes.json(),
                 guruRes.json()
             ]);
+            addLog(`[CatatanWali] Response data: ${JSON.stringify(catatanWaliData)}`);
 
             if (!sekolahRes.ok || sekolahData.error) throw new Error('Gagal mengambil data sekolah');
             addLog('Data sekolah berhasil dimuat.');
@@ -370,13 +377,21 @@ export default function NilaiRaporPage() {
                 const tablesStartY = yAfterTable;
                 const kehadiranEndY = await generateKetidakhadiranTable(doc, tablesStartY, kehadiranData, marginSettings);
                 const catatanWaliX = marginSettings.margin_left + 53 + 5;
+                addLog(`[CatatanWali] Passing to PDF generator: ${JSON.stringify(catatanWaliRes.ok ? catatanWaliData : null)}`);
                 const catatanWaliEndY = await generateCatatanWaliTable(doc, tablesStartY, catatanWaliX, catatanWaliRes.ok ? catatanWaliData : null, marginSettings);
                 yAfterTable = Math.max(kehadiranEndY, catatanWaliEndY);
             }
 
+            // Keterangan Kelulusan (Hanya tampil di Semester Genap / Semester 2)
+            if (activeSemester?.semester === '2' || activeSemester?.semester === 2) {
+                addLog('Generate Keterangan Kelulusan (Semester Genap)...');
+                yAfterTable += 5;
+                yAfterTable = await generateKeteranganKelulusanTable(doc, yAfterTable, kenaikanData, marginSettings);
+            }
+
             // Tanggapan Ortu
             addLog('Generate Tabel Tanggapan...');
-            yAfterTable += 5;
+            yAfterTable += 3;
             yAfterTable = await generateTanggapanOrtuTable(doc, yAfterTable, marginSettings);
 
             // Signatures
@@ -529,6 +544,7 @@ export default function NilaiRaporPage() {
                 { generateEkstrakurikulerTable },
                 { generateKetidakhadiranTable },
                 { generateCatatanWaliTable },
+                { generateKeteranganKelulusanTable },
                 { generateTanggapanOrtuTable },
                 { generateSignatureSection },
                 { generateNilaiRaporFooter },
@@ -543,6 +559,7 @@ export default function NilaiRaporPage() {
                 import('@/lib/pdf/ekstrakurikulerTable'),
                 import('@/lib/pdf/ketidakhadiranTable'),
                 import('@/lib/pdf/catatanWaliTable'),
+                import('@/lib/pdf/keteranganKelulusanTable'),
                 import('@/lib/pdf/tanggapanOrtuTable'),
                 import('@/lib/pdf/signatureSection'),
                 import('@/lib/pdf/nilaiRaporFooter'),
@@ -606,17 +623,19 @@ export default function NilaiRaporPage() {
                     const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
 
                     // Batch student-specific data
-                    const [mapelRes, kehadiranRes, catatanWaliRes] = await Promise.all([
+                    const [mapelRes, kehadiranRes, catatanWaliRes, kenaikanRes] = await Promise.all([
                         fetchWithRetry(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`, undefined, 3, 1000),
                         fetchWithRetry(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000),
-                        fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000)
+                        fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 3, 1000),
+                        fetchWithRetry(`/api/kenaikan?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 3, 1000)
                     ]);
 
                     if (!mapelRes.ok) throw new Error(`Gagal mengambil data mata pelajaran`);
-                    const [mapelData, kehadiranData, catatanWaliData] = await Promise.all([
+                    const [mapelData, kehadiranData, catatanWaliData, kenaikanData] = await Promise.all([
                         mapelRes.json(),
                         kehadiranRes.json(),
-                        catatanWaliRes.json()
+                        catatanWaliRes.json(),
+                        kenaikanRes.json()
                     ]);
 
                     // Generate Rapor Content
@@ -658,7 +677,13 @@ export default function NilaiRaporPage() {
                         yPos = Math.max(kEndY, cEndY);
                     }
 
-                    yPos += 5;
+                    // Keterangan Kelulusan (Hanya tampil di Semester Genap / Semester 2)
+                    if (activeSemester?.semester === '2' || activeSemester?.semester === 2) {
+                        yPos += 5;
+                        yPos = await generateKeteranganKelulusanTable(doc, yPos, kenaikanData, marginSettings);
+                    }
+
+                    yPos += 3;
                     yPos = await generateTanggapanOrtuTable(doc, yPos, marginSettings);
 
                     // Signature for student
@@ -811,6 +836,16 @@ export default function NilaiRaporPage() {
                 <p className="text-[13px] text-slate-500 font-medium italic">
                     Generate dokumen nilai capaian hasil belajar siswa ({siswaList.length} siswa siap cetak).
                 </p>
+                {activeSemester && (
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] font-bold text-white bg-[#1e3a8a] px-2 py-0.5 rounded uppercase">
+                            Semester Aktif
+                        </span>
+                        <span className="text-[11px] font-bold text-[#1e3a8a]">
+                            {activeSemester.nama || activeSemester.semester_id} (ID: {activeSemester.semester_id})
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Margin Settings Card */}

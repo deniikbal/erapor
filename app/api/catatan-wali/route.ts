@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const peserta_didik_id = searchParams.get('peserta_didik_id');
+        let semester_id = searchParams.get('semester_id');
 
         if (!peserta_didik_id) {
             return NextResponse.json(
@@ -20,19 +21,21 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Ambil semester aktif
-        const activeSemester = await sql`
-            SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
-        `;
-        const activeSemesterId = activeSemester.length > 0 ? activeSemester[0].semester_id : null;
+        // Jika semester_id tidak dikirim, ambil yang aktif
+        if (!semester_id) {
+            const activeSemester = await sql`
+                SELECT semester_id FROM semester WHERE periode_aktif = '1' LIMIT 1
+            `;
+            semester_id = activeSemester.length > 0 ? activeSemester[0].semester_id : null;
+        }
 
         // Query catatan wali data - filtered by semester
-        const result = activeSemesterId
+        const result = semester_id
             ? await sql`
                 SELECT *
                 FROM tabel_cat_wali
                 WHERE peserta_didik_id = ${peserta_didik_id}
-                  AND semester_id = ${activeSemesterId}
+                  AND semester_id = ${semester_id}
                 LIMIT 1
               `
             : await sql`
