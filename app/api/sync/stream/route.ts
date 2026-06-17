@@ -532,6 +532,22 @@ async function getPrimaryKey(neonDb: any, tableName: string) {
 // Get primary key from LOCAL database (source of truth)
 // Returns string[] to support composite primary keys (e.g. peserta_didik_id + semester_id)
 async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: string = 'public'): Promise<string[]> {
+    // Khusus user_login, pakai userid sebagai kunci sinkronisasi.
+    // Di beberapa database e-Rapor, kolom id pada user_login tidak unik sehingga
+    // tidak aman dijadikan PK/ON CONFLICT target. Neon biasanya sudah memakai userid.
+    if (tableName === 'user_login') {
+        const userIdColumn = await localDb.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = $1 AND table_name = $2 AND column_name = 'userid'
+        `, [schema, tableName]);
+
+        if (userIdColumn.rows.length > 0) {
+            console.log(`Using fixed primary key column: userid for table user_login`);
+            return ['userid'];
+        }
+    }
+
     const result = await localDb.query(`
         SELECT kcu.column_name
         FROM information_schema.table_constraints tc
