@@ -34,7 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Siswa } from '@/lib/db';
 import { Users, Pencil, Loader2, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
-import ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 
 export default function DataSiswaPage() {
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);

@@ -11,8 +11,8 @@ export interface KenaikanData {
  * Generate Keterangan Kelulusan / Kenaikan row
  * 
  * Tingkat 12: "Keterangan Kelulusan : Lulus" / "Keterangan Kelulusan : Tidak Lulus"
- * Tingkat 10: "Keterangan Kenaikan : Naik ke Kelas XI" / "Keterangan Kenaikan : Tidak Naik"
- * Tingkat 11: "Keterangan Kenaikan : Naik ke Kelas XII" / "Keterangan Kenaikan : Tidak Naik"
+ * Tingkat 10: "Keterangan Kenaikan Kelas : Naik ke Kelas XI" / "Keterangan Kenaikan Kelas : Tidak Naik"
+ * Tingkat 11: "Keterangan Kenaikan Kelas : Naik ke Kelas XII" / "Keterangan Kenaikan Kelas : Tidak Naik"
  */
 export async function generateKeteranganKelulusanTable(
     doc: jsPDF,
@@ -48,18 +48,18 @@ export async function generateKeteranganKelulusanTable(
         } else if (tingkat === 10) {
             // Kelas 10 → Kenaikan ke XI
             keterangan = naik
-                ? 'Keterangan Kenaikan :  Naik ke Kelas XI'
-                : 'Keterangan Kenaikan :  Tidak Naik';
+                ? 'Keterangan Kenaikan Kelas :  Naik ke Kelas XI'
+                : 'Keterangan Kenaikan Kelas :  Tidak Naik';
         } else if (tingkat === 11) {
             // Kelas 11 → Kenaikan ke XII
             keterangan = naik
-                ? 'Keterangan Kenaikan :  Naik ke Kelas XII'
-                : 'Keterangan Kenaikan :  Tidak Naik';
+                ? 'Keterangan Kenaikan Kelas :  Naik ke Kelas XII'
+                : 'Keterangan Kenaikan Kelas :  Tidak Naik';
         } else {
             // Tingkat lain
             keterangan = naik
-                ? `Keterangan Kenaikan :  Naik ke Kelas ${tingkat + 1}`
-                : 'Keterangan Kenaikan :  Tidak Naik';
+                ? `Keterangan Kenaikan Kelas :  Naik ke Kelas ${tingkat + 1}`
+                : 'Keterangan Kenaikan Kelas :  Tidak Naik';
         }
     }
 

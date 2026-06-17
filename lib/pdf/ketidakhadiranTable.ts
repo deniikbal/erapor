@@ -36,7 +36,7 @@ export async function generateKetidakhadiranTable(
     doc.setLineWidth(0.3);
 
     // Draw header rectangle
-    doc.setFillColor(240, 240, 240); // Light gray background
+    doc.setFillColor(248, 248, 255); // Header fill #f8f8ff
     doc.rect(leftMargin, yPos, tableWidth, headerHeight, 'FD');
 
     // Center text vertically in header (adjusted to match data rows)

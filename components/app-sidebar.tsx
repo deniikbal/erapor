@@ -78,6 +78,7 @@ const menuItems: MenuItem[] = [
         allowedLevels: ['Guru'],
         submenu: [
             { title: 'Update Data Siswa', href: '/dashboard/guru-input/update-data-siswa', icon: GraduationCap },
+            { title: 'Kenaikan Kelas', href: '/dashboard/referensi/kenaikan-kelas', icon: GraduationCap },
             { title: 'Cek Catatan Wali', href: '/dashboard/guru/catatan-wali', icon: FileText },
         ],
     },
@@ -111,6 +112,7 @@ const menuItems: MenuItem[] = [
             { title: 'Data Guru', href: '/dashboard/guru', icon: UserCheck },
             { title: 'Data Siswa', href: '/dashboard/siswa', icon: GraduationCap },
             { title: 'Data Kelas', href: '/dashboard/referensi/kelas', icon: BookOpen },
+            { title: 'Kenaikan Kelas', href: '/dashboard/referensi/kenaikan-kelas', icon: GraduationCap },
             { title: 'Data Mapel', href: '/dashboard/referensi/mapel', icon: BookOpen },
             { title: 'Data Logo', href: '/dashboard/referensi/logo', icon: ImageIcon },
             { title: 'Data Tanggal Rapor', href: '/dashboard/referensi/tanggalrapor', icon: Calendar },

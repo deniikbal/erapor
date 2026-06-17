@@ -64,7 +64,7 @@ export async function generateNilaiRaporTableHeader(
 
     // Draw header cells with borders
     setOptimizedLineWidth(doc, 0.3);
-    setOptimizedFillColor(doc, 240, 240, 240); // Light gray background
+    setOptimizedFillColor(doc, 248, 248, 255); // Header fill #f8f8ff
     doc.rect(col1X, yPos, col1Width, headerHeight, 'FD');
     doc.rect(col2X, yPos, col2Width, headerHeight, 'FD');
     doc.rect(col3X, yPos, col3Width, headerHeight, 'FD');

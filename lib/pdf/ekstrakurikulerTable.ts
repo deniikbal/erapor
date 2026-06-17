@@ -56,7 +56,7 @@ export async function generateEkstrakurikulerTable(
     doc.setLineWidth(0.3);
 
     // Draw header cells
-    doc.setFillColor(240, 240, 240); // Light gray background
+    doc.setFillColor(248, 248, 255); // Header fill #f8f8ff
     doc.rect(col1X, yPos, col1Width, headerHeight, 'FD');
     doc.rect(col2X, yPos, col2Width, headerHeight, 'FD');
     doc.rect(col3X, yPos, col3Width, headerHeight, 'FD');
