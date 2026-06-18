@@ -389,7 +389,7 @@ export default function NilaiRaporPage() {
             if (activeSemester?.semester === '2' || activeSemester?.semester === 2) {
                 addLog('Generate Keterangan Kelulusan (Semester Genap)...');
                 yAfterTable += 5;
-                yAfterTable = await generateKeteranganKelulusanTable(doc, yAfterTable, kenaikanData, marginSettings);
+                yAfterTable = await generateKeteranganKelulusanTable(doc, yAfterTable, kenaikanData, marginSettings, siswa.tingkat_pendidikan_id);
             }
 
             // Tanggapan Ortu
@@ -749,7 +749,7 @@ export default function NilaiRaporPage() {
                     // Keterangan Kelulusan (Hanya tampil di Semester Genap / Semester 2)
                     if (activeSemester?.semester === '2' || activeSemester?.semester === 2) {
                         yPos += 5;
-                        yPos = await generateKeteranganKelulusanTable(doc, yPos, kenaikanData, marginSettings);
+                        yPos = await generateKeteranganKelulusanTable(doc, yPos, kenaikanData, marginSettings, siswa.tingkat_pendidikan_id);
                     }
 
                     yPos += 3;

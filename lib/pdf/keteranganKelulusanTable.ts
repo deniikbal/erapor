@@ -18,7 +18,8 @@ export async function generateKeteranganKelulusanTable(
     doc: jsPDF,
     startY: number,
     kenaikanData: KenaikanData | null,
-    margins: MarginSettings
+    margins: MarginSettings,
+    currentTingkat?: string | number | null
 ): Promise<number> {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -33,11 +34,21 @@ export async function generateKeteranganKelulusanTable(
         yPos = margins.margin_top + 21;
     }
 
-    // Tentukan teks berdasarkan tingkat dan status kenaikan
+    // Tentukan teks berdasarkan tingkat dan status kenaikan.
+    // Catatan: `tabel_kenaikan.tingkat` dari data e-Rapor bisa berisi tingkat
+    // tujuan kenaikan. Untuk cetak rapor, label harus berdasarkan kelas siswa
+    // saat ini: kelas X -> XI, kelas XI -> XII, kelas XII -> kelulusan.
+    // Karena itu, jika `currentTingkat` dikirim dari data siswa/kelas, gunakan
+    // nilai tersebut sebagai sumber utama.
     let keterangan = 'Keterangan Kelulusan :  -';
 
-    if (kenaikanData && kenaikanData.tingkat !== null) {
-        const tingkat = Number(kenaikanData.tingkat);
+    const hasKenaikanStatus = kenaikanData?.kenaikan !== null && kenaikanData?.kenaikan !== undefined;
+    const effectiveTingkat = currentTingkat !== null && currentTingkat !== undefined && currentTingkat !== ''
+        ? Number(currentTingkat)
+        : (kenaikanData?.tingkat !== null && kenaikanData?.tingkat !== undefined ? Number(kenaikanData.tingkat) : null);
+
+    if (kenaikanData && hasKenaikanStatus && effectiveTingkat !== null && !Number.isNaN(effectiveTingkat)) {
+        const tingkat = effectiveTingkat;
         const naik = Number(kenaikanData.kenaikan) === 1;
 
         if (tingkat === 12) {
