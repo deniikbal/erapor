@@ -47,6 +47,7 @@ export default function DataGuruPage() {
 
   // Form state
   const [formData, setFormData] = useState({
+    nama: '',
     gelar_depan: '',
     gelar_belakang: '',
   });
@@ -96,6 +97,7 @@ export default function DataGuruPage() {
   const handleEditClick = (guru: PTK) => {
     setSelectedGuru(guru);
     setFormData({
+      nama: guru.nama || '',
       gelar_depan: guru.gelar_depan || '',
       gelar_belakang: guru.gelar_belakang || '',
     });
@@ -103,8 +105,16 @@ export default function DataGuruPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveGelar = async () => {
+  const handleSaveGuru = async () => {
     if (!selectedGuru) return;
+
+    const trimmedNama = formData.nama.trim();
+    if (!trimmedNama) {
+      const errorMessage = 'Nama guru tidak boleh kosong';
+      setModalError(errorMessage);
+      toast.error(errorMessage);
+      return;
+    }
 
     setIsSaving(true);
     setModalError('');
@@ -117,6 +127,7 @@ export default function DataGuruPage() {
         },
         body: JSON.stringify({
           ptk_id: selectedGuru.ptk_id,
+          nama: trimmedNama,
           gelar_depan: formData.gelar_depan.trim(),
           gelar_belakang: formData.gelar_belakang.trim(),
         }),
@@ -134,15 +145,21 @@ export default function DataGuruPage() {
       // Update local state
       setGuruList(prev => prev.map(g =>
         g.ptk_id === selectedGuru.ptk_id
-          ? { ...g, gelar_depan: formData.gelar_depan, gelar_belakang: formData.gelar_belakang }
+          ? {
+              ...g,
+              nama: trimmedNama,
+              gelar_depan: formData.gelar_depan,
+              gelar_belakang: formData.gelar_belakang,
+            }
           : g
       ));
 
       setIsModalOpen(false);
 
       // Show success toast
-      toast.success('Gelar guru berhasil diupdate', {
-        description: `${formData.gelar_depan} ${selectedGuru.nama} ${formData.gelar_belakang}`.trim(),
+      const displayName = `${formData.gelar_depan} ${trimmedNama} ${formData.gelar_belakang}`.trim().replace(/\s+/g, ' ');
+      toast.success('Data guru berhasil diupdate', {
+        description: displayName,
       });
     } catch (err) {
       const errorMessage = 'Terjadi kesalahan saat menyimpan data';
@@ -269,7 +286,7 @@ export default function DataGuruPage() {
                           className="h-7 px-3 bg-[#1e3a8a] hover:bg-indigo-900 text-white text-[10px] font-bold shadow-sm"
                         >
                           <Pencil className="h-3 w-3 mr-1" />
-                          EDIT GELAR
+                          EDIT
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -335,17 +352,32 @@ export default function DataGuruPage() {
         </CardContent>
       </Card>
 
-      {/* Edit Gelar Modal */}
+      {/* Edit Guru Modal (nama + gelar) */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Edit Gelar Guru</DialogTitle>
+            <DialogTitle>Edit Data Guru</DialogTitle>
             <DialogDescription>
-              Update gelar depan dan belakang untuk {selectedGuru?.nama}
+              Update nama dan gelar untuk guru ini
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="nama">Nama Guru<span className="text-red-500"> *</span></Label>
+              <Input
+                id="nama"
+                placeholder="Contoh: Budi Santoso"
+                value={formData.nama}
+                onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
+                disabled={isSaving}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Nama lengkap tanpa gelar
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="gelar_depan">Gelar Depan</Label>
               <Input
@@ -392,7 +424,7 @@ export default function DataGuruPage() {
             </Button>
             <Button
               type="button"
-              onClick={handleSaveGelar}
+              onClick={handleSaveGuru}
               disabled={isSaving}
             >
               {isSaving ? (

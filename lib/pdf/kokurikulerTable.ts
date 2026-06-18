@@ -27,12 +27,12 @@ export async function generateKokurikulerTable(
     const lineHeight = 3.7;
     const maxWidth = pageWidth - margins.margin_left - margins.margin_right - (padding * 2);
 
-    // Split deskripsi into lines to calculate height
-    const lines = doc.splitTextToSize(deskripsi || 'Tidak ada deskripsi kokurikuler.', maxWidth);
+    // Split deskripsi into lines to calculate height (kosong jika tidak ada data)
+    const lines = deskripsi ? doc.splitTextToSize(deskripsi, maxWidth) : [];
 
-    // Calculate content height
+    // Calculate content height (minimum tetap dipertahankan agar tabel tidak hilang)
     const headerHeight = 8;
-    const contentHeight = Math.max(15, lines.length * lineHeight + (padding * 2));
+    const contentHeight = Math.max(25, lines.length * lineHeight + (padding * 2));
     const totalTableHeight = headerHeight + contentHeight;
 
     // Check if entire table fits on current page BEFORE drawing header

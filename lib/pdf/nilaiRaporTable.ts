@@ -178,12 +178,12 @@ export async function generateMapelRow(
 
         // Reserve space for student header info (will be added later in post-processing)
         // Student header info is ~21mm tall (4 rows + spacing + reduced gap)
-        const studentHeaderHeight = 21;
+        const studentHeaderHeight = STUDENT_HEADER_RESERVED_HEIGHT;
         yPos = margins.margin_top + studentHeaderHeight;
 
         // Redraw table header on new page (below student header space)
         await generateNilaiRaporTableHeader(doc, yPos, margins);
-        yPos += 8; // Actual header height (not 12)
+        yPos += TABLE_HEADER_HEIGHT; // Actual header height (not 12)
 
         // Reset font to normal after header
         await setDejaVuFont(doc, 'normal');
@@ -227,6 +227,20 @@ export async function generateMapelRow(
 }
 
 /**
+ * Heights used by generateNilaiRaporTable. Defined as constants so the
+ * "does the next kelompok + at least one mapel row fit?" check stays in sync
+ * with the actual draw routines.
+ */
+const TABLE_HEADER_HEIGHT = 8;
+const KELOMPOK_ROW_HEIGHT = 6;
+const MIN_MAPEL_ROW_HEIGHT = 10;
+const MIN_REQUIRED_FOR_NEW_KELOMPOK = KELOMPOK_ROW_HEIGHT + MIN_MAPEL_ROW_HEIGHT; // 16mm
+// Reserved vertical space at the top of continuation pages for the student
+// header info (Nama Murid, NIS, Sekolah, dst.) that is added later in
+// post-processing.
+const STUDENT_HEADER_RESERVED_HEIGHT = 21;
+
+/**
  * Generate complete nilai rapor table with kelompok
  */
 export async function generateNilaiRaporTable(
@@ -243,8 +257,11 @@ export async function generateNilaiRaporTable(
 
     // Generate rows for each kelompok
     for (const kelompok of kelompokData) {
-        // Check if kelompok header fits, if not add new page
-        if (yPos + 8 > pageHeight - margins.margin_bottom) {
+        // Check that BOTH the kelompok header AND at least one mapel row fit
+        // on the current page. Previously the check was only for the kelompok
+        // header (8mm), which left the "Mata Pelajaran Pilihan" header stranded
+        // on the previous page while its mapels moved to the next page.
+        if (yPos + MIN_REQUIRED_FOR_NEW_KELOMPOK > pageHeight - margins.margin_bottom) {
             doc.addPage();
 
             // Re-establish font after page break
@@ -255,7 +272,7 @@ export async function generateNilaiRaporTable(
             yPos = margins.margin_top + studentHeaderHeight;
 
             await generateNilaiRaporTableHeader(doc, yPos, margins);
-            yPos += 8; // Actual header height
+            yPos += TABLE_HEADER_HEIGHT;
         }
 
         // Kelompok header (merged row)

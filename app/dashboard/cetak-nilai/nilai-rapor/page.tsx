@@ -34,8 +34,14 @@ import type { Siswa, User, MarginSettings } from '@/lib/db';
 import { FileText, Settings as SettingsIcon, Loader2, Download, DownloadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCurrentUser } from '@/lib/auth-client';
+import { preloadPdfGenerator, usePdfGeneratorPreload } from '@/hooks/usePdfGenerator';
+import { clearFontState } from '@/lib/pdf/optimizedFontLoader';
+import { formatNamaDenganGelar } from '@/lib/pdf/nameFormatter';
 
 export default function NilaiRaporPage() {
+    // Warm up jspdf + lib/pdf/* modules + DejaVu fonts as soon as the page mounts
+    // so the first "Cetak PDF" click has no 2-4s import cost.
+    usePdfGeneratorPreload();
     const [siswaList, setSiswaList] = useState<Siswa[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -51,6 +57,15 @@ export default function NilaiRaporPage() {
         const time = new Date().toLocaleTimeString();
         setDebugLogs(prev => [`[${time}] ${msg}`, ...prev].slice(0, 100)); // Keep last 100
         console.log(`[PDF-DEBUG] ${msg}`);
+    };
+
+    /**
+     * Trim very long strings before logging so the in-memory debug log stays
+     * bounded and the console isn't spammed by huge JSON payloads.
+     */
+    const truncateForLog = (text: string, max = 200): string => {
+        if (!text) return '';
+        return text.length > max ? `${text.slice(0, max)}…` : text;
     };
 
     // Margin settings state
@@ -223,37 +238,25 @@ export default function NilaiRaporPage() {
             toast.info('Menyiapkan data rapor...');
             addLog('Mengimpor library jspdf dan modul pendukung...');
 
-            // 1. Batch all dynamic imports at once to save time
-            const [
-                { jsPDF },
-                { generateNilaiRaporHeader },
-                { getFaseByTingkat, generateNilaiRaporTable },
-                { loadDejaVuFonts },
-                { generateKokurikulerTable },
-                { generateEkstrakurikulerTable },
-                { generateKetidakhadiranTable },
-                { generateCatatanWaliTable },
-                { generateKeteranganKelulusanTable },
-                { generateTanggapanOrtuTable },
-                { generateSignatureSection },
-                { generateNilaiRaporFooter },
-                { generateStudentHeaderInfo }
-            ] = await Promise.all([
-                import('jspdf'),
-                import('@/lib/pdf/nilaiRaporPage'),
-                import('@/lib/pdf/nilaiRaporTable'),
-                import('@/lib/pdf/fontLoader'),
-                import('@/lib/pdf/kokurikulerTable'),
-                import('@/lib/pdf/ekstrakurikulerTable'),
-                import('@/lib/pdf/ketidakhadiranTable'),
-                import('@/lib/pdf/catatanWaliTable'),
-                import('@/lib/pdf/keteranganKelulusanTable'),
-                import('@/lib/pdf/tanggapanOrtuTable'),
-                import('@/lib/pdf/signatureSection'),
-                import('@/lib/pdf/nilaiRaporFooter'),
-                import('@/lib/pdf/studentHeaderInfo')
-            ]);
-            addLog('Library berhasil diimpor.');
+            // 1. Reuse preloaded modules instead of re-importing every click.
+            addLog('Menggunakan modul PDF yang sudah di-preload...');
+            const {
+                jsPDF,
+                loadDejaVuFonts,
+                generateNilaiRaporHeader,
+                getFaseByTingkat,
+                generateNilaiRaporTable,
+                generateKokurikulerTable,
+                generateEkstrakurikulerTable,
+                generateKetidakhadiranTable,
+                generateCatatanWaliTable,
+                generateKeteranganKelulusanTable,
+                generateTanggapanOrtuTable,
+                generateSignatureSection,
+                generateNilaiRaporFooter,
+                generateStudentHeaderInfo,
+            } = await preloadPdfGenerator();
+            addLog('Library berhasil dimuat (cached).');
 
             // 2. Batch all data fetching at once
             addLog('Mengambil data dari server (API)...');
@@ -297,7 +300,7 @@ export default function NilaiRaporPage() {
                 kelasRes.json(),
                 guruRes.json()
             ]);
-            addLog(`[CatatanWali] Response data: ${JSON.stringify(catatanWaliData)}`);
+            addLog(`[CatatanWali] Response data (truncated): ${truncateForLog(JSON.stringify(catatanWaliData))}`);
 
             if (!sekolahRes.ok || sekolahData.error) throw new Error('Gagal mengambil data sekolah');
             addLog('Data sekolah berhasil dimuat.');
@@ -350,11 +353,11 @@ export default function NilaiRaporPage() {
             addLog('Generate Tabel Nilai...');
             let yAfterTable = await generateNilaiRaporTable(doc, yAfterHeader, mapelData.kelompok, marginSettings);
 
-            // Kokurikuler
-            if (mapelData.kokurikuler) {
+            // Kokurikuler (selalu dirender sebagai template meski data kosong)
+            {
                 addLog('Generate Tabel Kokurikuler...');
                 yAfterTable += 5;
-                yAfterTable = await generateKokurikulerTable(doc, yAfterTable, mapelData.kokurikuler, marginSettings);
+                yAfterTable = await generateKokurikulerTable(doc, yAfterTable, mapelData.kokurikuler || '', marginSettings);
             }
 
             // Ekstrakurikuler
@@ -377,7 +380,7 @@ export default function NilaiRaporPage() {
                 const tablesStartY = yAfterTable;
                 const kehadiranEndY = await generateKetidakhadiranTable(doc, tablesStartY, kehadiranData, marginSettings);
                 const catatanWaliX = marginSettings.margin_left + 53 + 5;
-                addLog(`[CatatanWali] Passing to PDF generator: ${JSON.stringify(catatanWaliRes.ok ? catatanWaliData : null)}`);
+                addLog(`[CatatanWali] Passing to PDF generator (truncated): ${truncateForLog(JSON.stringify(catatanWaliRes.ok ? catatanWaliData : null))}`);
                 const catatanWaliEndY = await generateCatatanWaliTable(doc, tablesStartY, catatanWaliX, catatanWaliRes.ok ? catatanWaliData : null, marginSettings);
                 yAfterTable = Math.max(kehadiranEndY, catatanWaliEndY);
             }
@@ -396,15 +399,33 @@ export default function NilaiRaporPage() {
 
             // Signatures
             addLog('Generate Signature Section...');
-            const studentClass = walasData.kelas?.find((k: any) => k.nm_kelas === siswa.nm_kelas);
+            // Lookup via pre-built maps (O(1) instead of Array.find). For single
+            // siswa the benefit is small, but we use the same helpers as bulk mode
+            // so behavior stays consistent.
+            const kelasByName = new Map<string, any>();
+            for (const k of walasData.kelas || []) {
+                if (k?.nm_kelas) kelasByName.set(k.nm_kelas, k);
+            }
+            const guruByPtk = new Map<string, any>();
+            for (const g of guruData.guru || []) {
+                if (g?.ptk_id) guruByPtk.set(g.ptk_id, g);
+            }
+            const studentClass = siswa.nm_kelas ? kelasByName.get(siswa.nm_kelas) : undefined;
             let namaWaliKelasWithGelar = studentClass?.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
             if (studentClass?.ptk_id) {
-                const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
+                const guruInfo = guruByPtk.get(studentClass.ptk_id);
                 if (guruInfo) {
-                    const gelarDepan = (guruInfo.gelar_depan || '').trim();
-                    const gelarBelakang = (guruInfo.gelar_belakang || '').trim();
-                    const namaAsli = (guruInfo.nama || studentClass.nama_wali_kelas || currentUser?.nama || 'Wali Kelas').trim();
-                    namaWaliKelasWithGelar = [gelarDepan, namaAsli, gelarBelakang].filter(part => part !== '').join(' ');
+                    namaWaliKelasWithGelar = formatNamaDenganGelar(
+                        guruInfo.nama ?? studentClass.nama_wali_kelas ?? currentUser?.nama ?? 'Wali Kelas',
+                        guruInfo.gelar_depan,
+                        guruInfo.gelar_belakang
+                    );
+                } else if (studentClass?.gelar_depan || studentClass?.gelar_belakang) {
+                    namaWaliKelasWithGelar = formatNamaDenganGelar(
+                        studentClass.nama_wali_kelas ?? currentUser?.nama ?? 'Wali Kelas',
+                        studentClass.gelar_depan,
+                        studentClass.gelar_belakang
+                    );
                 }
             }
 
@@ -534,39 +555,26 @@ export default function NilaiRaporPage() {
             toast.info('Menyiapkan generator PDF massal...');
             addLog('Mengimpor library massal...');
 
-            // 1. Batch Imports
-            const [
-                { jsPDF },
-                { generateNilaiRaporHeader },
-                { getFaseByTingkat, generateNilaiRaporTable },
-                { loadDejaVuFonts },
-                { generateKokurikulerTable },
-                { generateEkstrakurikulerTable },
-                { generateKetidakhadiranTable },
-                { generateCatatanWaliTable },
-                { generateKeteranganKelulusanTable },
-                { generateTanggapanOrtuTable },
-                { generateSignatureSection },
-                { generateNilaiRaporFooter },
-                { generateStudentHeaderInfo },
-                { fetchWithRetry }
-            ] = await Promise.all([
-                import('jspdf'),
-                import('@/lib/pdf/nilaiRaporPage'),
-                import('@/lib/pdf/nilaiRaporTable'),
-                import('@/lib/pdf/fontLoader'),
-                import('@/lib/pdf/kokurikulerTable'),
-                import('@/lib/pdf/ekstrakurikulerTable'),
-                import('@/lib/pdf/ketidakhadiranTable'),
-                import('@/lib/pdf/catatanWaliTable'),
-                import('@/lib/pdf/keteranganKelulusanTable'),
-                import('@/lib/pdf/tanggapanOrtuTable'),
-                import('@/lib/pdf/signatureSection'),
-                import('@/lib/pdf/nilaiRaporFooter'),
-                import('@/lib/pdf/studentHeaderInfo'),
-                import('@/lib/fetchRetryHelper')
-            ]);
-            addLog('Library massal siap.');
+            // 1. Reuse preloaded modules instead of re-importing every bulk run.
+            addLog('Menggunakan modul PDF yang sudah di-preload...');
+            const {
+                jsPDF,
+                loadDejaVuFonts,
+                generateNilaiRaporHeader,
+                getFaseByTingkat,
+                generateNilaiRaporTable,
+                generateKokurikulerTable,
+                generateEkstrakurikulerTable,
+                generateKetidakhadiranTable,
+                generateCatatanWaliTable,
+                generateKeteranganKelulusanTable,
+                generateTanggapanOrtuTable,
+                generateSignatureSection,
+                generateNilaiRaporFooter,
+                generateStudentHeaderInfo,
+                fetchWithRetry,
+            } = await preloadPdfGenerator();
+            addLog('Library massal siap (cached).');
 
             // 2. Batch Static Data Fetch once for all students
             addLog('Mengambil data umum sekolah & guru...');
@@ -596,6 +604,49 @@ export default function NilaiRaporPage() {
             let isFirstStudent = true;
             const failedStudents: { name: string; error: string }[] = [];
 
+            // === OPTIMASI #8: Hoist lookup map guru & kelas SEBELUM loop siswa.
+            // Sebelumnya: O(N x M) Array.find() per siswa; sekarang O(N + M) Map lookup.
+            const kelasByName = new Map<string, any>();
+            for (const k of kelasData.kelas || []) {
+                if (k?.nm_kelas) kelasByName.set(k.nm_kelas, k);
+            }
+            const guruByPtk = new Map<string, any>();
+            for (const g of guruData.guru || []) {
+                if (g?.ptk_id) guruByPtk.set(g.ptk_id, g);
+            }
+            addLog(`Lookup map siap: ${kelasByName.size} kelas, ${guruByPtk.size} guru.`);
+
+            // === BATCH FETCH: ambil data nilai/kehadiran/catatan/kenaikan untuk SEMUA siswa
+            // dalam 1 request (optimasi utama: dari 4N request menjadi 1 request).
+            addLog('Mengambil data rapor massal (batch endpoint)...');
+            let studentDataMap: Record<string, any> = {};
+            let batchFallbackMode = false;
+            try {
+                const batchRes = await fetchWithRetry('/api/nilai/mapel-kelompok-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        students: filteredSiswa.map(s => ({
+                            peserta_didik_id: s.peserta_didik_id,
+                            tingkat: s.tingkat_pendidikan_id || '10',
+                        })),
+                        semester_id: activeSemester?.semester_id,
+                    }),
+                }, 3, 1000);
+
+                if (batchRes.ok) {
+                    const batchData = await batchRes.json();
+                    studentDataMap = batchData.students || {};
+                    addLog(`Batch data berhasil dimuat untuk ${Object.keys(studentDataMap).length} siswa (1 request).`);
+                } else {
+                    addLog('!!! Batch endpoint gagal, fallback ke mode per-siswa...');
+                    batchFallbackMode = true;
+                }
+            } catch (batchErr) {
+                addLog('!!! Batch endpoint error, fallback ke mode per-siswa: ' + batchErr);
+                batchFallbackMode = true;
+            }
+
             // 4. Loop through filtered students
             for (let studentIndex = 0; studentIndex < filteredSiswa.length; studentIndex++) {
                 const siswa = filteredSiswa[studentIndex];
@@ -614,7 +665,6 @@ export default function NilaiRaporPage() {
 
                     if (!isFirstStudent) {
                         doc.addPage();
-                        const { clearFontState } = await import('@/lib/pdf/optimizedFontLoader');
                         clearFontState(doc);
                     }
                     isFirstStudent = false;
@@ -622,21 +672,39 @@ export default function NilaiRaporPage() {
                     const studentStartPage = doc.getNumberOfPages();
                     const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
 
-                    // Batch student-specific data
-                    const [mapelRes, kehadiranRes, catatanWaliRes, kenaikanRes] = await Promise.all([
-                        fetchWithRetry(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`, undefined, 3, 1000),
-                        fetchWithRetry(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000),
-                        fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 3, 1000),
-                        fetchWithRetry(`/api/kenaikan?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 3, 1000)
-                    ]);
+                    // === DATA LOOKUP ===
+                    // Mode batch: ambil dari map yang sudah di-fetch sebelum loop (no network call).
+                    // Mode fallback: fetch per-siswa seperti versi lama (jaga-jaga jika batch endpoint bermasalah).
+                    let mapelData: any, kehadiranData: any, catatanWaliData: any, kenaikanData: any;
+                    let catatanWaliOk = true;
 
-                    if (!mapelRes.ok) throw new Error(`Gagal mengambil data mata pelajaran`);
-                    const [mapelData, kehadiranData, catatanWaliData, kenaikanData] = await Promise.all([
-                        mapelRes.json(),
-                        kehadiranRes.json(),
-                        catatanWaliRes.json(),
-                        kenaikanRes.json()
-                    ]);
+                    if (!batchFallbackMode) {
+                        const studentData = studentDataMap[siswa.peserta_didik_id] || {};
+                        const mapel = studentData.mapel || {};
+                        mapelData = {
+                            kelompok: mapel.kelompok || [],
+                            kokurikuler: mapel.kokurikuler ?? null,
+                            ekstrakurikuler: mapel.ekstrakurikuler || [],
+                        };
+                        kehadiranData = studentData.kehadiran || { peserta_didik_id: siswa.peserta_didik_id, sakit: 0, izin: 0, alpha: 0 };
+                        catatanWaliData = studentData.catatan_wali || { peserta_didik_id: siswa.peserta_didik_id, deskripsi: '-' };
+                        kenaikanData = studentData.kenaikan || { kenaikan: null, tingkat: null };
+                    } else {
+                        const [mapelRes, kehadiranRes, catatanWaliRes, kenaikanRes] = await Promise.all([
+                            fetchWithRetry(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`, undefined, 3, 1000),
+                            fetchWithRetry(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 3, 1000),
+                            fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 3, 1000),
+                            fetchWithRetry(`/api/kenaikan?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 3, 1000)
+                        ]);
+                        if (!mapelRes.ok) throw new Error(`Gagal mengambil data mata pelajaran`);
+                        [mapelData, kehadiranData, catatanWaliData, kenaikanData] = await Promise.all([
+                            mapelRes.json(),
+                            kehadiranRes.json(),
+                            catatanWaliRes.json(),
+                            kenaikanRes.json()
+                        ]);
+                        catatanWaliOk = catatanWaliRes.ok;
+                    }
 
                     // Generate Rapor Content
                     const headerInfo = {
@@ -654,9 +722,10 @@ export default function NilaiRaporPage() {
                     let yPos = await generateNilaiRaporHeader(doc, headerInfo, marginSettings);
                     yPos = await generateNilaiRaporTable(doc, yPos, mapelData.kelompok, marginSettings);
 
-                    if (mapelData.kokurikuler) {
+                    // Kokurikuler (selalu dirender sebagai template meski data kosong)
+                    {
                         yPos += 5;
-                        yPos = await generateKokurikulerTable(doc, yPos, mapelData.kokurikuler, marginSettings);
+                        yPos = await generateKokurikulerTable(doc, yPos, mapelData.kokurikuler || '', marginSettings);
                     }
 
                     if (mapelData.ekstrakurikuler?.length > 0) {
@@ -664,7 +733,7 @@ export default function NilaiRaporPage() {
                         yPos = await generateEkstrakurikulerTable(doc, yPos, mapelData.ekstrakurikuler, marginSettings);
                     }
 
-                    if (kehadiranRes.ok && kehadiranData) {
+                    if (kehadiranData) {
                         yPos += 5;
                         if (yPos + 27 > doc.internal.pageSize.getHeight() - marginSettings.margin_bottom) {
                             doc.addPage();
@@ -673,7 +742,7 @@ export default function NilaiRaporPage() {
                         const tableStartAt = yPos;
                         const kEndY = await generateKetidakhadiranTable(doc, tableStartAt, kehadiranData, marginSettings);
                         const cWaliX = marginSettings.margin_left + 53 + 5;
-                        const cEndY = await generateCatatanWaliTable(doc, tableStartAt, cWaliX, catatanWaliRes.ok ? catatanWaliData : null, marginSettings);
+                        const cEndY = await generateCatatanWaliTable(doc, tableStartAt, cWaliX, catatanWaliOk ? catatanWaliData : null, marginSettings);
                         yPos = Math.max(kEndY, cEndY);
                     }
 
@@ -686,16 +755,23 @@ export default function NilaiRaporPage() {
                     yPos += 3;
                     yPos = await generateTanggapanOrtuTable(doc, yPos, marginSettings);
 
-                    // Signature for student
-                    const studentClass = kelasData.kelas?.find((k: any) => k.nm_kelas === siswa.nm_kelas);
+                    // Signature for student (lookup via pre-built map, O(1) instead of Array.find)
+                    const studentClass = siswa.nm_kelas ? kelasByName.get(siswa.nm_kelas) : undefined;
                     let namaWaliKelas = studentClass?.nama_wali_kelas || currentUser?.nama || 'Wali Kelas';
                     if (studentClass?.ptk_id) {
-                        const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
+                        const guruInfo = guruByPtk.get(studentClass.ptk_id);
                         if (guruInfo) {
-                            const gd = (guruInfo.gelar_depan || '').trim();
-                            const gb = (guruInfo.gelar_belakang || '').trim();
-                            const nm = (guruInfo.nama || studentClass.nama_wali_kelas || currentUser?.nama || 'Wali Kelas').trim();
-                            namaWaliKelas = [gd, nm, gb].filter(part => part !== '').join(' ');
+                            namaWaliKelas = formatNamaDenganGelar(
+                                guruInfo.nama ?? studentClass.nama_wali_kelas ?? currentUser?.nama ?? 'Wali Kelas',
+                                guruInfo.gelar_depan,
+                                guruInfo.gelar_belakang
+                            );
+                        } else if (studentClass?.gelar_depan || studentClass?.gelar_belakang) {
+                            namaWaliKelas = formatNamaDenganGelar(
+                                studentClass.nama_wali_kelas ?? currentUser?.nama ?? 'Wali Kelas',
+                                studentClass.gelar_depan,
+                                studentClass.gelar_belakang
+                            );
                         }
                     }
 

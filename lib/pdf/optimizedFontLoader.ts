@@ -1,10 +1,17 @@
 import type { jsPDF } from 'jspdf';
 import { loadDejaVuFonts } from './fontLoader';
 
-/**
- * Stateless font setter that always calls doc.setFont.
- * Removed all caching to prevent desynchronization during bulk PDF generation.
- */
+// NOTE on previous "style cache":
+// We intentionally do NOT cache the last-set style anymore. The footer
+// (`nilaiRaporFooter.ts`) calls `doc.setFont('courier', 'bold')` directly,
+// bypassing this module. A style-cache would think "DejaVu normal is still
+// active" after the footer ran, and skip the actual doc.setFont() call on the
+// next setDejaVuFont(), leaving the doc in Courier for subsequent pages.
+//
+// The expensive part (loading the DejaVu font files into the doc) is still
+// cached in `fontLoader.ts` via a per-document WeakSet, so we keep the big
+// win without the bug. The setFont() call itself is cheap (~0.1ms).
+
 export async function setDejaVuFont(doc: jsPDF, style: 'normal' | 'bold' = 'normal'): Promise<void> {
     try {
         const loaded = await loadDejaVuFonts(doc);
@@ -20,14 +27,18 @@ export async function setDejaVuFont(doc: jsPDF, style: 'normal' | 'bold' = 'norm
 }
 
 /**
- * Force set font - identical to setDejaVuFont now as it's no longer cached.
+ * Force re-apply font (kept as alias for backwards compatibility).
  */
 export async function forceSetDejaVuFont(doc: jsPDF, style: 'normal' | 'bold' = 'normal'): Promise<void> {
     return setDejaVuFont(doc, style);
 }
 
 /**
- * Clear font state - now a no-op as there is no cache.
+ * Reserved for future use. With the new approach there's no per-document style
+ * cache to clear, so this is currently a no-op. Kept exported because callers
+ * (bulk PDF loops) call it before doc.addPage() and we want to preserve that
+ * call-site contract.
  */
 export function clearFontState(_doc: jsPDF): void {
+    // intentionally empty - see note above
 }

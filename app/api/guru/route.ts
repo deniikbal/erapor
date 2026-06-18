@@ -5,9 +5,9 @@ import { retryQuery } from '@/lib/dbRetryHelper';
 export async function GET(request: NextRequest) {
   try {
     const sql = getDbClient();
-    
+
     const result = await sql`
-      SELECT 
+      SELECT
         p.ptk_id,
         p.nama,
         p.nip,
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { ptk_id, gelar_depan, gelar_belakang } = await request.json();
+    const { ptk_id, nama, gelar_depan, gelar_belakang } = await request.json();
 
     if (!ptk_id) {
       return NextResponse.json(
@@ -45,51 +45,75 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const sql = getDbClient();
-    
-    // Check if ptk_pelengkap exists
-    const checkExisting = await sql`
-      SELECT ptk_pelengkap_id FROM tabel_ptk_pelengkap
-      WHERE ptk_id = ${ptk_id}
-      LIMIT 1
-    `;
-
-    let result;
-    
-    if (checkExisting.length > 0) {
-      // Update existing record
-      result = await sql`
-        UPDATE tabel_ptk_pelengkap
-        SET 
-          gelar_depan = ${gelar_depan || ''},
-          gelar_belakang = ${gelar_belakang || ''}
-        WHERE ptk_id = ${ptk_id}
-        RETURNING *
-      `;
-    } else {
-      // Insert new record
-      result = await sql`
-        INSERT INTO tabel_ptk_pelengkap (ptk_pelengkap_id, ptk_id, gelar_depan, gelar_belakang)
-        VALUES (gen_random_uuid(), ${ptk_id}, ${gelar_depan || ''}, ${gelar_belakang || ''})
-        RETURNING *
-      `;
-    }
-
-    if (result.length === 0) {
+    const trimmedNama = typeof nama === 'string' ? nama.trim() : undefined;
+    if (trimmedNama !== undefined && trimmedNama.length === 0) {
       return NextResponse.json(
-        { error: 'Gagal mengupdate data gelar' },
-        { status: 500 }
+        { error: 'Nama guru tidak boleh kosong' },
+        { status: 400 }
       );
     }
 
-    return NextResponse.json({ 
-      message: 'Data gelar berhasil diupdate',
-      data: result[0]
+    const sql = getDbClient();
+
+    // 1. Update nama di tabel_ptk (jika dikirim)
+    if (trimmedNama !== undefined) {
+      const updatedPtk = await retryQuery(() => sql`
+        UPDATE tabel_ptk
+        SET nama = ${trimmedNama}
+        WHERE ptk_id = ${ptk_id} AND soft_delete = 0
+        RETURNING ptk_id, nama
+      `);
+
+      if (updatedPtk.length === 0) {
+        return NextResponse.json(
+          { error: 'Data guru tidak ditemukan' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // 2. Update/insert gelar di tabel_ptk_pelengkap (jika ada yang dikirim)
+    let pelengkapResult: any[] = [];
+    if (
+      typeof gelar_depan === 'string' ||
+      typeof gelar_belakang === 'string'
+    ) {
+      const checkExisting = await retryQuery(() => sql`
+        SELECT ptk_pelengkap_id FROM tabel_ptk_pelengkap
+        WHERE ptk_id = ${ptk_id}
+        LIMIT 1
+      `);
+
+      if (checkExisting.length > 0) {
+        pelengkapResult = await retryQuery(() => sql`
+          UPDATE tabel_ptk_pelengkap
+          SET
+            gelar_depan = ${gelar_depan ?? ''},
+            gelar_belakang = ${gelar_belakang ?? ''}
+          WHERE ptk_id = ${ptk_id}
+          RETURNING *
+        `);
+      } else {
+        pelengkapResult = await retryQuery(() => sql`
+          INSERT INTO tabel_ptk_pelengkap (ptk_pelengkap_id, ptk_id, gelar_depan, gelar_belakang)
+          VALUES (gen_random_uuid(), ${ptk_id}, ${gelar_depan ?? ''}, ${gelar_belakang ?? ''})
+          RETURNING *
+        `);
+      }
+    }
+
+    return NextResponse.json({
+      message: 'Data guru berhasil diupdate',
+      data: {
+        ptk_id,
+        nama: trimmedNama,
+        pelengkap: pelengkapResult[0] ?? null,
+      },
     }, { status: 200 });
   } catch (error) {
-    console.error('Update gelar error:', error);
+    console.error('Update guru error:', error);
     return NextResponse.json(
-      { error: 'Terjadi kesalahan saat mengupdate data gelar' },
+      { error: 'Terjadi kesalahan saat mengupdate data guru' },
       { status: 500 }
     );
   }

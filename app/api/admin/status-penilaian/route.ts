@@ -125,7 +125,21 @@ export async function GET(request: NextRequest) {
                 SELECT DISTINCT
                     tp.mata_pelajaran_id,
                     p.nama as nama_guru,
-                    tp.ptk_terdaftar_id
+                    tp.ptk_terdaftar_id,
+                    tp.rombongan_belajar_id,
+                    CASE WHEN tp.rombongan_belajar_id = ${rombongan_belajar_id} THEN 1 ELSE 0 END as is_main_rombel,
+                    (
+                        SELECT COUNT(DISTINCT ak_this.peserta_didik_id)
+                        FROM tabel_anggotakelas ak_this
+                        JOIN tabel_anggotakelas ak_tp
+                          ON ak_tp.peserta_didik_id = ak_this.peserta_didik_id
+                         AND ak_tp.rombongan_belajar_id = tp.rombongan_belajar_id
+                        JOIN tabel_nilaiakhir n
+                          ON n.anggota_rombel_id = ak_tp.anggota_rombel_id
+                         AND n.mata_pelajaran_id = tp.mata_pelajaran_id
+                         AND n.semester_id = tp.semester_id
+                        WHERE ak_this.rombongan_belajar_id = ${rombongan_belajar_id}
+                    ) as nilai_siswa_count
                 FROM tabel_pembelajaran tp
                 LEFT JOIN tabel_ptk_terdaftar td ON tp.ptk_terdaftar_id = td.ptk_terdaftar_id
                 LEFT JOIN tabel_ptk p ON td.ptk_id = p.ptk_id
@@ -136,6 +150,7 @@ export async function GET(request: NextRequest) {
                       JOIN tabel_anggotakelas ak_other ON ak_this.peserta_didik_id = ak_other.peserta_didik_id
                       WHERE ak_this.rombongan_belajar_id = ${rombongan_belajar_id}
                   )
+                ORDER BY is_main_rombel DESC, tp.mata_pelajaran_id, nilai_siswa_count DESC, p.nama
             `;
         } catch (e) {
             console.error('Teacher mapping failed:', e);
@@ -144,35 +159,49 @@ export async function GET(request: NextRequest) {
                 teacherMapping = await sql`
                     SELECT DISTINCT
                         tp.mata_pelajaran_id,
-                        p.nama as nama_guru
+                        p.nama as nama_guru,
+                        tp.ptk_terdaftar_id,
+                        tp.rombongan_belajar_id,
+                        1 as is_main_rombel,
+                        0 as nilai_siswa_count
                     FROM tabel_pembelajaran tp
                     LEFT JOIN tabel_ptk_terdaftar td ON tp.ptk_terdaftar_id = td.ptk_terdaftar_id
                     LEFT JOIN tabel_ptk p ON td.ptk_id = p.ptk_id
                     WHERE tp.semester_id = ${activeSemesterId}
                       AND tp.rombongan_belajar_id = ${rombongan_belajar_id}
+                    ORDER BY tp.mata_pelajaran_id, p.nama
                 `;
             } catch (e2) {
                 console.error('Fallback teacher mapping also failed:', e2);
             }
         }
 
-        const teacherMap: Record<string, string[]> = {};
+        const teacherMap: Record<string, { main: string[]; related: string[] }> = {};
         teacherMapping.forEach((m: any) => {
             const mapelId = String(m.mata_pelajaran_id);
             if (!teacherMap[mapelId]) {
-                teacherMap[mapelId] = [];
+                teacherMap[mapelId] = { main: [], related: [] };
             }
             
-            const teacherName = m.nama_guru || (m.ptk_terdaftar_id ? "Guru (ID: " + String(m.ptk_terdaftar_id).substring(0,8) + "...)" : '-');
-            if (teacherName !== '-' && !teacherMap[mapelId].includes(teacherName)) {
-                teacherMap[mapelId].push(teacherName);
+            // Normalisasi nama agar "Budi" dan " Budi " tidak dianggap guru berbeda.
+            const teacherName = (m.nama_guru ? String(m.nama_guru).trim() : '') ||
+                (m.ptk_terdaftar_id ? "Guru (ID: " + String(m.ptk_terdaftar_id).substring(0,8) + "...)" : '-');
+            if (teacherName === '-') return;
+
+            const target = Number(m.is_main_rombel) === 1 ? teacherMap[mapelId].main : teacherMap[mapelId].related;
+            if (!target.some(name => name.toLowerCase() === teacherName.toLowerCase())) {
+                target.push(teacherName);
             }
         });
 
-        // Convert array to string
+        // Prioritaskan guru dari rombel utama. Jika tidak ada (mis. mapel pilihan/lintas minat),
+        // baru ambil dari rombel terkait yang memiliki siswa sama. Untuk halaman status,
+        // tampilkan SATU guru utama saja agar tidak terlihat dobel ketika e-Rapor memiliki
+        // lebih dari satu baris pembelajaran untuk mapel yang sama.
         const finalTeacherMap: Record<string, string> = {};
         Object.keys(teacherMap).forEach(key => {
-            finalTeacherMap[key] = teacherMap[key].length > 0 ? teacherMap[key].join(', ') : '-';
+            const selectedTeachers = teacherMap[key].main.length > 0 ? teacherMap[key].main : teacherMap[key].related;
+            finalTeacherMap[key] = selectedTeachers.length > 0 ? selectedTeachers[0] : '-';
         });
 
         // 6. Get all subjects for this level and filter by peminatan

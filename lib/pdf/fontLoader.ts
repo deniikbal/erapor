@@ -24,7 +24,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 async function ensureFontsLoaded(): Promise<void> {
   // If fonts already cached, return early
-  if (window.dejavuFontsCache) {
+  if (window.dejavuFontsCache && window.dejavuFontsCache.normal && window.dejavuFontsCache.bold) {
     return;
   }
 
@@ -76,11 +76,36 @@ async function ensureFontsLoaded(): Promise<void> {
   await window.fontLoadPromise;
 }
 
+/**
+ * Track which jsPDF instances already have the DejaVu fonts registered so we
+ * can skip the (relatively expensive) addFileToVFS + addFont dance for every
+ * subsequent doc in a session.
+ */
+function hasDejaVu(doc: jsPDF): boolean {
+  if (!window.pdfInstanceFontCache) {
+    window.pdfInstanceFontCache = new WeakSet();
+  }
+  return window.pdfInstanceFontCache.has(doc);
+}
+
+function markDejaVuLoaded(doc: jsPDF) {
+  if (!window.pdfInstanceFontCache) {
+    window.pdfInstanceFontCache = new WeakSet();
+  }
+  window.pdfInstanceFontCache.add(doc);
+}
+
 export async function loadDejaVuFonts(doc: jsPDF): Promise<boolean> {
   try {
-    // Check if font is already in this document instance
+    // Fast path: this exact doc already has fonts registered
+    if (hasDejaVu(doc)) {
+      return true;
+    }
+
+    // Secondary fast path: check jsPDF's own font list
     const fontList = doc.getFontList();
     if (fontList['DejaVuSansCondensed']) {
+      markDejaVuLoaded(doc);
       return true;
     }
 
@@ -103,6 +128,7 @@ export async function loadDejaVuFonts(doc: jsPDF): Promise<boolean> {
       doc.addFont('DejaVuSansCondensed-Bold.ttf', 'DejaVuSansCondensed', 'bold');
     }
 
+    markDejaVuLoaded(doc);
     return true;
   } catch (error) {
     console.error('Error loading fonts into jsPDF:', error);

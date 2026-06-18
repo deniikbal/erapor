@@ -40,8 +40,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { getCurrentUser } from '@/lib/auth-client';
+import { preloadPdfGenerator, usePdfGeneratorPreload } from '@/hooks/usePdfGenerator';
+import { clearFontState } from '@/lib/pdf/optimizedFontLoader';
+import { formatNamaDenganGelar } from '@/lib/pdf/nameFormatter';
 
 export default function AdminNilaiRaporPage() {
+    // Warm up jspdf + lib/pdf/* modules + DejaVu fonts as soon as the page mounts
+    // so the first "Cetak PDF" click has no 2-4s import cost.
+    usePdfGeneratorPreload();
     const [kelasList, setKelasList] = useState<Kelas[]>([]);
     const [siswaList, setSiswaList] = useState<Siswa[]>([]);
     const [selectedKelas, setSelectedKelas] = useState<string>('');
@@ -227,36 +233,25 @@ export default function AdminNilaiRaporPage() {
             toast.info('Menyiapkan data rapor...');
             addLog('Mengimpor library jspdf dan modul pendukung...');
 
-            const [
-                { jsPDF },
-                { generateNilaiRaporHeader },
-                { getFaseByTingkat, generateNilaiRaporTable },
-                { loadDejaVuFonts },
-                { generateKokurikulerTable },
-                { generateEkstrakurikulerTable },
-                { generateKetidakhadiranTable },
-                { generateCatatanWaliTable },
-                { generateKeteranganKelulusanTable },
-                { generateTanggapanOrtuTable },
-                { generateSignatureSection },
-                { generateNilaiRaporFooter },
-                { generateStudentHeaderInfo }
-            ] = await Promise.all([
-                import('jspdf'),
-                import('@/lib/pdf/nilaiRaporPage'),
-                import('@/lib/pdf/nilaiRaporTable'),
-                import('@/lib/pdf/fontLoader'),
-                import('@/lib/pdf/kokurikulerTable'),
-                import('@/lib/pdf/ekstrakurikulerTable'),
-                import('@/lib/pdf/ketidakhadiranTable'),
-                import('@/lib/pdf/catatanWaliTable'),
-                import('@/lib/pdf/keteranganKelulusanTable'),
-                import('@/lib/pdf/tanggapanOrtuTable'),
-                import('@/lib/pdf/signatureSection'),
-                import('@/lib/pdf/nilaiRaporFooter'),
-                import('@/lib/pdf/studentHeaderInfo')
-            ]);
-            addLog('Library berhasil diimpor.');
+            // 1. Reuse preloaded modules instead of re-importing every click.
+            addLog('Menggunakan modul PDF yang sudah di-preload...');
+            const {
+                jsPDF,
+                loadDejaVuFonts,
+                generateNilaiRaporHeader,
+                getFaseByTingkat,
+                generateNilaiRaporTable,
+                generateKokurikulerTable,
+                generateEkstrakurikulerTable,
+                generateKetidakhadiranTable,
+                generateCatatanWaliTable,
+                generateKeteranganKelulusanTable,
+                generateTanggapanOrtuTable,
+                generateSignatureSection,
+                generateNilaiRaporFooter,
+                generateStudentHeaderInfo,
+            } = await preloadPdfGenerator();
+            addLog('Library berhasil dimuat (cached).');
 
             addLog('Mengambil data dari server (API)...');
             const [
@@ -339,11 +334,11 @@ export default function AdminNilaiRaporPage() {
             addLog('Generate Tabel Nilai...');
             yPos = await generateNilaiRaporTable(doc, yPos, mapelData.kelompok, marginSettings);
 
-            // Kokurikuler
-            if (mapelData.kokurikuler) {
+            // Kokurikuler (selalu dirender sebagai template meski data kosong)
+            {
                 addLog('Generate Tabel Kokurikuler...');
                 yPos += 5;
-                yPos = await generateKokurikulerTable(doc, yPos, mapelData.kokurikuler, marginSettings);
+                yPos = await generateKokurikulerTable(doc, yPos, mapelData.kokurikuler || '', marginSettings);
             }
 
             // Ekstrakurikuler
@@ -383,15 +378,31 @@ export default function AdminNilaiRaporPage() {
 
             // Signatures
             addLog('Generate Signature Section...');
-            const studentClass = allKelasData.kelas?.find((k: any) => k.rombongan_belajar_id === selectedKelas);
+            // Lookup via pre-built maps (O(1) instead of Array.find).
+            const kelasByRb = new Map<string, any>();
+            for (const k of allKelasData.kelas || []) {
+                if (k?.rombongan_belajar_id) kelasByRb.set(k.rombongan_belajar_id, k);
+            }
+            const guruByPtk = new Map<string, any>();
+            for (const g of guruData.guru || []) {
+                if (g?.ptk_id) guruByPtk.set(g.ptk_id, g);
+            }
+            const studentClass = kelasByRb.get(selectedKelas);
             let namaWaliKelas = studentClass?.nama_wali_kelas || 'Wali Kelas';
             if (studentClass?.ptk_id) {
-                const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
+                const guruInfo = guruByPtk.get(studentClass.ptk_id);
                 if (guruInfo) {
-                    const gd = (guruInfo.gelar_depan || '').trim();
-                    const gb = (guruInfo.gelar_belakang || '').trim();
-                    const nm = (guruInfo.nama || studentClass.nama_wali_kelas || 'Wali Kelas').trim();
-                    namaWaliKelas = [gd, nm, gb].filter(part => part !== '').join(' ');
+                    namaWaliKelas = formatNamaDenganGelar(
+                        guruInfo.nama ?? studentClass.nama_wali_kelas ?? 'Wali Kelas',
+                        guruInfo.gelar_depan,
+                        guruInfo.gelar_belakang
+                    );
+                } else if (studentClass?.gelar_depan || studentClass?.gelar_belakang) {
+                    namaWaliKelas = formatNamaDenganGelar(
+                        studentClass.nama_wali_kelas ?? 'Wali Kelas',
+                        studentClass.gelar_depan,
+                        studentClass.gelar_belakang
+                    );
                 }
             }
 
@@ -471,38 +482,26 @@ export default function AdminNilaiRaporPage() {
             toast.info('Mempersiapkan PDF Nilai Rapor untuk semua siswa...');
             addLog('Mengimpor library massal...');
 
-            const [
-                { jsPDF },
-                { generateNilaiRaporHeader },
-                { getFaseByTingkat, generateNilaiRaporTable },
-                { loadDejaVuFonts },
-                { generateKokurikulerTable },
-                { generateEkstrakurikulerTable },
-                { generateKetidakhadiranTable },
-                { generateCatatanWaliTable },
-                { generateKeteranganKelulusanTable },
-                { generateTanggapanOrtuTable },
-                { generateSignatureSection },
-                { generateNilaiRaporFooter },
-                { generateStudentHeaderInfo },
-                { fetchWithRetry }
-            ] = await Promise.all([
-                import('jspdf'),
-                import('@/lib/pdf/nilaiRaporPage'),
-                import('@/lib/pdf/nilaiRaporTable'),
-                import('@/lib/pdf/fontLoader'),
-                import('@/lib/pdf/kokurikulerTable'),
-                import('@/lib/pdf/ekstrakurikulerTable'),
-                import('@/lib/pdf/ketidakhadiranTable'),
-                import('@/lib/pdf/catatanWaliTable'),
-                import('@/lib/pdf/keteranganKelulusanTable'),
-                import('@/lib/pdf/tanggapanOrtuTable'),
-                import('@/lib/pdf/signatureSection'),
-                import('@/lib/pdf/nilaiRaporFooter'),
-                import('@/lib/pdf/studentHeaderInfo'),
-                import('@/lib/fetchRetryHelper')
-            ]);
-            addLog('Library massal siap.');
+            // 1. Reuse preloaded modules instead of re-importing every bulk run.
+            addLog('Menggunakan modul PDF yang sudah di-preload...');
+            const {
+                jsPDF,
+                loadDejaVuFonts,
+                generateNilaiRaporHeader,
+                getFaseByTingkat,
+                generateNilaiRaporTable,
+                generateKokurikulerTable,
+                generateEkstrakurikulerTable,
+                generateKetidakhadiranTable,
+                generateCatatanWaliTable,
+                generateKeteranganKelulusanTable,
+                generateTanggapanOrtuTable,
+                generateSignatureSection,
+                generateNilaiRaporFooter,
+                generateStudentHeaderInfo,
+                fetchWithRetry,
+            } = await preloadPdfGenerator();
+            addLog('Library massal siap (cached).');
 
             addLog('Mengambil data umum sekolah & guru...');
             const [sekolahRes, tanggalRaporRes, guruRes, allKelasRes] = await Promise.all([
@@ -520,6 +519,37 @@ export default function AdminNilaiRaporPage() {
             if (!sekolahRes.ok || sekolahData.error) throw new Error('Gagal mengambil data sekolah');
             addLog('Data umum berhasil dimuat.');
 
+            // === BATCH FETCH: ambil data nilai/kehadiran/catatan/kenaikan untuk SEMUA siswa
+            // dalam 1 request (optimasi utama: dari 4N request menjadi 1 request).
+            addLog('Mengambil data rapor massal (batch endpoint)...');
+            let studentDataMap: Record<string, any> = {};
+            let batchFallbackMode = false;
+            try {
+                const batchRes = await fetchWithRetry('/api/nilai/mapel-kelompok-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        students: siswaList.map(s => ({
+                            peserta_didik_id: s.peserta_didik_id,
+                            tingkat: s.tingkat_pendidikan_id || '10',
+                        })),
+                        semester_id: activeSemester?.semester_id,
+                    }),
+                }, 2, 500);
+
+                if (batchRes.ok) {
+                    const batchData = await batchRes.json();
+                    studentDataMap = batchData.students || {};
+                    addLog(`Batch data berhasil dimuat untuk ${Object.keys(studentDataMap).length} siswa (1 request).`);
+                } else {
+                    addLog('!!! Batch endpoint gagal, fallback ke mode per-siswa...');
+                    batchFallbackMode = true;
+                }
+            } catch (batchErr) {
+                addLog('!!! Batch endpoint error, fallback ke mode per-siswa: ' + batchErr);
+                batchFallbackMode = true;
+            }
+
             addLog('Inisialisasi dokumen jsPDF (Admin Bulk)...');
             const doc = new jsPDF({
                 compress: true,
@@ -530,37 +560,65 @@ export default function AdminNilaiRaporPage() {
             let isFirstStudent = true;
             const failedStudents: { name: string; error: string }[] = [];
 
+            // OPTIMASI #8: Hoist lookup map SEBELUM loop siswa (O(N+M) bukan O(NxM)).
+            const kelasByRb = new Map<string, any>();
+            for (const k of allKelasData.kelas || []) {
+                if (k?.rombongan_belajar_id) kelasByRb.set(k.rombongan_belajar_id, k);
+            }
+            const guruByPtk = new Map<string, any>();
+            for (const g of guruData.guru || []) {
+                if (g?.ptk_id) guruByPtk.set(g.ptk_id, g);
+            }
+            addLog(`Lookup map siap: ${kelasByRb.size} kelas, ${guruByPtk.size} guru.`);
+
             for (let i = 0; i < siswaList.length; i++) {
                 const siswa = siswaList[i];
                 addLog(`---> Memproses Siswa ${i + 1}/${siswaList.length}: ${siswa.nm_siswa}`);
-                
+
                 try {
                     setBulkProgress({ current: i + 1, total: siswaList.length, currentStudent: siswa.nm_siswa });
-                    
+
                     if (i > 0) {
                         doc.addPage();
-                        const { clearFontState } = await import('@/lib/pdf/optimizedFontLoader');
                         clearFontState(doc);
                     }
-                    
+
                     const studentStartPage = doc.getNumberOfPages();
                     const fase = siswa.tingkat_pendidikan_id ? getFaseByTingkat(siswa.tingkat_pendidikan_id) : 'E';
 
-                    // Fetch student data with retry
-                    const [mapelRes, kehadiranRes, catatanWaliRes, kenaikanRes] = await Promise.all([
-                        fetchWithRetry(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`, undefined, 2, 500),
-                        fetchWithRetry(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 2, 500),
-                        fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 2, 500),
-                        fetchWithRetry(`/api/kenaikan?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 2, 500),
-                    ]);
+                    // === DATA LOOKUP ===
+                    // Mode batch: ambil dari map yang sudah di-fetch sebelum loop (no network call).
+                    // Mode fallback: fetch per-siswa seperti versi lama (jaga-jaga jika batch endpoint bermasalah).
+                    let mapelData: any, kehadiranData: any, catatanWaliData: any, kenaikanData: any;
+                    let catatanWaliOk = true;
 
-                    if (!mapelRes.ok) throw new Error(`Gagal ambil nilai ${siswa.nm_siswa}`);
-                    const [mapelData, kehadiranData, catatanWaliData, kenaikanData] = await Promise.all([
-                        mapelRes.json(),
-                        kehadiranRes.json(),
-                        catatanWaliRes.json(),
-                        kenaikanRes.json()
-                    ]);
+                    if (!batchFallbackMode) {
+                        const studentData = studentDataMap[siswa.peserta_didik_id] || {};
+                        const mapel = studentData.mapel || {};
+                        mapelData = {
+                            kelompok: mapel.kelompok || [],
+                            kokurikuler: mapel.kokurikuler ?? null,
+                            ekstrakurikuler: mapel.ekstrakurikuler || [],
+                        };
+                        kehadiranData = studentData.kehadiran || { peserta_didik_id: siswa.peserta_didik_id, sakit: 0, izin: 0, alpha: 0 };
+                        catatanWaliData = studentData.catatan_wali || { peserta_didik_id: siswa.peserta_didik_id, deskripsi: '-' };
+                        kenaikanData = studentData.kenaikan || { kenaikan: null, tingkat: null };
+                    } else {
+                        const [mapelRes, kehadiranRes, catatanWaliRes, kenaikanRes] = await Promise.all([
+                            fetchWithRetry(`/api/nilai/mapel-kelompok?peserta_didik_id=${siswa.peserta_didik_id}&tingkat=${siswa.tingkat_pendidikan_id || '10'}`, undefined, 2, 500),
+                            fetchWithRetry(`/api/kehadiran?peserta_didik_id=${siswa.peserta_didik_id}`, undefined, 2, 500),
+                            fetchWithRetry(`/api/catatan-wali?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 2, 500),
+                            fetchWithRetry(`/api/kenaikan?peserta_didik_id=${siswa.peserta_didik_id}&semester_id=${activeSemester?.semester_id}`, undefined, 2, 500),
+                        ]);
+                        if (!mapelRes.ok) throw new Error(`Gagal ambil nilai ${siswa.nm_siswa}`);
+                        [mapelData, kehadiranData, catatanWaliData, kenaikanData] = await Promise.all([
+                            mapelRes.json(),
+                            kehadiranRes.json(),
+                            catatanWaliRes.json(),
+                            kenaikanRes.json(),
+                        ]);
+                        catatanWaliOk = catatanWaliRes.ok;
+                    }
 
                     const headerInfo = {
                         student: { nm_siswa: siswa.nm_siswa, nis: siswa.nis, nisn: siswa.nisn, nm_kelas: siswa.nm_kelas },
@@ -577,9 +635,10 @@ export default function AdminNilaiRaporPage() {
                     let yPos = await generateNilaiRaporHeader(doc, headerInfo, marginSettings);
                     yPos = await generateNilaiRaporTable(doc, yPos, mapelData.kelompok, marginSettings);
 
-                    if (mapelData.kokurikuler) {
+                    // Kokurikuler (selalu dirender sebagai template meski data kosong)
+                    {
                         yPos += 5;
-                        yPos = await generateKokurikulerTable(doc, yPos, mapelData.kokurikuler, marginSettings);
+                        yPos = await generateKokurikulerTable(doc, yPos, mapelData.kokurikuler || '', marginSettings);
                     }
 
                     if (mapelData.ekstrakurikuler?.length > 0) {
@@ -587,7 +646,7 @@ export default function AdminNilaiRaporPage() {
                         yPos = await generateEkstrakurikulerTable(doc, yPos, mapelData.ekstrakurikuler, marginSettings);
                     }
 
-                    if (kehadiranRes.ok && kehadiranData) {
+                    if (kehadiranData) {
                         yPos += 5;
                         if (yPos + 27 > doc.internal.pageSize.getHeight() - marginSettings.margin_bottom) {
                             doc.addPage();
@@ -596,7 +655,7 @@ export default function AdminNilaiRaporPage() {
                         const tableStartAt = yPos;
                         const kEndY = await generateKetidakhadiranTable(doc, tableStartAt, kehadiranData, marginSettings);
                         const cWaliX = marginSettings.margin_left + 53 + 5;
-                        const cEndY = await generateCatatanWaliTable(doc, tableStartAt, cWaliX, catatanWaliRes.ok ? catatanWaliData : null, marginSettings);
+                        const cEndY = await generateCatatanWaliTable(doc, tableStartAt, cWaliX, catatanWaliOk ? catatanWaliData : null, marginSettings);
                         yPos = Math.max(kEndY, cEndY);
                     }
 
@@ -609,15 +668,22 @@ export default function AdminNilaiRaporPage() {
                     yPos += 3;
                     yPos = await generateTanggapanOrtuTable(doc, yPos, marginSettings);
 
-                    const studentClass = allKelasData.kelas?.find((k: any) => k.rombongan_belajar_id === selectedKelas);
+                    const studentClass = kelasByRb.get(selectedKelas);
                     let namaWaliKelas = studentClass?.nama_wali_kelas || 'Wali Kelas';
                     if (studentClass?.ptk_id) {
-                        const guruInfo = guruData.guru?.find((g: any) => g.ptk_id === studentClass.ptk_id);
+                        const guruInfo = guruByPtk.get(studentClass.ptk_id);
                         if (guruInfo) {
-                            const gd = (guruInfo.gelar_depan || '').trim();
-                            const gb = (guruInfo.gelar_belakang || '').trim();
-                            const nm = (guruInfo.nama || studentClass.nama_wali_kelas || 'Wali Kelas').trim();
-                            namaWaliKelas = [gd, nm, gb].filter(part => part !== '').join(' ');
+                            namaWaliKelas = formatNamaDenganGelar(
+                                guruInfo.nama ?? studentClass.nama_wali_kelas ?? 'Wali Kelas',
+                                guruInfo.gelar_depan,
+                                guruInfo.gelar_belakang
+                            );
+                        } else if (studentClass?.gelar_depan || studentClass?.gelar_belakang) {
+                            namaWaliKelas = formatNamaDenganGelar(
+                                studentClass.nama_wali_kelas ?? 'Wali Kelas',
+                                studentClass.gelar_depan,
+                                studentClass.gelar_belakang
+                            );
                         }
                     }
 
