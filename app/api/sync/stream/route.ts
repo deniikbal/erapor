@@ -1,10 +1,18 @@
 import { getDbClient } from '@/lib/db';
 import { Pool } from 'pg';
 import crypto from 'crypto';
+import {
+  ensureSyncMetadataTable,
+  recordSyncMetadata,
+} from '@/lib/syncMetadata';
 
 export async function POST(request: Request) {
     const encoder = new TextEncoder();
     let localDb: Pool | null = null;
+    const syncStartTime = Date.now();
+    let syncUser = 'unknown';
+    let tablesSynced = 0;
+    let recordsProcessed = 0;
 
     const stream = new ReadableStream({
         async start(controller) {
@@ -45,6 +53,10 @@ export async function POST(request: Request) {
 
                 // Get database client for neon database
                 const neonDb = getDbClient();
+                syncUser = body.userid || body.userId || body.user || 'unknown';
+
+                // Ensure sync metadata table exists (auto-create on first run)
+                await ensureSyncMetadataTable(neonDb);
 
                 // Configuration for local e-Rapor database
                 const localDbPort = process.env.LOCAL_DB_PORT ? parseInt(process.env.LOCAL_DB_PORT, 10) : 5432;
@@ -149,11 +161,25 @@ export async function POST(request: Request) {
                 await localDb.end();
                 localDb = null;
 
+                // Record success metadata (best-effort)
+                tablesSynced = allTables.length;
+                recordsProcessed = totalRecordsProcessed;
+                const syncDurationMs = Date.now() - syncStartTime;
+                await recordSyncMetadata(neonDb, {
+                    status: 'success',
+                    durationMs: syncDurationMs,
+                    tablesSynced,
+                    recordsProcessed,
+                    user: syncUser,
+                    message: 'Sync completed successfully',
+                });
+
                 // Send completion event
                 sendEvent({
                     type: 'done',
                     tablesSynced: allTables.length,
                     totalRecords: totalRecordsProcessed,
+                    durationMs: syncDurationMs,
                     timestamp: new Date().toISOString()
                 });
 
@@ -168,6 +194,21 @@ export async function POST(request: Request) {
                     } catch (closeError) {
                         console.error('Error closing local database connection:', closeError);
                     }
+                }
+
+                // Record failure metadata (best-effort, don't break error response)
+                try {
+                    const neonDb = getDbClient();
+                    await recordSyncMetadata(neonDb, {
+                        status: 'failed',
+                        durationMs: Date.now() - syncStartTime,
+                        tablesSynced,
+                        recordsProcessed,
+                        user: syncUser,
+                        message: (error as Error).message,
+                    });
+                } catch (metaError) {
+                    console.error('Failed to record failure metadata:', metaError);
                 }
 
                 sendEvent({

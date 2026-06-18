@@ -162,6 +162,15 @@ export type TemaKokurikuler = {
   updated_at?: string;
 };
 
+export type TargetCapaianKokurikuler = {
+  id_target?: string;
+  id_kegiatan?: string;
+  id_subdimensi?: string;
+  nama_subdimensi?: string | null;
+  nama_dimensi?: string | null;
+  urut_dimensi?: number | null;
+};
+
 export type KegiatanKokurikuler = {
   id_kegiatan: string;
   id_tema: string;
@@ -169,6 +178,8 @@ export type KegiatanKokurikuler = {
   nama_kegiatan: string;
   tujuan_akhir: string;
   deskripsi_kegiatan: string;
+  // Join field dari API /api/admin/kokurikuler/kegiatan
+  targets?: TargetCapaianKokurikuler[] | null;
 };
 
 export type KelompokKokurikuler = {

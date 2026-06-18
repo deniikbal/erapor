@@ -1,8 +1,16 @@
 import { getDbClient } from '@/lib/db';
 import { Pool } from 'pg';
+import {
+  ensureSyncMetadataTable,
+  recordSyncMetadata,
+} from '@/lib/syncMetadata';
 
 export async function POST(request: Request) {
   let localDb: any = null;
+  const syncStartTime = Date.now();
+  let syncUser = 'unknown';
+  let tablesSynced = 0;
+  let recordsProcessed = 0;
 
   try {
     // Check if user is admin by reading authorization header
@@ -31,6 +39,10 @@ export async function POST(request: Request) {
 
     // Get database client for neon database
     const neonDb = getDbClient();
+    syncUser = body.userid || body.userId || body.user || 'unknown';
+
+    // Ensure sync metadata table exists (auto-create on first run)
+    await ensureSyncMetadataTable(neonDb);
 
     // Configuration for local e-Rapor database
     const localDbPort = process.env.LOCAL_DB_PORT ? parseInt(process.env.LOCAL_DB_PORT, 10) : 5432;
@@ -73,29 +85,17 @@ export async function POST(request: Request) {
       const schemaName = schemaInfo.name;
       const selectedTables = schemaInfo.selectedTables || [];
 
-      for (const tableName of selectedTables) {
-        allTables.push({ schema: schemaName, table: tableName });
+      for (const tableInfo of selectedTables) {
+        const tableName = typeof tableInfo === 'string' ? tableInfo : tableInfo.name;
+        if (tableName) {
+          allTables.push({ schema: schemaName, table: tableName });
+        }
       }
     }
 
-    console.log(`Found ${allTables.length} tables to sync:`, allTables);
-
-    // Sync each table according to its sync policy
+    // Process each table
     let totalRecordsProcessed = 0;
-
-    for (const tableInfo of allTables) {
-      const { schema, table: tableName } = tableInfo;
-      console.log(`Syncing table: ${schema}.${tableName}`);
-
-      if (selectiveSyncTables.includes(tableName)) {
-        // Selective sync for student tables
-        await syncSelectiveTable(localDb, neonDb, tableName, schema);
-      } else {
-        // Forced sync for all other tables
-        await syncForcedTable(localDb, neonDb, tableName, schema);
-      }
-
-      // Get count of records processed for this table
+    for (const { schema, table: tableName } of allTables) {
       const countResult = await localDb.query(`SELECT COUNT(*) as count FROM "${schema}"."${tableName}"`);
       const tableRecordCount = parseInt(countResult.rows[0].count);
       totalRecordsProcessed += tableRecordCount;
@@ -113,6 +113,19 @@ export async function POST(request: Request) {
     const afterCount = afterCountResult[0]?.count || 0;
     console.log(`Records after sync: ${afterCount}`);
 
+    // Record success metadata
+    const syncDurationMs = Date.now() - syncStartTime;
+    tablesSynced = allTables.length;
+    recordsProcessed = totalRecordsProcessed;
+    await recordSyncMetadata(neonDb, {
+      status: 'success',
+      durationMs: syncDurationMs,
+      tablesSynced,
+      recordsProcessed,
+      user: syncUser,
+      message: 'Sync completed successfully',
+    });
+
     return Response.json({
       success: true,
       message: `Sync completed successfully`,
@@ -120,8 +133,10 @@ export async function POST(request: Request) {
       recordsAfter: afterCount,
       tablesSynced: allTables.length,
       totalRecordsProcessed: totalRecordsProcessed,
+      durationMs: syncDurationMs,
       timestamp: new Date().toISOString()
     });
+
   } catch (error) {
     console.error('Sync error:', error);
 
@@ -134,190 +149,24 @@ export async function POST(request: Request) {
       }
     }
 
+    // Record failure metadata (best-effort, don't crash the error response)
+    try {
+      const neonDb = getDbClient();
+      await recordSyncMetadata(neonDb, {
+        status: 'failed',
+        durationMs: Date.now() - syncStartTime,
+        tablesSynced,
+        recordsProcessed,
+        user: syncUser,
+        message: (error as Error).message,
+      });
+    } catch (metaError) {
+      console.error('Failed to record failure metadata:', metaError);
+    }
+
     return Response.json({
       error: 'Sync failed',
       message: (error as Error).message
     }, { status: 500 });
-  }
-}
-
-// Function to sync tables with selective policy (student tables)
-async function syncSelectiveTable(localDb: any, neonDb: any, tableName: string, schema: string = 'public') {
-  console.log(`Starting selective sync for table: ${schema}.${tableName}`);
-
-  // Add sync tracking columns if they don't exist
-  await ensureSyncColumns(neonDb, tableName);
-
-  // Get all data from local database
-  const localDataResult = await localDb.query(`SELECT * FROM "${schema}"."${tableName}"`);
-  const localData = localDataResult.rows;
-
-  if (localData.length === 0) {
-    console.log(`No data found in local ${schema}.${tableName}, skipping...`);
-    return;
-  }
-
-  // Process each record selectively
-  for (const record of localData) {
-    await syncSingleRecord(neonDb, tableName, record);
-  }
-
-  console.log(`Successfully synced ${localData.length} records in ${schema}.${tableName}`);
-}
-
-// Function to sync tables with forced policy (all other tables)
-async function syncForcedTable(localDb: any, neonDb: any, tableName: string, schema: string = 'public') {
-  console.log(`Starting forced sync for table: ${schema}.${tableName}`);
-
-  try {
-    // Get all data from local database
-    const localDataResult = await localDb.query(`SELECT * FROM "${schema}"."${tableName}"`);
-    const localData = localDataResult.rows;
-
-    if (localData.length === 0) {
-      console.log(`No data found in local ${schema}.${tableName}, clearing Neon table...`);
-      await neonDb.query(`DELETE FROM "${tableName}"`, []);
-      return;
-    }
-
-    // Clear the table in Neon database
-    await neonDb.query(`DELETE FROM "${tableName}"`, []);
-
-    if (localData.length > 0) {
-      // Insert all data from local to Neon
-      await insertAllData(neonDb, tableName, localData);
-    }
-
-    console.log(`Successfully synced ${localData.length} records in ${schema}.${tableName}`);
-  } catch (error) {
-    console.error(`Error syncing forced table ${schema}.${tableName}:`, error);
-    // Don't throw, continue with other tables
-  }
-}
-
-async function ensureSyncColumns(neonDb: any, tableName: string) {
-  const syncColumns = [
-    { name: 'is_locally_edited', def: 'BOOLEAN DEFAULT FALSE' },
-    { name: 'last_local_sync', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' }
-  ];
-
-  for (const col of syncColumns) {
-    try {
-      const checkResult = await neonDb.query(`SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`, [tableName, col.name]);
-
-      if (checkResult.length === 0) {
-        await neonDb.query(`ALTER TABLE "${tableName}" ADD COLUMN ${col.name} ${col.def}`, []);
-        console.log(`Added column ${col.name} to ${tableName}`);
-      }
-    } catch (error) {
-      console.log(`Column likely already exists in ${tableName}:`, (error as Error).message);
-    }
-  }
-}
-
-async function syncSingleRecord(neonDb: any, tableName: string, localRecord: any) {
-  const primaryKey = await getPrimaryKey(neonDb, tableName);
-  const primaryKeyValue = localRecord[primaryKey];
-
-  if (!primaryKeyValue) {
-    console.log(`Skipping record without primary key in ${tableName}`);
-    return;
-  }
-
-  const selectQuery = `SELECT "${primaryKey}", is_locally_edited FROM "${tableName}" WHERE "${primaryKey}" = $1`;
-  const neonRecordResult = await neonDb.query(selectQuery, [primaryKeyValue]);
-
-  if (neonRecordResult.length === 0) {
-    await insertRecord(neonDb, tableName, localRecord);
-  } else {
-    const neonRecord = neonRecordResult[0];
-
-    if (neonRecord.is_locally_edited) {
-      console.log(`Record ${primaryKeyValue} in ${tableName} was edited in Neon, skipping sync`);
-      const updateQuery = `UPDATE "${tableName}" SET last_local_sync = CURRENT_TIMESTAMP WHERE "${primaryKey}" = $1`;
-      await neonDb.query(updateQuery, [primaryKeyValue]);
-    } else {
-      await updateRecord(neonDb, tableName, primaryKeyValue, localRecord);
-    }
-  }
-}
-
-async function insertRecord(neonDb: any, tableName: string, record: any) {
-  const columns = Object.keys(record);
-  const values = Object.values(record);
-
-  // Add sync tracking values
-  const insertColumns = [...columns, 'is_locally_edited', 'last_local_sync'];
-  const insertValues = [...values, false, new Date()];
-
-  await executeDynamicInsert(neonDb, tableName, insertColumns, insertValues);
-}
-
-async function updateRecord(neonDb: any, tableName: string, primaryKeyValue: any, record: any) {
-  const columns = Object.keys(record);
-  const primaryKey = await getPrimaryKey(neonDb, tableName);
-  const updateColumns = columns
-    .filter(col => col !== primaryKey && col !== 'is_locally_edited' && col !== 'last_local_sync');
-
-  if (updateColumns.length === 0) {
-    return;
-  }
-
-  const setClause = updateColumns.map((col, idx) => `"${col}" = $${idx + 2}`).join(', ');
-  const values = [primaryKeyValue, ...updateColumns.map(col => record[col])];
-
-  const query = `UPDATE "${tableName}" SET ${setClause}, last_local_sync = CURRENT_TIMESTAMP WHERE "${primaryKey}" = $1`;
-  await neonDb.query(query, values);
-}
-
-async function executeDynamicInsert(neonDb: any, tableName: string, columns: string[], values: any[]) {
-  // Build parameterized query
-  const columnsList = columns.map(col => `"${col}"`).join(', ');
-  const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
-
-  const query = `INSERT INTO "${tableName}" (${columnsList}) VALUES (${placeholders})`;
-
-  await neonDb.query(query, values);
-}
-
-async function getPrimaryKey(neonDb: any, tableName: string) {
-  const result = await neonDb.query(`SELECT kcu.column_name
-    FROM information_schema.table_constraints tc
-    JOIN information_schema.key_column_usage kcu
-      ON tc.constraint_name = kcu.constraint_name
-    WHERE tc.table_name = $1 
-      AND tc.constraint_type = 'PRIMARY KEY'`, [tableName]);
-
-  if (result.length > 0) {
-    return result[0].column_name;
-  }
-
-  return 'id';
-}
-
-async function insertAllData(neonDb: any, tableName: string, data: any[]) {
-  if (data.length === 0) return;
-
-  const structure = await neonDb.query(`SELECT column_name
-    FROM information_schema.columns
-    WHERE table_name = $1
-    ORDER BY ordinal_position`, [tableName]);
-
-  const columns = structure.map((row: any) => row.column_name);
-
-  const filteredData = data.map(row => {
-    const filteredRow: any = {};
-    columns.forEach((col: string) => {
-      if (row.hasOwnProperty(col)) {
-        filteredRow[col] = row[col];
-      }
-    });
-    return filteredRow;
-  });
-
-  for (const row of filteredData) {
-    const rowColumns = Object.keys(row);
-    const rowValues = Object.values(row);
-    await executeDynamicInsert(neonDb, tableName, rowColumns, rowValues);
   }
 }

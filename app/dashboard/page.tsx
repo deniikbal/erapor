@@ -16,7 +16,10 @@ import {
   Printer,
   ArrowRight,
   Rocket,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,6 +27,20 @@ interface DashboardStats {
   totalSiswa: number;
   totalGuru: number;
   totalKelas: number;
+}
+
+interface SyncStatus {
+  hasEverSynced: boolean;
+  relativeTime: string | null;
+  formattedTimestamp: string | null;
+  status: 'success' | 'failed' | 'error' | null;
+  tablesSynced: number | null;
+  recordsProcessed: number | null;
+  durationMs: number | null;
+  user: string | null;
+  message: string | null;
+  loading: boolean;
+  error: boolean;
 }
 
 export default function DashboardPage() {
@@ -34,6 +51,19 @@ export default function DashboardPage() {
     totalKelas: 0
   });
   const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    hasEverSynced: false,
+    relativeTime: null,
+    formattedTimestamp: null,
+    status: null,
+    tablesSynced: null,
+    recordsProcessed: null,
+    durationMs: null,
+    user: null,
+    message: null,
+    loading: true,
+    error: false,
+  });
 
   useEffect(() => {
     const loadUser = async () => {
@@ -70,6 +100,38 @@ export default function DashboardPage() {
     };
 
     fetchStats();
+  }, []);
+
+  useEffect(() => {
+    // Fetch last sync status from Neon
+    const fetchSyncStatus = async () => {
+      try {
+        const res = await fetch('/api/sync/status', { cache: 'no-store' });
+        if (!res.ok) {
+          setSyncStatus(prev => ({ ...prev, loading: false, error: true }));
+          return;
+        }
+        const data = await res.json();
+        setSyncStatus({
+          hasEverSynced: data.hasEverSynced ?? false,
+          relativeTime: data.relativeTime ?? null,
+          formattedTimestamp: data.formattedTimestamp ?? null,
+          status: data.metadata?.last_sync_status ?? null,
+          tablesSynced: data.metadata?.last_tables_synced ?? null,
+          recordsProcessed: data.metadata?.last_records_processed ?? null,
+          durationMs: data.metadata?.last_sync_duration_ms ?? null,
+          user: data.metadata?.last_sync_by ?? null,
+          message: data.metadata?.last_sync_message ?? null,
+          loading: false,
+          error: false,
+        });
+      } catch (err) {
+        console.error('Error fetching sync status:', err);
+        setSyncStatus(prev => ({ ...prev, loading: false, error: true }));
+      }
+    };
+
+    fetchSyncStatus();
   }, []);
 
   const statisticsCards = [
@@ -260,7 +322,119 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Sync Status Card */}
         <Card className="rounded-sm border border-blue-100 shadow-sm overflow-hidden lg:col-span-2">
+          <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b flex flex-row items-center justify-between space-y-0">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5 text-[#1e3a8a]" />
+              <CardTitle className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider">
+                Status Sinkronisasi Database
+              </CardTitle>
+            </div>
+            {user?.level === 'Admin' && (
+              <Link href="/dashboard/sync">
+                <Button size="sm" variant="outline" className="h-6 text-[10px] font-bold">
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  SINKRON SEKARANG
+                </Button>
+              </Link>
+            )}
+          </CardHeader>
+          <CardContent className="p-3 space-y-2">
+            {syncStatus.loading ? (
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded border border-slate-100">
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                <span className="text-[11px] text-slate-500 italic">Memuat status sinkronisasi...</span>
+              </div>
+            ) : syncStatus.error ? (
+              <div className="flex items-center gap-2 p-2 bg-red-50 rounded border border-red-100">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                <span className="text-[11px] text-red-700 italic">
+                  Tidak dapat memuat status sinkronisasi
+                </span>
+              </div>
+            ) : !syncStatus.hasEverSynced ? (
+              <div className="flex items-center gap-2 p-2 bg-amber-50 rounded border border-amber-100">
+                <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="text-[11px] text-amber-700 italic">
+                  Belum pernah melakukan sinkronisasi.{' '}
+                  {user?.level === 'Admin' && (
+                    <Link href="/dashboard/sync" className="font-bold underline">
+                      Sinkron sekarang
+                    </Link>
+                  )}
+                </span>
+              </div>
+            ) : (
+              <>
+                {/* Last sync time - main info */}
+                <div className="flex items-start gap-2 p-2 bg-slate-50 rounded border border-slate-100">
+                  {syncStatus.status === 'success' ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Sinkronisasi Terakhir</span>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          syncStatus.status === 'success'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {syncStatus.status === 'success' ? 'BERHASIL' : 'GAGAL'}
+                      </span>
+                    </div>
+                    <div className="text-[12px] font-black text-[#1e3a8a] mt-0.5">
+                      {syncStatus.relativeTime || syncStatus.formattedTimestamp}
+                    </div>
+                    {syncStatus.formattedTimestamp && (
+                      <div className="text-[10px] text-slate-500 italic mt-0.5">
+                        {syncStatus.formattedTimestamp}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Details row */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase">Tabel</div>
+                    <div className="text-[12px] font-black text-[#1e3a8a]">
+                      {syncStatus.tablesSynced ?? 0}
+                    </div>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase">Record</div>
+                    <div className="text-[12px] font-black text-indigo-600">
+                      {(syncStatus.recordsProcessed ?? 0).toLocaleString('id-ID')}
+                    </div>
+                  </div>
+                  <div className="p-1.5 bg-slate-50 rounded border border-slate-100">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase">Durasi</div>
+                    <div className="text-[12px] font-black text-slate-700">
+                      {syncStatus.durationMs != null
+                        ? syncStatus.durationMs < 1000
+                          ? `${syncStatus.durationMs} ms`
+                          : `${(syncStatus.durationMs / 1000).toFixed(1)} dtk`
+                        : '-'}
+                    </div>
+                  </div>
+                </div>
+
+                {syncStatus.user && (
+                  <div className="text-[10px] text-slate-400 italic px-1">
+                    Dilakukan oleh: <span className="font-bold text-slate-600">{syncStatus.user}</span>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-sm border border-blue-100 shadow-sm overflow-hidden">
           <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b">
             <CardTitle className="text-xs font-bold text-[#1e3a8a] uppercase tracking-wider">Panduan Cepat</CardTitle>
           </CardHeader>
