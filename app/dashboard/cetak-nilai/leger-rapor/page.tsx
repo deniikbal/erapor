@@ -17,11 +17,21 @@ import {
     CommandList,
 } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { FileSpreadsheet, Download, Check, ChevronsUpDown, Users, BookOpen, Trophy, BarChart3, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, Download, Check, ChevronsUpDown, Users, BookOpen, Trophy, BarChart3, Loader2, FileOutput, Info, Rocket, LayoutDashboard } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth-client';
 import type { User, Kelas } from '@/lib/db';
 import ExcelJS from 'exceljs';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    fetchAllSemesters,
+    fetchSekolahData,
+    buildAllSemesterLegerWorkbook,
+    triggerExcelDownload,
+    safeFilename,
+    type AllSemesterBlock,
+} from '@/lib/leger-excel';
 
 interface LegerSummary {
     totalStudents: number;
@@ -49,6 +59,8 @@ export default function LegerRaporPage() {
     const [selectedKelas, setSelectedKelas] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [openCombobox, setOpenCombobox] = useState(false);
+    const [isGeneratingAllSemester, setIsGeneratingAllSemester] = useState(false);
+    const [allSemesterProgress, setAllSemesterProgress] = useState({ current: 0, total: 0, currentSemester: '' });
     const [summary, setSummary] = useState<LegerSummary>({
         totalStudents: 0,
         totalSubjects: 0,
@@ -606,6 +618,92 @@ export default function LegerRaporPage() {
         }
     };
 
+    const handleGenerateAllSemesterExcel = async () => {
+        if (!selectedKelas) {
+            toast.error('Pilih kelas terlebih dahulu');
+            return;
+        }
+
+        const kelasInfo = kelasData.kelas.find(k => k.nm_kelas === selectedKelas);
+        if (!kelasInfo) {
+            toast.error('Data kelas tidak ditemukan');
+            return;
+        }
+
+        setIsGeneratingAllSemester(true);
+        setAllSemesterProgress({ current: 0, total: 0, currentSemester: '' });
+
+        try {
+            const [semesterList, sekolahData] = await Promise.all([
+                fetchAllSemesters(),
+                fetchSekolahData(),
+            ]);
+
+            if (semesterList.length === 0) {
+                toast.error('Tidak ada data semester yang tersedia');
+                return;
+            }
+
+            const orderedSemesters = [...semesterList].sort((a, b) =>
+                a.semester_id.localeCompare(b.semester_id)
+            );
+
+            setAllSemesterProgress({
+                current: 0,
+                total: orderedSemesters.length,
+                currentSemester: '',
+            });
+
+            const blocks: AllSemesterBlock[] = [];
+            for (let i = 0; i < orderedSemesters.length; i++) {
+                const sem = orderedSemesters[i];
+                setAllSemesterProgress({
+                    current: i + 1,
+                    total: orderedSemesters.length,
+                    currentSemester: sem.nama_semester || sem.semester_id,
+                });
+
+                const res = await fetch(
+                    `/api/leger?rombongan_belajar_id=${kelasInfo.rombongan_belajar_id}&semester_id=${sem.semester_id}`
+                );
+                if (!res.ok) {
+                    console.warn(`Skip semester ${sem.semester_id} (no data)`);
+                    continue;
+                }
+                const data = await res.json();
+                if (!data.students || data.students.length === 0) {
+                    continue;
+                }
+                blocks.push({ semester: sem, data });
+            }
+
+            if (blocks.length === 0) {
+                toast.error('Tidak ada data nilai untuk kelas ini di semester manapun');
+                return;
+            }
+
+            const workbook = buildAllSemesterLegerWorkbook({
+                sekolahNama: sekolahData.sekolah?.nama || '-',
+                kelasNama: kelasInfo.nm_kelas,
+                blocks,
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const filename = `Leger_Semua_Semester_${safeFilename(kelasInfo.nm_kelas)}.xlsx`;
+            triggerExcelDownload(buffer, filename);
+
+            toast.success(
+                `File Excel berhasil dibuat (${blocks.length} semester, ${blocks.reduce((acc, b) => acc + (b.data.subjects?.length || 0), 0)} mata pelajaran)`
+            );
+        } catch (error) {
+            console.error('Error generating all-semester leger:', error);
+            toast.error('Gagal membuat leger semua semester: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        } finally {
+            setIsGeneratingAllSemester(false);
+            setAllSemesterProgress({ current: 0, total: 0, currentSemester: '' });
+        }
+    };
+
     // Filter kelas based on user level
     const filteredKelas = kelasData.kelas.filter((kelas) => {
         // Filter by jenis_rombel (only regular classes: 1 and 9)
@@ -707,28 +805,96 @@ export default function LegerRaporPage() {
                             </Popover>
                         </div>
 
-                        <div className="pt-4 space-y-3">
-                            <Button
-                                onClick={handleGenerateExcel}
-                                disabled={!selectedKelas || isGenerating}
-                                className="w-full bg-[#1e3a8a] hover:bg-blue-800 h-10 text-[11px] font-black uppercase tracking-[0.1em] shadow-lg shadow-blue-900/10 rounded-md group"
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        GENERATING...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Download className="mr-2 h-4 w-4 group-hover:-translate-y-0.5 transition-transform" />
-                                        EKSPOR KE EXCEL (XLSX)
-                                    </>
+                        <Tabs defaultValue="single" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2 p-1 bg-slate-100 rounded-lg h-9">
+                                <TabsTrigger value="single" className="rounded-md font-bold text-[10px] data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
+                                    <LayoutDashboard className="w-3.5 h-3.5 mr-1" />
+                                    Per Semester
+                                </TabsTrigger>
+                                <TabsTrigger value="all-semester" className="rounded-md font-bold text-[10px] data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
+                                    <FileOutput className="w-3.5 h-3.5 mr-1" />
+                                    Semua Semester
+                                </TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="single" className="mt-4 space-y-3">
+                                <Button
+                                    onClick={handleGenerateExcel}
+                                    disabled={!selectedKelas || isGenerating || isGeneratingAllSemester}
+                                    className="w-full bg-[#1e3a8a] hover:bg-blue-800 h-10 text-[11px] font-black uppercase tracking-[0.1em] shadow-lg shadow-blue-900/10 rounded-md group"
+                                >
+                                    {isGenerating ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            GENERATING...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="mr-2 h-4 w-4 group-hover:-translate-y-0.5 transition-transform" />
+                                            EKSPOR KE EXCEL (XLSX)
+                                        </>
+                                    )}
+                                </Button>
+                                <p className="text-[10px] text-center text-slate-400 font-medium px-2">
+                                    File Excel akan mencakup nilai seluruh siswa, statistik rata-rata, peringkat, dan kehadiran.
+                                </p>
+                            </TabsContent>
+
+                            <TabsContent value="all-semester" className="mt-4 space-y-3">
+                                <div className="bg-blue-50 border border-blue-100 p-2.5 rounded-lg flex items-start gap-2">
+                                    <Info className="w-3.5 h-3.5 text-[#1e3a8a] mt-0.5 shrink-0" />
+                                    <p className="text-[10px] text-[#1e3a8a] leading-relaxed font-medium">
+                                        Menggabungkan nilai siswa dari <b>semua semester</b> ke dalam satu file.
+                                        Header dikelompokkan per <b>mata pelajaran</b> dengan sub-kolom <b>SMT 1 &ndash; SMT 6</b> (template konsisten walau belum ada datanya) dan kolom <b>RATA-RATA</b> di tiap mapel.
+                                    </p>
+                                </div>
+
+                                {isGeneratingAllSemester && (
+                                    <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[11px] font-bold text-slate-700">Progres Semester</span>
+                                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                                                {allSemesterProgress.total > 0
+                                                    ? Math.round((allSemesterProgress.current / allSemesterProgress.total) * 100)
+                                                    : 0}%
+                                            </span>
+                                        </div>
+                                        <Progress
+                                            value={allSemesterProgress.total > 0
+                                                ? (allSemesterProgress.current / allSemesterProgress.total) * 100
+                                                : 0}
+                                            className="h-2 bg-slate-200 text-indigo-600"
+                                        />
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 bg-white p-2 rounded-md border border-slate-100">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                            <span className="text-indigo-700 truncate">{allSemesterProgress.currentSemester || '...'}</span>
+                                            <span className="ml-auto text-slate-400">{allSemesterProgress.current}/{allSemesterProgress.total}</span>
+                                        </div>
+                                    </div>
                                 )}
-                            </Button>
-                            <p className="text-[10px] text-center text-slate-400 font-medium px-2">
-                                File Excel akan mencakup nilai seluruh siswa, statistik rata-rata, peringkat, dan kehadiran.
-                            </p>
-                        </div>
+
+                                <Button
+                                    onClick={handleGenerateAllSemesterExcel}
+                                    disabled={!selectedKelas || isGeneratingAllSemester || isGenerating}
+                                    className="w-full bg-[#1e3a8a] hover:bg-indigo-950 h-10 text-[11px] font-black uppercase tracking-[0.1em] shadow-lg shadow-blue-900/10 rounded-md group"
+                                >
+                                    {isGeneratingAllSemester ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            MEMPROSES...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="mr-2 h-4 w-4 group-hover:-translate-y-0.5 transition-transform" />
+                                            GENERATE LEGER SEMUA SEMESTER
+                                        </>
+                                    )}
+                                </Button>
+                                <p className="text-[10px] text-center text-slate-400 font-medium px-2">
+                                        Format: NO | NAMA | NISN | NIS | Nilai per semester (SMT 1&ndash;SMT 6) & mata pelajaran + RATA-RATA.
+                                    </p>
+                            </TabsContent>
+                        </Tabs>
                     </CardContent>
                 </Card>
 

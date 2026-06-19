@@ -46,6 +46,14 @@ import {
     AlertDescription,
 } from "@/components/ui/alert";
 import ExcelJS from 'exceljs';
+import {
+    fetchAllSemesters,
+    fetchSekolahData,
+    buildAllSemesterLegerWorkbook,
+    triggerExcelDownload,
+    safeFilename,
+    type AllSemesterBlock,
+} from '@/lib/leger-excel';
 
 // Helper to get Excel column letter from index (0 = A, 1 = B, etc.)
 function getExcelCol(index: number): string {
@@ -67,6 +75,8 @@ export default function LegerRaporPage() {
     const [openCombobox, setOpenCombobox] = useState(false);
     const [isGeneratingAll, setIsGeneratingAll] = useState(false);
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentClass: '' });
+    const [isGeneratingAllSemester, setIsGeneratingAllSemester] = useState(false);
+    const [allSemesterProgress, setAllSemesterProgress] = useState({ current: 0, total: 0, currentSemester: '' });
 
     useEffect(() => {
         const loadUser = async () => {
@@ -887,6 +897,97 @@ export default function LegerRaporPage() {
         }
     };
 
+    const handleGenerateAllSemesterExcel = async () => {
+        if (!selectedKelas) {
+            toast.error('Pilih kelas terlebih dahulu');
+            return;
+        }
+
+        const kelasInfo = kelasData.kelas.find(k => k.nm_kelas === selectedKelas);
+        if (!kelasInfo) {
+            toast.error('Data kelas tidak ditemukan');
+            return;
+        }
+
+        setIsGeneratingAllSemester(true);
+        setAllSemesterProgress({ current: 0, total: 0, currentSemester: '' });
+
+        try {
+            // 1. Fetch list of all semesters (DESC) and school data in parallel
+            const [semesterList, sekolahData] = await Promise.all([
+                fetchAllSemesters(),
+                fetchSekolahData(),
+            ]);
+
+            if (semesterList.length === 0) {
+                toast.error('Tidak ada data semester yang tersedia');
+                return;
+            }
+
+            // Use ASC (oldest → newest) for the final layout
+            const orderedSemesters = [...semesterList].sort((a, b) =>
+                a.semester_id.localeCompare(b.semester_id)
+            );
+
+            setAllSemesterProgress({
+                current: 0,
+                total: orderedSemesters.length,
+                currentSemester: '',
+            });
+
+            // 2. Fetch leger data for each semester sequentially
+            const blocks: AllSemesterBlock[] = [];
+            for (let i = 0; i < orderedSemesters.length; i++) {
+                const sem = orderedSemesters[i];
+                setAllSemesterProgress({
+                    current: i + 1,
+                    total: orderedSemesters.length,
+                    currentSemester: sem.nama_semester || sem.semester_id,
+                });
+
+                const res = await fetch(
+                    `/api/leger?rombongan_belajar_id=${kelasInfo.rombongan_belajar_id}&semester_id=${sem.semester_id}`
+                );
+                if (!res.ok) {
+                    console.warn(`Skip semester ${sem.semester_id} (no data)`);
+                    continue;
+                }
+                const data = await res.json();
+                if (!data.students || data.students.length === 0) {
+                    continue;
+                }
+                blocks.push({ semester: sem, data });
+            }
+
+            if (blocks.length === 0) {
+                toast.error('Tidak ada data nilai untuk kelas ini di semester manapun');
+                return;
+            }
+
+            // 3. Build the workbook
+            const workbook = buildAllSemesterLegerWorkbook({
+                sekolahNama: sekolahData.sekolah?.nama || '-',
+                kelasNama: kelasInfo.nm_kelas,
+                blocks,
+            });
+
+            // 4. Trigger download
+            const buffer = await workbook.xlsx.writeBuffer();
+            const filename = `Leger_Semua_Semester_${safeFilename(kelasInfo.nm_kelas)}.xlsx`;
+            triggerExcelDownload(buffer, filename);
+
+            toast.success(
+                `File Excel berhasil dibuat (${blocks.length} semester, ${blocks.reduce((acc, b) => acc + (b.data.subjects?.length || 0), 0)} mata pelajaran)`
+            );
+        } catch (error) {
+            console.error('Error generating all-semester leger:', error);
+            toast.error('Gagal membuat leger semua semester: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        } finally {
+            setIsGeneratingAllSemester(false);
+            setAllSemesterProgress({ current: 0, total: 0, currentSemester: '' });
+        }
+    };
+
     // Filter kelas based on user level
     const filteredKelas = kelasData.kelas.filter((kelas) => {
         // Filter by jenis_rombel (only regular classes: 1 and 9)
@@ -937,14 +1038,18 @@ export default function LegerRaporPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                     <Tabs defaultValue="single" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 p-1 bg-slate-100 rounded-lg h-9">
-                            <TabsTrigger value="single" className="rounded-md font-bold text-xs data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
-                                <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" />
+                        <TabsList className="grid w-full grid-cols-3 p-1 bg-slate-100 rounded-lg h-9">
+                            <TabsTrigger value="single" className="rounded-md font-bold text-[10px] data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
+                                <LayoutDashboard className="w-3.5 h-3.5 mr-1" />
                                 Per Kelas
                             </TabsTrigger>
-                            <TabsTrigger value="bulk" className="rounded-md font-bold text-xs data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
-                                <Rocket className="w-3.5 h-3.5 mr-1.5" />
-                                Massal (Bulk)
+                            <TabsTrigger value="bulk" className="rounded-md font-bold text-[10px] data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
+                                <Rocket className="w-3.5 h-3.5 mr-1" />
+                                Massal
+                            </TabsTrigger>
+                            <TabsTrigger value="all-semester" className="rounded-md font-bold text-[10px] data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] data-[state=active]:shadow-sm py-1">
+                                <FileOutput className="w-3.5 h-3.5 mr-1" />
+                                Semua Semester
                             </TabsTrigger>
                         </TabsList>
 
@@ -1076,6 +1181,121 @@ export default function LegerRaporPage() {
                                             <>
                                                 <Download className="mr-2 h-4 w-4" />
                                                 GENERATE ALL ({filteredKelas.length} KELAS)
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="all-semester" className="mt-4">
+                            <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
+                                <CardHeader className="py-3 px-4 bg-slate-50/50 border-b">
+                                    <div className="flex items-center gap-2">
+                                        <FileOutput className="w-4 h-4 text-[#1e3a8a]" />
+                                        <CardTitle className="text-sm font-bold text-[#1e3a8a]">Leger Semua Semester</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4 py-4 px-4">
+                                    <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-start gap-2">
+                                        <Info className="w-4 h-4 text-[#1e3a8a] mt-0.5 shrink-0" />
+                                        <div className="text-[11px] text-[#1e3a8a] leading-relaxed font-medium">
+                                            Menggabungkan nilai siswa dari <b>semua semester</b> ke dalam satu file Excel.
+                                            Header dikelompokkan per <b>mata pelajaran</b> (nama lengkap, 1 baris) dengan sub-kolom <b>SMT 1 &ndash; SMT 6</b> (template konsisten walau semester belum ada datanya) dan kolom <b>RATA-RATA</b> di tiap mapel.
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Pilih Unit Kelas</label>
+                                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={openCombobox}
+                                                    className="w-full justify-between h-10 border-blue-50 bg-slate-50 text-xs font-bold text-[#1e3a8a] transition-all"
+                                                >
+                                                    <span className="truncate">
+                                                        {selectedKelas
+                                                            ? `${selectedKelas} (${filteredKelas.find(k => k.nm_kelas === selectedKelas)?.jumlah_siswa || 0} Siswa)`
+                                                            : 'Cari dan pilih kelas...'}
+                                                    </span>
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1e3a8a]" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-2xl border-blue-100" side="bottom" align="start" sideOffset={4}>
+                                                <Command className="rounded-lg">
+                                                    <CommandInput placeholder="Ketik nama kelas..." className="h-11" />
+                                                    <CommandList className="max-h-[300px] overflow-y-auto">
+                                                        <CommandEmpty>Kelas tidak ditemukan.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {filteredKelas
+                                                                .sort((a, b) => a.nm_kelas.localeCompare(b.nm_kelas, 'id', { numeric: true, sensitivity: 'base' }))
+                                                                .map((kelas) => (
+                                                                    <CommandItem
+                                                                        key={kelas.rombongan_belajar_id}
+                                                                        value={kelas.nm_kelas}
+                                                                        onSelect={() => {
+                                                                            setSelectedKelas(kelas.nm_kelas);
+                                                                            setOpenCombobox(false);
+                                                                        }}
+                                                                        className="py-3 px-4 flex items-center justify-between cursor-pointer"
+                                                                    >
+                                                                        <div className="flex items-center">
+                                                                            <Check
+                                                                                className={`mr-3 h-3 w-3 text-[#1e3a8a] ${selectedKelas === kelas.nm_kelas ? 'opacity-100' : 'opacity-0'}`}
+                                                                            />
+                                                                            <span className="font-bold text-xs text-[#1e3a8a]">{kelas.nm_kelas}</span>
+                                                                        </div>
+                                                                        <Badge variant="secondary" className="bg-slate-100 text-[10px] text-slate-500 font-normal py-0">
+                                                                            {kelas.jumlah_siswa || 0}
+                                                                        </Badge>
+                                                                    </CommandItem>
+                                                                ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+
+                                    {isGeneratingAllSemester && (
+                                        <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-sm font-bold text-slate-700">Mengambil Data per Semester</span>
+                                                <span className="text-sm font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                                                    {allSemesterProgress.total > 0
+                                                        ? Math.round((allSemesterProgress.current / allSemesterProgress.total) * 100)
+                                                        : 0}%
+                                                </span>
+                                            </div>
+                                            <Progress
+                                                value={allSemesterProgress.total > 0
+                                                    ? (allSemesterProgress.current / allSemesterProgress.total) * 100
+                                                    : 0}
+                                                className="h-3 bg-slate-200 text-indigo-600"
+                                            />
+                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                                                Memproses: <span className="text-indigo-700">{allSemesterProgress.currentSemester || '...'}</span> ({allSemesterProgress.current}/{allSemesterProgress.total})
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <Button
+                                        onClick={handleGenerateAllSemesterExcel}
+                                        disabled={!selectedKelas || isGeneratingAllSemester || isGenerating || isGeneratingAll}
+                                        className="w-full h-10 bg-[#1e3a8a] hover:bg-indigo-950 text-white shadow-sm transition-all font-black text-xs rounded-lg uppercase tracking-tight"
+                                    >
+                                        {isGeneratingAllSemester ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                MEMPROSES...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                GENERATE LEGER SEMUA SEMESTER
                                             </>
                                         )}
                                     </Button>
