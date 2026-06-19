@@ -23,6 +23,7 @@ import {
     Medal,
     Activity,
     Users,
+    Coffee,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -154,6 +155,11 @@ const menuItems: MenuItem[] = [
         href: '/dashboard/sync',
         icon: RefreshCw,
         allowedLevels: ['Admin'],
+    },
+    {
+        title: 'Traktir Kopi',
+        href: '/dashboard/traktir-kopi',
+        icon: Coffee,
     },
 ];
 

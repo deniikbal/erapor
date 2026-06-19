@@ -32,25 +32,27 @@ export interface SyncMetadataInput {
 }
 
 const SYNC_METADATA_ID = 1;
-const TABLE_DDL = `
-  CREATE TABLE IF NOT EXISTS public.tabel_sync_metadata (
-    id INTEGER PRIMARY KEY,
-    last_sync_at TIMESTAMPTZ,
-    last_sync_status TEXT,
-    last_sync_duration_ms INTEGER,
-    last_tables_synced INTEGER,
-    last_records_processed INTEGER,
-    last_sync_by TEXT,
-    last_sync_message TEXT
-  )
-`;
 
 /**
  * Ensure the metadata table exists. Idempotent — safe to call on every sync.
  */
 export async function ensureSyncMetadataTable(neonDb: NeonSql): Promise<void> {
   try {
-    await neonDb.unsafe(TABLE_DDL);
+    // `@neondatabase/serverless`'s `neon()` does NOT expose `.unsafe()` (that's
+    // a `postgres-js` API). Use the tagged-template form directly, which is
+    // safe for parameterless DDL.
+    await neonDb`
+      CREATE TABLE IF NOT EXISTS public.tabel_sync_metadata (
+        id INTEGER PRIMARY KEY,
+        last_sync_at TIMESTAMPTZ,
+        last_sync_status TEXT,
+        last_sync_duration_ms INTEGER,
+        last_tables_synced INTEGER,
+        last_records_processed INTEGER,
+        last_sync_by TEXT,
+        last_sync_message TEXT
+      )
+    `;
   } catch (error) {
     // Table might already exist with slightly different shape; ignore.
     console.error('ensureSyncMetadataTable error:', error);
