@@ -5,6 +5,7 @@ import {
   ensureSyncMetadataTable,
   recordSyncMetadata,
 } from '@/lib/syncMetadata';
+import { SELECTIVE_SYNC_TABLES } from '@/lib/syncTables';
 
 export async function POST(request: Request) {
     const encoder = new TextEncoder();
@@ -106,9 +107,7 @@ export async function POST(request: Request) {
                 let totalRecordsProcessed = 0;
 
                 // Tabel yang menggunakan selective sync (hanya user_login untuk preserve password)
-                const selectiveSyncTables = [
-                    'user_login'
-                ];
+                const selectiveSyncTables = SELECTIVE_SYNC_TABLES;
 
                 for (const tableInfo of allTables) {
                     const { schema, table: tableName } = tableInfo;

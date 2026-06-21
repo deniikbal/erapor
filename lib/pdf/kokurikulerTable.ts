@@ -54,7 +54,7 @@ export async function generateKokurikulerTable(
 
     // Center text vertically
     const headerTextY = yPos + (headerHeight / 2) + 1.3;
-    doc.text('KOKURIKULER', leftMargin + tableWidth / 2, headerTextY, { align: 'center' });
+    doc.text('Kokurikuler', leftMargin + tableWidth / 2, headerTextY, { align: 'center' });
 
     yPos += headerHeight;
 

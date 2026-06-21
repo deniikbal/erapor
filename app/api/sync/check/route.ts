@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { SELECTIVE_SYNC_TABLES } from '@/lib/syncTables';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
             success: true,
             schemas: schemaDetails,
             totalSchemas: schemas.length,
+            selectiveSyncTables: SELECTIVE_SYNC_TABLES,
             timestamp: new Date().toISOString()
         });
     } catch (error) {

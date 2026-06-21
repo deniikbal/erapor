@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -18,6 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const SELECTION_STORAGE_KEY = 'sync_last_selection';
 
 type TableInfo = {
   name: string;
@@ -45,11 +47,11 @@ export default function SyncPage() {
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [showConfirmSync, setShowConfirmSync] = useState(false);
 
-  const selectiveSyncTables = [
+  const [selectiveSyncTables, setSelectiveSyncTables] = useState<string[]>([
     'tabel_siswa', 'tabel_siswa_pelengkap',
     'tabel_kehadiran', 'tabel_cat_wali',
     'user_login'
-  ];
+  ]);
 
   const handleCheckDatabase = async () => {
     setChecking(true);
@@ -100,6 +102,27 @@ export default function SyncPage() {
       }
 
       setSchemas(data.schemas || []);
+      // Sinkronkan daftar selective dari server biar badge UI jujur sama backend
+      if (Array.isArray(data.selectiveSyncTables)) {
+        setSelectiveSyncTables(data.selectiveSyncTables);
+      }
+      // Kembalikan pilihan terakhir kalo tabelnya masih ada di schema hasil cek
+      try {
+        const saved = localStorage.getItem(SELECTION_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const restored = new Map<string, Set<string>>();
+          for (const schema of data.schemas || []) {
+            const tableNames = new Set(schema.tables.map((t: TableInfo) => t.name));
+            const savedTables: string[] = (parsed && parsed[schema.name]) || [];
+            const validTables = savedTables.filter((t) => tableNames.has(t));
+            if (validTables.length > 0) {
+              restored.set(schema.name, new Set(validTables));
+            }
+          }
+          if (restored.size > 0) setSelectedSchemas(restored);
+        }
+      } catch { /* ignore corrupt cache */ }
       setSyncStatus(`Ditemukan ${data.totalSchemas} schema dengan total ${data.schemas.reduce((sum: number, s: SchemaInfo) => sum + s.totalRows, 0)} record`);
       toast.success(`Berhasil memuat ${data.totalSchemas} schema dari database lokal`);
     } catch (error) {
@@ -117,7 +140,14 @@ export default function SyncPage() {
       return;
     }
 
-    setSyncing(true);
+    // Simpan pilihan ke localStorage biar next refresh otomatis kepake
+      const persistable: Record<string, string[]> = {};
+      selectedSchemas.forEach((tables, schemaName) => {
+        persistable[schemaName] = Array.from(tables);
+      });
+      try { localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify(persistable)); } catch {}
+
+      setSyncing(true);
     setSyncStatus('Memulai proses sinkronisasi...');
     setSyncProgress(0);
     setCurrentSyncTable('');
@@ -282,6 +312,18 @@ export default function SyncPage() {
     return selectedSchemas.has(schemaName) && selectedSchemas.get(schemaName)!.has(tableName);
   };
 
+  const handleSelectAll = () => {
+    const all = new Map<string, Set<string>>();
+    for (const s of schemas) {
+      all.set(s.name, new Set(s.tables.map(t => t.name)));
+    }
+    setSelectedSchemas(all);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedSchemas(new Map());
+  };
+
   const totalSelectedTables = Array.from(selectedSchemas.values()).reduce((sum, tables) => sum + tables.size, 0);
 
   return (
@@ -329,6 +371,29 @@ export default function SyncPage() {
               </Button>
 
               {schemas.length > 0 && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSelectAll}
+                    disabled={syncing}
+                    className="h-8 text-[11px] font-bold text-[#1e3a8a] uppercase tracking-tight"
+                  >
+                    <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
+                    Pilih Semua ({schemas.reduce((sum, s) => sum + s.tables.length, 0)} tabel)
+                  </Button>
+                  {totalSelectedTables > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleClearSelection}
+                      disabled={syncing}
+                      className="h-8 text-[11px] font-bold text-slate-500 hover:text-red-600 uppercase tracking-tight"
+                    >
+                      <Square className="h-3.5 w-3.5 mr-1.5" />
+                      Hapus Pilihan
+                    </Button>
+                  )}
                 <Button
                   onClick={() => setShowConfirmSync(true)}
                   size="sm"
@@ -348,6 +413,7 @@ export default function SyncPage() {
                     </>
                   )}
                 </Button>
+                </>
               )}
             </div>
 

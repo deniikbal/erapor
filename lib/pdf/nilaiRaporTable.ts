@@ -298,9 +298,10 @@ export function calculatePredikat(nilai: number): string {
 }
 
 // Helper function to determine Fase
+// ponytail: matches the kokurikuler UI (Fase E = Kelas 10, Fase F = Kelas 11-12)
 export function getFaseByTingkat(tingkat: string | number): string {
     const tingkatNum = typeof tingkat === 'string' ? parseInt(tingkat) : tingkat;
-    if (tingkatNum === 10 || tingkatNum === 11) return 'E';
-    if (tingkatNum === 12) return 'F';
+    if (tingkatNum === 10) return 'E';
+    if (tingkatNum === 11 || tingkatNum === 12) return 'F';
     return 'N/A';
 }

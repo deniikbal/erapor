@@ -171,15 +171,21 @@ export async function GET(request: NextRequest) {
       const subjectsMap: Record<string, any> = {};
       const semestersSet = new Set<string>();
 
+      // ponytail: group by mata_pelajaran_id, not nm_ringkas.
+      // nm_ringkas isn't unique (e.g. both Bahasa Indonesia & Inggris = "BI"),
+      // so old code collapsed different subjects into one chart bar.
+      // First-write-wins for TKB duplicates of same mapel+semester.
       history.forEach((row: any) => {
-        const subjectCode = row.nm_mapel_pendek || row.nm_mapel;
-        if (!subjectsMap[subjectCode]) {
-          subjectsMap[subjectCode] = {
-            subject: subjectCode,
-            fullName: row.nm_mapel
+        const subjectId = row.mata_pelajaran_id;
+        if (!subjectsMap[subjectId]) {
+          subjectsMap[subjectId] = {
+            subject: row.nm_mapel_pendek || row.nm_mapel,
+            fullName: row.nm_mapel,
           };
         }
-        subjectsMap[subjectCode][row.semester_id] = Number(row.nilai);
+        if (subjectsMap[subjectId][row.semester_id] === undefined) {
+          subjectsMap[subjectId][row.semester_id] = Number(row.nilai);
+        }
         semestersSet.add(row.semester_id);
       });
 

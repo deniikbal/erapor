@@ -417,9 +417,9 @@ export default function AdminNilaiRaporPage() {
                 tempat: tanggalRaporData.data?.[0]?.tempat_ttd || 'Bantarujeg',
                 tanggal: tglRaw ? formatTgl(tglRaw) : '22 Desember 2025',
                 namaWaliKelas: namaWaliKelas,
-                nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
+                nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP. ${studentClass.nip_wali_kelas}` : '',
                 namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
-                nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : '',
+                nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP. ${sekolahData.sekolah.nip_kepsek}` : '',
                 statusKepsek: tanggalRaporData.data?.[0]?.status_kepsek || 'Kepala Sekolah',
                 layout: marginSettings.ttd_layout || 'classic'
             };
@@ -698,9 +698,9 @@ export default function AdminNilaiRaporPage() {
                         tempat: tanggalRaporData.data?.[0]?.tempat_ttd || 'Bantarujeg',
                         tanggal: tglRaw ? formatTgl(tglRaw) : '22 Desember 2025',
                         namaWaliKelas: namaWaliKelas,
-                        nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP ${studentClass.nip_wali_kelas}` : '',
+                        nipWaliKelas: studentClass?.nip_wali_kelas ? `NIP. ${studentClass.nip_wali_kelas}` : '',
                         namaKepalaSekolah: sekolahData.sekolah?.nm_kepsek || 'Kepala Sekolah',
-                        nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP ${sekolahData.sekolah.nip_kepsek}` : '',
+                        nipKepalaSekolah: sekolahData.sekolah?.nip_kepsek ? `NIP. ${sekolahData.sekolah.nip_kepsek}` : '',
                         statusKepsek: tanggalRaporData.data?.[0]?.status_kepsek || 'Kepala Sekolah',
                         layout: marginSettings.ttd_layout || 'classic'
                     };
