@@ -164,10 +164,8 @@ export async function generateMapelRow(
     const capaianText = mapel.capaian_kompetensi || '-';
     const capaianLines = optimizedSplitTextToSize(doc, capaianText, col4Width - 3); // Reduced padding (from 4 to 3)
 
-    // Calculate row height based on content (minimum 8mm, adjust based on max lines)
-    const lineHeight = 3.7; // mm per line (reduced from 3.7)
-    const maxLines = Math.max(mapelLines.length, capaianLines.length);
-    const rowHeight = Math.max(10, maxLines * lineHeight + 3); // Reduced base height to 8, padding to 2
+    const lineHeight = 3.7; // mm per line
+    const rowHeight = computeMapelRowHeight(doc, mapel, margins);
 
     // Check if we need a new page
     if (yPos + rowHeight > pageHeight - margins.margin_bottom) {
@@ -233,8 +231,26 @@ export async function generateMapelRow(
  */
 const TABLE_HEADER_HEIGHT = 8;
 const KELOMPOK_ROW_HEIGHT = 6;
-const MIN_MAPEL_ROW_HEIGHT = 10;
-const MIN_REQUIRED_FOR_NEW_KELOMPOK = KELOMPOK_ROW_HEIGHT + MIN_MAPEL_ROW_HEIGHT; // 16mm
+// ponytail: compute mapel row height from actual content so multi-line deskripsi
+// doesn't strand the kelompok header on the previous page.
+function computeMapelRowHeight(
+    doc: jsPDF,
+    mapel: NilaiMapelData,
+    margins: MarginSettings
+): number {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const availableWidth = pageWidth - margins.margin_left - margins.margin_right;
+    const col2Width = 40;
+    const col4Width = availableWidth - 10 - 40 - 20;
+
+    const mapelLines = optimizedSplitTextToSize(doc, mapel.nm_lokal, col2Width - 3);
+    const capaianText = mapel.capaian_kompetensi || '-';
+    const capaianLines = optimizedSplitTextToSize(doc, capaianText, col4Width - 3);
+
+    const lineHeight = 3.7;
+    const maxLines = Math.max(mapelLines.length, capaianLines.length);
+    return Math.max(10, maxLines * lineHeight + 3);
+}
 // Reserved vertical space at the top of continuation pages for the student
 // header info (Nama Murid, NIS, Sekolah, dst.) that is added later in
 // post-processing.
@@ -257,11 +273,16 @@ export async function generateNilaiRaporTable(
 
     // Generate rows for each kelompok
     for (const kelompok of kelompokData) {
-        // Check that BOTH the kelompok header AND at least one mapel row fit
-        // on the current page. Previously the check was only for the kelompok
-        // header (8mm), which left the "Mata Pelajaran Pilihan" header stranded
-        // on the previous page while its mapels moved to the next page.
-        if (yPos + MIN_REQUIRED_FOR_NEW_KELOMPOK > pageHeight - margins.margin_bottom) {
+        // ponytail: keep entire kelompok together — header + all mapels must
+        // fit on one page, otherwise move the whole kelompok to a new page.
+        // Otherwise a long deskripsi in a later mapel strands the header.
+        await setDejaVuFont(doc, 'normal');
+        setOptimizedFontSize(doc, 9);
+        let kelompokTotalHeight = KELOMPOK_ROW_HEIGHT;
+        for (const m of kelompok.mapels) {
+            kelompokTotalHeight += computeMapelRowHeight(doc, m, margins);
+        }
+        if (yPos + kelompokTotalHeight > pageHeight - margins.margin_bottom) {
             doc.addPage();
 
             // Re-establish font after page break
