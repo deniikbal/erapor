@@ -272,6 +272,11 @@ export async function generateNilaiRaporTable(
     yPos = await generateNilaiRaporTableHeader(doc, yPos, margins);
 
     // Generate rows for each kelompok
+    // ponytail: track whether a kelompok has already been drawn on the current
+    // page. The "keep kelompok together" page break must NOT fire for the first
+    // kelompok on a page — the table header is already drawn, so moving the
+    // kelompok would only strand that header and leave the page body empty.
+    let kelompokDrawnOnPage = false;
     for (const kelompok of kelompokData) {
         // ponytail: keep entire kelompok together — header + all mapels must
         // fit on one page, otherwise move the whole kelompok to a new page.
@@ -282,28 +287,35 @@ export async function generateNilaiRaporTable(
         for (const m of kelompok.mapels) {
             kelompokTotalHeight += computeMapelRowHeight(doc, m, margins);
         }
-        if (yPos + kelompokTotalHeight > pageHeight - margins.margin_bottom) {
+        const overflowsPage = yPos + kelompokTotalHeight > pageHeight - margins.margin_bottom;
+        if (overflowsPage && kelompokDrawnOnPage) {
             doc.addPage();
 
             // Re-establish font after page break
             await setDejaVuFont(doc, 'normal');
 
             // Reserve space for student header info
-            const studentHeaderHeight = 21;
-            yPos = margins.margin_top + studentHeaderHeight;
+            yPos = margins.margin_top + STUDENT_HEADER_RESERVED_HEIGHT;
 
             await generateNilaiRaporTableHeader(doc, yPos, margins);
             yPos += TABLE_HEADER_HEIGHT;
+            kelompokDrawnOnPage = false;
         }
 
         // Kelompok header (merged row)
         yPos = await generateKelompokRow(doc, yPos, kelompok.nama_kelompok, margins);
 
-        // Mata pelajaran rows
+        // Mata pelajaran rows. generateMapelRow paginates per-row, so a kelompok
+        // taller than a full page (or the first kelompok on a page) overflows
+        // gracefully here instead of stranding the table header above.
         for (let i = 0; i < kelompok.mapels.length; i++) {
             const mapel = kelompok.mapels[i];
             yPos = await generateMapelRow(doc, yPos, i + 1, mapel, margins, pageHeight);
         }
+
+        // A kelompok now occupies the current page (whichever page the last
+        // mapel row landed on after any internal page break).
+        kelompokDrawnOnPage = true;
     }
 
     return yPos;

@@ -197,15 +197,13 @@ export async function GET(request: NextRequest) {
             return b.total - a.total;
         });
 
-        // Assign ranks (Competition ranking: 1, 2, 2, 4...)
+        // Dense ranking: nilai sama = rank sama, rank berikutnya tetap berurutan (1,2,3,3,4)
         let currentRank = 1;
         for (let i = 0; i < rankingData.length; i++) {
-            if (i > 0 && rankingData[i].average === rankingData[i - 1].average && rankingData[i].total === rankingData[i - 1].total) {
-                // Same rank as previous
-                (rankingData[i] as any).rank = (rankingData[i - 1] as any).rank;
-            } else {
-                (rankingData[i] as any).rank = i + 1;
+            if (i > 0 && !(rankingData[i].average === rankingData[i - 1].average && rankingData[i].total === rankingData[i - 1].total)) {
+                currentRank++;
             }
+            (rankingData[i] as any).rank = currentRank;
         }
 
         return NextResponse.json({

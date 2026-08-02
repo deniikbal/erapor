@@ -227,12 +227,13 @@ export async function GET(request: NextRequest) {
             return b.total - a.total;
         });
 
+        // Dense ranking: nilai sama = rank sama, rank berikutnya tetap berurutan (1,2,3,3,4)
+        let currentRank = 1;
         for (let i = 0; i < rankingData.length; i++) {
-            if (i > 0 && rankingData[i].average === rankingData[i - 1].average && rankingData[i].total === rankingData[i - 1].total) {
-                (rankingData[i] as any).rank = (rankingData[i - 1] as any).rank;
-            } else {
-                (rankingData[i] as any).rank = i + 1;
+            if (i > 0 && !(rankingData[i].average === rankingData[i - 1].average && rankingData[i].total === rankingData[i - 1].total)) {
+                currentRank++;
             }
+            (rankingData[i] as any).rank = currentRank;
         }
 
         return NextResponse.json({

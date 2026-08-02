@@ -32,7 +32,15 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Siswa } from '@/lib/db';
-import { Users, Pencil, Loader2, FileSpreadsheet } from 'lucide-react';
+import {
+  Users,
+  Pencil,
+  Loader2,
+  FileSpreadsheet,
+  GraduationCap,
+  UserCheck,
+  Search,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 
@@ -137,7 +145,6 @@ export default function DataSiswaPage() {
   const handleEditClick = (siswa: Siswa) => {
     setSelectedSiswa(siswa);
 
-    // Set form data siswa
     setFormDataSiswa({
       nm_siswa: siswa.nm_siswa || '',
       nis: siswa.nis || '',
@@ -154,7 +161,6 @@ export default function DataSiswaPage() {
       pekerjaan_ibu: siswa.pekerjaan_ibu || '',
     });
 
-    // Set form data pelengkap
     setFormDataPelengkap({
       status_dalam_kel: siswa.status_dalam_kel || '',
       anak_ke: siswa.anak_ke || '',
@@ -171,7 +177,6 @@ export default function DataSiswaPage() {
   const handleSave = async () => {
     if (!selectedSiswa) return;
 
-    // Validasi
     if (!formDataSiswa.nm_siswa.trim() || !formDataSiswa.nis.trim()) {
       setModalError('Nama dan NIS harus diisi');
       toast.error('Nama dan NIS harus diisi');
@@ -203,7 +208,6 @@ export default function DataSiswaPage() {
         return;
       }
 
-      // Refresh data
       await fetchSiswa();
       setIsModalOpen(false);
 
@@ -257,13 +261,11 @@ export default function DataSiswaPage() {
         });
       });
 
-      // Styling header
       const headerRow = worksheet.getRow(1);
       headerRow.font = { bold: true };
       headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
       headerRow.height = 25;
 
-      // Styling borders & alignment
       worksheet.eachRow((row, rowNumber) => {
         row.eachCell((cell) => {
           cell.border = {
@@ -303,21 +305,52 @@ export default function DataSiswaPage() {
     }
   };
 
+  // Stats computed from siswa data
+  const totalSiswa = siswaList.length;
+  const siswaLaki = siswaList.filter(s => s.jenis_kelamin === 'L').length;
+  const siswaPerempuan = siswaList.filter(s => s.jenis_kelamin === 'P').length;
+  const totalKelas = kelasList.length;
+
+  const statisticsCards = [
+    {
+      title: 'Total Siswa',
+      value: loading ? null : totalSiswa,
+      description: 'Peserta didik terdaftar',
+      icon: Users,
+      gradient: 'from-blue-600 to-blue-800',
+      lightBg: 'bg-blue-50',
+      textColor: 'text-blue-700',
+    },
+    {
+      title: 'Siswa Laki-laki',
+      value: loading ? null : siswaLaki,
+      description: `${totalSiswa > 0 ? ((siswaLaki / totalSiswa) * 100).toFixed(0) : 0}% dari total`,
+      icon: UserCheck,
+      gradient: 'from-indigo-500 to-indigo-700',
+      lightBg: 'bg-indigo-50',
+      textColor: 'text-indigo-700',
+    },
+    {
+      title: 'Siswa Perempuan',
+      value: loading ? null : siswaPerempuan,
+      description: `${totalSiswa > 0 ? ((siswaPerempuan / totalSiswa) * 100).toFixed(0) : 0}% dari total`,
+      icon: GraduationCap,
+      gradient: 'from-emerald-500 to-emerald-700',
+      lightBg: 'bg-emerald-50',
+      textColor: 'text-emerald-700',
+    },
+  ];
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Data Siswa</h1>
-          <p className="text-muted-foreground">Kelola data peserta didik</p>
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
         </div>
-        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-96 w-full" />
-          </CardContent>
-        </Card>
+        <Skeleton className="h-96 w-full rounded-xl" />
       </div>
     );
   }
@@ -337,42 +370,103 @@ export default function DataSiswaPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Data Siswa</h1>
-        <p className="text-muted-foreground">Kelola data peserta didik</p>
+    <div className="space-y-6 pb-6">
+
+      {/* Hero Banner */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#3b5fc0] p-6 shadow-lg">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute -bottom-6 right-20 h-28 w-28 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute bottom-4 right-4 h-14 w-14 rounded-full bg-white/10" />
+
+        <div className="relative flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-200/80">
+              Manajemen Siswa
+            </p>
+            <h1 className="mt-1 text-2xl font-black text-white">
+              Data Peserta Didik
+            </h1>
+            <p className="mt-1 text-sm text-blue-200/70">
+              Kelola data siswa, identitas, dan informasi akademik
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 backdrop-blur-sm sm:mt-0">
+            <Users className="h-4 w-4 text-blue-200" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200/70">Total Siswa</p>
+              <p className="text-sm font-black text-white">{totalSiswa} Orang</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            <CardTitle>Daftar Siswa</CardTitle>
+      {/* Statistics Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {statisticsCards.map((stat) => (
+          <div
+            key={stat.title}
+            className="group relative overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-slate-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:ring-blue-200"
+          >
+            <div className={`h-1 w-full bg-gradient-to-r ${stat.gradient}`} />
+            <div className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  {stat.title}
+                </p>
+                {stat.value === null ? (
+                  <div className="mt-1 h-7 w-16 animate-pulse rounded-md bg-slate-100" />
+                ) : (
+                  <p className={`mt-0.5 text-3xl font-black ${stat.textColor}`}>
+                    {stat.value.toLocaleString('id-ID')}
+                  </p>
+                )}
+                <p className="mt-0.5 text-[11px] text-slate-400">{stat.description}</p>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${stat.lightBg} transition-transform duration-200 group-hover:scale-110`}>
+                <stat.icon className={`h-6 w-6 ${stat.textColor}`} />
+              </div>
+            </div>
           </div>
-          <CardDescription>
-            Menampilkan {filteredSiswa.length} dari {siswaList.length} siswa
-          </CardDescription>
+        ))}
+      </div>
+
+      {/* Daftar Siswa Table */}
+      <Card className="rounded-xl shadow-md border-none overflow-hidden">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-[#1e3a8a]" />
+              <CardTitle className="text-sm font-bold uppercase tracking-wider text-[#1e3a8a]">
+                Daftar Siswa
+              </CardTitle>
+            </div>
+            <CardDescription className="text-[10px]">
+              {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredSiswa.length)} dari {filteredSiswa.length}
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           {/* Filter & Search */}
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center mb-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 placeholder="Cari nama siswa..."
                 value={searchNama}
                 onChange={(e) => setSearchNama(e.target.value)}
-                className="max-w-sm"
+                className="pl-9 h-9 text-xs"
               />
             </div>
-            <div className="w-64">
+            <div className="w-full sm:w-56">
               <Select value={selectedKelas} onValueChange={setSelectedKelas}>
-                <SelectTrigger>
+                <SelectTrigger className="h-9 text-xs">
                   <SelectValue placeholder="Filter Kelas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Kelas</SelectItem>
                   {kelasList.map(kelas => (
-                    <SelectItem key={kelas} value={kelas}>
+                    <SelectItem key={kelas} value={kelas} className="text-xs">
                       {kelas}
                     </SelectItem>
                   ))}
@@ -382,49 +476,53 @@ export default function DataSiswaPage() {
             <Button
               onClick={handleExportExcel}
               variant="outline"
-              className="flex items-center gap-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+              className="h-9 gap-1.5 border-indigo-200 px-3 text-[10px] font-bold text-indigo-700 hover:bg-indigo-50"
             >
-              <FileSpreadsheet className="h-4 w-4" />
+              <FileSpreadsheet className="h-3.5 w-3.5" />
               Export Excel
             </Button>
           </div>
 
-          <div className="rounded-md border">
+          <div className="rounded-sm border overflow-hidden">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50/50">
-                  <TableHead className="w-[50px] py-2 text-xs font-bold uppercase text-slate-600">No</TableHead>
-                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Nama Siswa</TableHead>
-                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">NIS</TableHead>
-                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">NISN</TableHead>
-                  <TableHead className="text-center py-2 text-xs font-bold uppercase text-slate-600">JK</TableHead>
-                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">TTL</TableHead>
-                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Agama</TableHead>
-                  <TableHead className="text-center py-2 text-xs font-bold uppercase text-slate-600">Tingkat</TableHead>
-                  <TableHead className="py-2 text-xs font-bold uppercase text-slate-600">Kelas</TableHead>
-                  <TableHead className="text-right py-2 text-xs font-bold uppercase text-slate-600 pr-4">Aksi</TableHead>
+              <TableHeader className="bg-[#1e3a8a]">
+                <TableRow className="hover:bg-transparent border-none">
+                  <TableHead className="text-white font-bold text-[10px] uppercase w-[50px] border-r border-white/10 text-center h-10">No</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">Nama Siswa</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">NIS</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">NISN</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 text-center h-10">JK</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">TTL</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">Agama</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 text-center h-10">Tingkat</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase border-r border-white/10 h-10">Kelas</TableHead>
+                  <TableHead className="text-white font-bold text-[10px] uppercase text-right pr-4 h-10">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {currentItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground">
-                      Tidak ada data siswa
+                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground text-xs">
+                      {searchNama || selectedKelas !== 'all' ? 'Tidak ada siswa yang cocok dengan filter' : 'Tidak ada data siswa'}
                     </TableCell>
                   </TableRow>
                 ) : (
                   currentItems.map((siswa, index) => (
-                    <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50/50">
-                      <TableCell className="py-1.5 text-xs font-medium text-slate-500">{indexOfFirstItem + index + 1}</TableCell>
-                      <TableCell className="py-1.5 font-semibold text-sm text-[#1e3a8a]">{siswa.nm_siswa}</TableCell>
-                      <TableCell className="py-1.5 text-xs font-medium text-slate-600">{siswa.nis}</TableCell>
-                      <TableCell className="py-1.5 text-xs text-slate-500">{siswa.nisn || '-'}</TableCell>
-                      <TableCell className="text-center py-1.5 text-xs font-bold text-slate-600">{siswa.jenis_kelamin || '-'}</TableCell>
-                      <TableCell className="py-1.5 text-[10px] leading-tight text-slate-500">{formatTTL(siswa.tempat_lahir, siswa.tanggal_lahir)}</TableCell>
-                      <TableCell className="py-1.5 text-xs text-slate-600">{siswa.agama || '-'}</TableCell>
-                      <TableCell className="text-center py-1.5 text-xs font-bold text-slate-600">{siswa.tingkat_pendidikan_id || '-'}</TableCell>
-                      <TableCell className="py-1.5 text-xs font-bold text-indigo-600">{siswa.nm_kelas || '-'}</TableCell>
-                      <TableCell className="text-right py-1.5 pr-4">
+                    <TableRow key={siswa.peserta_didik_id} className="hover:bg-blue-50/30 transition-colors border-b-slate-100 h-10">
+                      <TableCell className="text-center font-bold text-slate-400 text-[10px] border-r py-1">{indexOfFirstItem + index + 1}</TableCell>
+                      <TableCell className="border-r py-1 font-semibold text-[12px] text-[#1e3a8a]">{siswa.nm_siswa}</TableCell>
+                      <TableCell className="border-r py-1 text-xs font-medium text-slate-600">{siswa.nis}</TableCell>
+                      <TableCell className="border-r py-1 text-xs text-slate-500">{siswa.nisn || '-'}</TableCell>
+                      <TableCell className="text-center border-r py-1">
+                        <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                          {siswa.jenis_kelamin || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="border-r py-1 text-[10px] leading-tight text-slate-500">{formatTTL(siswa.tempat_lahir, siswa.tanggal_lahir)}</TableCell>
+                      <TableCell className="border-r py-1 text-xs text-slate-600">{siswa.agama || '-'}</TableCell>
+                      <TableCell className="text-center border-r py-1 text-xs font-bold text-slate-600">{siswa.tingkat_pendidikan_id || '-'}</TableCell>
+                      <TableCell className="border-r py-1 text-xs font-bold text-indigo-600">{siswa.nm_kelas || '-'}</TableCell>
+                      <TableCell className="text-right py-1 pr-4">
                         <Button
                           onClick={() => handleEditClick(siswa)}
                           size="sm"
@@ -444,7 +542,7 @@ export default function DataSiswaPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-2 py-4">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Menampilkan {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredSiswa.length)} dari {filteredSiswa.length} data
               </div>
               <div className="flex items-center gap-2">
@@ -453,6 +551,7 @@ export default function DataSiswaPage() {
                   size="sm"
                   onClick={prevPage}
                   disabled={currentPage === 1}
+                  className="h-8 text-xs"
                 >
                   Previous
                 </Button>
@@ -470,13 +569,13 @@ export default function DataSiswaPage() {
                           variant={currentPage === page ? "default" : "outline"}
                           size="sm"
                           onClick={() => paginate(page)}
-                          className={currentPage === page ? "bg-[#1e3a8a] hover:bg-[#1e3a8a]/90" : ""}
+                          className={`h-8 w-8 p-0 text-xs ${currentPage === page ? "bg-[#1e3a8a] hover:bg-[#1e3a8a]/90" : ""}`}
                         >
                           {page}
                         </Button>
                       );
                     } else if (page === currentPage - 2 || page === currentPage + 2) {
-                      return <span key={page} className="px-2">...</span>;
+                      return <span key={page} className="px-1 text-xs text-slate-400">...</span>;
                     }
                     return null;
                   })}
@@ -487,6 +586,7 @@ export default function DataSiswaPage() {
                   size="sm"
                   onClick={nextPage}
                   disabled={currentPage === totalPages}
+                  className="h-8 text-xs"
                 >
                   Next
                 </Button>

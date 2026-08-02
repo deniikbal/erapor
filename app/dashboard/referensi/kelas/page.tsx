@@ -27,7 +27,14 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Kelas } from '@/lib/db';
-import { School, Users, Loader2 } from 'lucide-react';
+import {
+  School,
+  Users,
+  Loader2,
+  BookOpen,
+  BookMarked,
+  GraduationCap,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface SiswaAnggota {
@@ -65,19 +72,13 @@ export default function DataKelasPage() {
       const response = await fetch('/api/kelas');
       const data = await response.json();
 
-      console.log('Fetch kelas response:', data);
-
       if (!response.ok || data.error) {
         setError(data.error || 'Gagal mengambil data kelas');
-        console.error('Error response:', data);
         return;
       }
 
-      console.log('Kelas list:', data.kelas);
-      console.log('Debug info:', data.debug);
       setKelasList(data.kelas || []);
     } catch (err) {
-      console.error('Fetch kelas error:', err);
       setError('Gagal mengambil data kelas');
     } finally {
       setLoading(false);
@@ -87,24 +88,16 @@ export default function DataKelasPage() {
   const fetchAnggota = async (rombongan_belajar_id: string) => {
     setLoadingAnggota(true);
     try {
-      const url = `/api/kelas/${rombongan_belajar_id}/anggota`;
-      console.log('Fetching anggota from:', url);
-
-      const response = await fetch(url);
+      const response = await fetch(`/api/kelas/${rombongan_belajar_id}/anggota`);
       const data = await response.json();
 
-      console.log('Anggota response:', data);
-
       if (!response.ok || data.error) {
-        console.error('Error fetching anggota:', data);
         toast.error(data.error || 'Gagal mengambil data anggota kelas');
         return;
       }
 
-      console.log('Setting anggota list:', data.siswa?.length, 'siswa');
       setAnggotaList(data.siswa || []);
     } catch (err) {
-      console.error('Fetch anggota error:', err);
       toast.error('Gagal mengambil data anggota kelas');
     } finally {
       setLoadingAnggota(false);
@@ -112,7 +105,6 @@ export default function DataKelasPage() {
   };
 
   const handleAnggotaClick = async (kelas: Kelas) => {
-    console.log('Opening anggota modal for kelas:', kelas);
     setSelectedKelas(kelas);
     setIsModalOpen(true);
     setAnggotaList([]);
@@ -139,32 +131,24 @@ export default function DataKelasPage() {
 
       toast.success('Siswa berhasil dihapus dari kelas');
 
-      // Refresh anggota list
       if (selectedKelas) {
         fetchAnggota(selectedKelas.rombongan_belajar_id);
-
-        // Also refresh kelas list to update jumlah_siswa
         fetchKelas();
       }
     } catch (err) {
-      console.error('Delete anggota error:', err);
       toast.error('Gagal menghapus anggota kelas');
     } finally {
       setDeletingId(null);
     }
   };
 
-
-
-  // Filter kelas by jenis_rombel (convert to number for comparison)
+  // Filter kelas by jenis_rombel
   const kelasReguler = kelasList.filter(k => {
     const jenis = Number(k.jenis_rombel);
     return jenis === 1 || jenis === 9;
   });
   const kelasPilihan = kelasList.filter(k => Number(k.jenis_rombel) === 16);
   const kelasEkskul = kelasList.filter(k => Number(k.jenis_rombel) === 51);
-
-  console.log('Filtered - Reguler:', kelasReguler.length, 'Pilihan:', kelasPilihan.length, 'Ekskul:', kelasEkskul.length);
 
   // Pagination helpers
   const getPaginatedData = (data: Kelas[], currentPage: number) => {
@@ -183,7 +167,7 @@ export default function DataKelasPage() {
 
     return (
       <div className="flex items-center justify-between px-2 py-4">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           Menampilkan {indexOfFirstItem + 1} - {indexOfLastItem} dari {totalItems} data
         </div>
         <div className="flex items-center gap-2">
@@ -192,7 +176,7 @@ export default function DataKelasPage() {
             size="sm"
             onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
             disabled={currentPage === 1}
-            className="h-7 text-[10px] font-bold border-slate-200"
+            className="h-8 text-xs"
           >
             Prev
           </Button>
@@ -210,13 +194,13 @@ export default function DataKelasPage() {
                     variant={currentPage === page ? "default" : "outline"}
                     size="sm"
                     onClick={() => setCurrentPage(page)}
-                    className={currentPage === page ? "bg-[#1e3a8a] hover:bg-black h-7 w-7 p-0 text-[10px] font-bold" : "h-7 w-7 p-0 text-[10px] border-slate-200"}
+                    className={`h-8 w-8 p-0 text-xs ${currentPage === page ? "bg-[#1e3a8a] hover:bg-[#1e3a8a]/90" : ""}`}
                   >
                     {page}
                   </Button>
                 );
               } else if (page === currentPage - 2 || page === currentPage + 2) {
-                return <span key={page} className="px-2">...</span>;
+                return <span key={page} className="px-1 text-xs text-slate-400">...</span>;
               }
               return null;
             })}
@@ -227,7 +211,7 @@ export default function DataKelasPage() {
             size="sm"
             onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className="h-7 text-[10px] font-bold border-slate-200"
+            className="h-8 text-xs"
           >
             Next
           </Button>
@@ -245,40 +229,40 @@ export default function DataKelasPage() {
           <Table>
             <TableHeader className="bg-[#1e3a8a]">
               <TableRow className="hover:bg-transparent border-none">
-                <TableHead className="w-[50px] text-white font-bold text-[10px] h-9 uppercase tracking-wider pl-4">No</TableHead>
-                <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Nama Kelas</TableHead>
-                <TableHead className="text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider">Jenis Rombel</TableHead>
-                <TableHead className="text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider">Tingkat</TableHead>
-                <TableHead className="text-white font-bold text-[10px] h-9 uppercase tracking-wider">Wali Kelas</TableHead>
-                <TableHead className="text-center text-white font-bold text-[10px] h-9 uppercase tracking-wider">Siswa</TableHead>
-                <TableHead className="text-right text-white font-bold text-[10px] h-9 uppercase tracking-wider pr-4">Aksi</TableHead>
+                <TableHead className="w-[50px] text-white font-bold text-[10px] h-10 uppercase tracking-wider border-r border-white/10 text-center">No</TableHead>
+                <TableHead className="text-white font-bold text-[10px] h-10 uppercase tracking-wider border-r border-white/10">Nama Kelas</TableHead>
+                <TableHead className="text-center text-white font-bold text-[10px] h-10 uppercase tracking-wider border-r border-white/10">Jenis Rombel</TableHead>
+                <TableHead className="text-center text-white font-bold text-[10px] h-10 uppercase tracking-wider border-r border-white/10">Tingkat</TableHead>
+                <TableHead className="text-white font-bold text-[10px] h-10 uppercase tracking-wider border-r border-white/10">Wali Kelas</TableHead>
+                <TableHead className="text-center text-white font-bold text-[10px] h-10 uppercase tracking-wider border-r border-white/10">Siswa</TableHead>
+                <TableHead className="text-right text-white font-bold text-[10px] h-10 uppercase tracking-wider">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-xs">
                     Tidak ada data kelas
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item, index) => (
-                  <TableRow key={item.rombongan_belajar_id} className="hover:bg-slate-50 transition-colors">
-                    <TableCell className="py-1.5 pl-4 text-xs font-medium text-slate-400">{indexOfFirstItem + index + 1}</TableCell>
-                    <TableCell className="py-1.5 font-bold text-[#1e3a8a] text-xs">{item.nm_kelas}</TableCell>
-                    <TableCell className="py-1.5 text-center text-[10px] font-medium text-slate-500">{item.jenis_rombel}</TableCell>
-                    <TableCell className="py-1.5 text-center text-xs font-bold text-slate-600">{item.tingkat_pendidikan_id || '-'}</TableCell>
-                    <TableCell className="py-1.5 text-xs text-slate-700">{item.nama_wali_kelas || '-'}</TableCell>
-                    <TableCell className="py-1.5 text-center">
+                  <TableRow key={item.rombongan_belajar_id} className="hover:bg-blue-50/30 transition-colors border-b-slate-100 h-10">
+                    <TableCell className="text-center font-bold text-slate-400 text-[10px] border-r py-1">{indexOfFirstItem + index + 1}</TableCell>
+                    <TableCell className="border-r py-1 font-bold text-[#1e3a8a] text-xs">{item.nm_kelas}</TableCell>
+                    <TableCell className="text-center border-r py-1 text-[10px] font-medium text-slate-500">{item.jenis_rombel}</TableCell>
+                    <TableCell className="text-center border-r py-1 text-xs font-bold text-slate-600">{item.tingkat_pendidikan_id || '-'}</TableCell>
+                    <TableCell className="border-r py-1 text-xs text-slate-700">{item.nama_wali_kelas || '-'}</TableCell>
+                    <TableCell className="text-center border-r py-1">
                       <span className="text-[10px] font-black bg-blue-50 text-[#1e3a8a] px-2 py-0.5 rounded-full border border-blue-100">
                         {item.jumlah_siswa || 0}
                       </span>
                     </TableCell>
-                    <TableCell className="py-1.5 text-right pr-4">
+                    <TableCell className="text-right py-1 pr-4">
                       <Button
                         onClick={() => handleAnggotaClick(item)}
                         size="sm"
-                        className="h-7 px-3 bg-[#1e3a8a] hover:bg-black text-white text-[10px] font-bold uppercase transition-all"
+                        className="h-7 px-3 bg-[#1e3a8a] hover:bg-indigo-900 text-white text-[10px] font-bold shadow-sm"
                       >
                         <Users className="h-3 w-3 mr-1.5" />
                         Anggota
@@ -295,21 +279,52 @@ export default function DataKelasPage() {
     );
   };
 
+  // Stats
+  const totalKelas = kelasList.length;
+  const totalReguler = kelasReguler.length;
+  const totalPilihan = kelasPilihan.length;
+  const totalEkskul = kelasEkskul.length;
+
+  const statisticsCards = [
+    {
+      title: 'Total Kelas',
+      value: loading ? null : totalKelas,
+      description: 'Rombongan belajar aktif',
+      icon: School,
+      gradient: 'from-blue-600 to-blue-800',
+      lightBg: 'bg-blue-50',
+      textColor: 'text-blue-700',
+    },
+    {
+      title: 'Kelas Reguler',
+      value: loading ? null : totalReguler,
+      description: 'Rombel reguler (1 & 9)',
+      icon: BookOpen,
+      gradient: 'from-indigo-500 to-indigo-700',
+      lightBg: 'bg-indigo-50',
+      textColor: 'text-indigo-700',
+    },
+    {
+      title: 'Kelas Pilihan',
+      value: loading ? null : totalPilihan,
+      description: 'Rombel pilihan (16)',
+      icon: BookMarked,
+      gradient: 'from-emerald-500 to-emerald-700',
+      lightBg: 'bg-emerald-50',
+      textColor: 'text-emerald-700',
+    },
+  ];
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Data Kelas</h1>
-          <p className="text-muted-foreground">Kelola data kelas dan rombongan belajar</p>
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
         </div>
-        <Card className="rounded-sm border-l-4 border-l-[#1e3a8a]">
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-96 w-full" />
-          </CardContent>
-        </Card>
+        <Skeleton className="h-96 w-full rounded-xl" />
       </div>
     );
   }
@@ -329,33 +344,88 @@ export default function DataKelasPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-1 bg-[#1e3a8a] rounded-full" />
-          <h1 className="text-lg font-bold tracking-tight text-[#1e3a8a] uppercase">
-            Data Kelas
-          </h1>
+    <div className="space-y-6 pb-6">
+
+      {/* Hero Banner */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#3b5fc0] p-6 shadow-lg">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute -bottom-6 right-20 h-28 w-28 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute bottom-4 right-4 h-14 w-14 rounded-full bg-white/10" />
+
+        <div className="relative flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-200/80">
+              Referensi Kelas
+            </p>
+            <h1 className="mt-1 text-2xl font-black text-white">
+              Data Kelas & Rombongan Belajar
+            </h1>
+            <p className="mt-1 text-sm text-blue-200/70">
+              Kelola rombongan belajar reguler, pilihan, dan ekstrakurikuler
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 backdrop-blur-sm sm:mt-0">
+            <School className="h-4 w-4 text-blue-200" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200/70">Total Kelas</p>
+              <p className="text-sm font-black text-white">{totalKelas} Kelas</p>
+            </div>
+          </div>
         </div>
-        <p className="text-slate-500 text-[11px] ml-3 italic">
-          Kelola rombongan belajar reguler, pilihan, dan ekstrakurikuler.
-        </p>
       </div>
 
-      <Card className="rounded-sm shadow-sm border border-blue-100 overflow-hidden bg-white">
-        <CardHeader className="py-2.5 px-4 bg-slate-50/50 border-b flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2">
-            <School className="h-4 w-4 text-[#1e3a8a]" />
-            <CardTitle className="text-sm font-bold text-[#1e3a8a]">Daftar Kelas</CardTitle>
+      {/* Statistics Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {statisticsCards.map((stat) => (
+          <div
+            key={stat.title}
+            className="group relative overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-slate-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:ring-blue-200"
+          >
+            <div className={`h-1 w-full bg-gradient-to-r ${stat.gradient}`} />
+            <div className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  {stat.title}
+                </p>
+                {stat.value === null ? (
+                  <div className="mt-1 h-7 w-16 animate-pulse rounded-md bg-slate-100" />
+                ) : (
+                  <p className={`mt-0.5 text-3xl font-black ${stat.textColor}`}>
+                    {stat.value.toLocaleString('id-ID')}
+                  </p>
+                )}
+                <p className="mt-0.5 text-[11px] text-slate-400">{stat.description}</p>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${stat.lightBg} transition-transform duration-200 group-hover:scale-110`}>
+                <stat.icon className={`h-6 w-6 ${stat.textColor}`} />
+              </div>
+            </div>
           </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL: {kelasList.length}</p>
+        ))}
+      </div>
+
+      {/* Daftar Kelas Table */}
+      <Card className="rounded-xl shadow-md border-none overflow-hidden">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <School className="h-4 w-4 text-[#1e3a8a]" />
+              <CardTitle className="text-sm font-bold uppercase tracking-wider text-[#1e3a8a]">
+                Daftar Kelas
+              </CardTitle>
+            </div>
+            <CardDescription className="text-[10px]">
+              TOTAL: {totalKelas} | Reguler: {totalReguler} | Pilihan: {totalPilihan} | Ekskul: {totalEkskul}
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <Tabs defaultValue="reguler" className="w-full">
             <TabsList className="grid w-full grid-cols-3 p-1 bg-slate-100 rounded-lg h-9">
-              <TabsTrigger value="reguler" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">REGULER ({kelasReguler.length})</TabsTrigger>
-              <TabsTrigger value="pilihan" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">PILIHAN ({kelasPilihan.length})</TabsTrigger>
-              <TabsTrigger value="ekskul" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">EKSKUL ({kelasEkskul.length})</TabsTrigger>
+              <TabsTrigger value="reguler" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">REGULER ({totalReguler})</TabsTrigger>
+              <TabsTrigger value="pilihan" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">PILIHAN ({totalPilihan})</TabsTrigger>
+              <TabsTrigger value="ekskul" className="rounded-md text-[11px] font-black data-[state=active]:bg-white data-[state=active]:text-[#1e3a8a] h-7">EKSKUL ({totalEkskul})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="reguler" className="mt-4">
@@ -392,13 +462,13 @@ export default function DataKelasPage() {
           ) : (
             <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
               <Table>
-                <TableHeader className="bg-slate-50 sticky top-0 z-10">
-                  <TableRow className="hover:bg-transparent shadow-sm">
-                    <TableHead className="w-[50px] font-black text-[10px] h-9 uppercase pl-4">No</TableHead>
-                    <TableHead className="font-black text-[10px] h-9 uppercase">Nama Siswa</TableHead>
-                    <TableHead className="font-black text-[10px] h-9 uppercase">NISN</TableHead>
-                    <TableHead className="font-black text-[10px] h-9 uppercase">Rombel</TableHead>
-                    <TableHead className="text-right font-black text-[10px] h-9 uppercase pr-4 text-rose-500">Aksi</TableHead>
+                <TableHeader className="bg-[#1e3a8a] sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent border-none">
+                    <TableHead className="w-[50px] text-white font-bold text-[10px] h-9 uppercase pl-4 border-r border-white/10 text-center">No</TableHead>
+                    <TableHead className="text-white font-bold text-[10px] h-9 uppercase border-r border-white/10">Nama Siswa</TableHead>
+                    <TableHead className="text-white font-bold text-[10px] h-9 uppercase border-r border-white/10">NISN</TableHead>
+                    <TableHead className="text-white font-bold text-[10px] h-9 uppercase border-r border-white/10">Rombel</TableHead>
+                    <TableHead className="text-right text-white font-bold text-[10px] h-9 uppercase pr-4">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -410,11 +480,11 @@ export default function DataKelasPage() {
                     </TableRow>
                   ) : (
                     anggotaList.map((siswa, index) => (
-                      <TableRow key={siswa.peserta_didik_id} className="hover:bg-slate-50/50 transition-colors">
-                        <TableCell className="py-1.5 pl-4 text-xs font-medium text-slate-400">{index + 1}</TableCell>
-                        <TableCell className="py-1.5 text-xs font-bold text-slate-700">{siswa.nm_siswa}</TableCell>
-                        <TableCell className="py-1.5 text-xs font-medium text-slate-500">{siswa.nisn || '-'}</TableCell>
-                        <TableCell className="py-1.5 text-[10px] font-bold text-slate-400">{siswa.nm_kelas}</TableCell>
+                      <TableRow key={siswa.peserta_didik_id} className="hover:bg-blue-50/30 transition-colors border-b-slate-100">
+                        <TableCell className="py-1.5 pl-4 text-center text-xs font-medium text-slate-400 border-r">{index + 1}</TableCell>
+                        <TableCell className="py-1.5 text-xs font-bold text-[#1e3a8a] border-r">{siswa.nm_siswa}</TableCell>
+                        <TableCell className="py-1.5 text-xs font-medium text-slate-500 border-r">{siswa.nisn || '-'}</TableCell>
+                        <TableCell className="py-1.5 text-[10px] font-bold text-slate-400 border-r">{siswa.nm_kelas}</TableCell>
                         <TableCell className="py-1.5 text-right pr-4">
                           <Button
                             onClick={() => handleDeleteAnggota(siswa)}

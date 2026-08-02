@@ -5,7 +5,7 @@ import {
   ensureSyncMetadataTable,
   recordSyncMetadata,
 } from '@/lib/syncMetadata';
-import { SELECTIVE_SYNC_TABLES } from '@/lib/syncTables';
+import { SELECTIVE_SYNC_TABLES, SYNC_PRIMARY_KEY_OVERRIDES } from '@/lib/syncTables';
 
 export async function POST(request: Request) {
     const encoder = new TextEncoder();
@@ -588,6 +588,27 @@ async function getPrimaryKeyFromLocal(localDb: Pool, tableName: string, schema: 
         }
     }
 
+    // Override kunci primer untuk tabel yang tidak punya PRIMARY KEY di lokal
+    // (mis. tabel_cat_wali, tabel_kehadiran -> komposit peserta_didik_id + semester_id).
+    // Verifikasi dulu semua kolom override benar-benar ada di tabel lokal.
+    const override = SYNC_PRIMARY_KEY_OVERRIDES[tableName];
+    if (override) {
+        const colCheck = await localDb.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = $1 AND table_name = $2 AND column_name = ANY($3)
+        `, [schema, tableName, override as unknown as string[]]);
+
+        const foundCols = colCheck.rows.map((r: any) => r.column_name);
+        const allPresent = override.every(col => foundCols.includes(col));
+
+        if (allPresent) {
+            console.log(`Using configured composite primary key: [${override.join(', ')}] for table ${tableName}`);
+            return [...override];
+        }
+        console.warn(`⚠️  Override PK [${override.join(', ')}] for ${tableName} has missing columns (found: [${foundCols.join(', ')}]), falling back to detection`);
+    }
+
     const result = await localDb.query(`
         SELECT kcu.column_name
         FROM information_schema.table_constraints tc
@@ -757,12 +778,67 @@ async function ensurePrimaryKeyConstraint(neonDb: any, tableName: string, primar
         // Buat primary key constraint (composite jika lebih dari 1 kolom)
         const pkColumns = primaryKey.map(k => `"${k}"`).join(', ');
         console.log(`Creating PRIMARY KEY constraint on "${tableName}"(${pkColumns})...`);
-        await neonDb.query(`ALTER TABLE "${tableName}" ADD PRIMARY KEY (${pkColumns})`, []);
-        console.log(`✅ PRIMARY KEY constraint created for ${tableName}(${pkColumns})`);
-        return true;
+
+        try {
+            await neonDb.query(`ALTER TABLE "${tableName}" ADD PRIMARY KEY (${pkColumns})`, []);
+            console.log(`✅ PRIMARY KEY constraint created for ${tableName}(${pkColumns})`);
+            return true;
+        } catch (addErr: any) {
+            // Gagal biasanya karena data lama melanggar keunikan (baris duplikat
+            // atau NULL pada kolom PK) akibat sync fallback sebelumnya.
+            // Bersihkan data tersebut lalu coba sekali lagi.
+            console.warn(`⚠️  Initial PK creation failed for ${tableName}: ${addErr.message}`);
+            const cleaned = await cleanupDataForPrimaryKey(neonDb, tableName, primaryKey);
+            if (!cleaned) return false;
+
+            await neonDb.query(`ALTER TABLE "${tableName}" ADD PRIMARY KEY (${pkColumns})`, []);
+            console.log(`✅ PRIMARY KEY constraint created for ${tableName}(${pkColumns}) after cleanup`);
+            return true;
+        }
     } catch (err: any) {
         console.warn(`⚠️  Cannot create PK constraint for ${tableName}: ${err.message}`);
         return false; // Gagal buat constraint
+    }
+}
+
+/**
+ * Bersihkan data Neon agar bisa dibuatkan PRIMARY KEY komposit:
+ *  1. Hapus baris yang punya NULL di salah satu kolom PK (PK tidak boleh NULL).
+ *  2. Hapus baris duplikat per kombinasi PK, MENJAGA baris hasil edit web
+ *     (is_locally_edited = true) dan sync terbaru bila kolom itu ada.
+ */
+async function cleanupDataForPrimaryKey(neonDb: any, tableName: string, primaryKey: string[]): Promise<boolean> {
+    try {
+        const pkList = primaryKey.map(k => `"${k}"`).join(', ');
+
+        // 1. Buang baris dengan NULL di kolom PK manapun
+        const nullCond = primaryKey.map(k => `"${k}" IS NULL`).join(' OR ');
+        const nullDeleted = await neonDb.query(`DELETE FROM "${tableName}" WHERE ${nullCond}`, []);
+        console.log(`🧹 Removed rows with NULL primary key in ${tableName}`, (nullDeleted as any)?.rowCount ?? '');
+
+        // 2. Dedupe: simpan satu baris per kombinasi PK
+        const hasEditedCol = await neonDb.query(
+            `SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = 'is_locally_edited'`,
+            [tableName]
+        );
+        const orderBy = hasEditedCol.length > 0
+            ? `${pkList}, is_locally_edited DESC, last_local_sync DESC NULLS LAST`
+            : `${pkList}, ctid`;
+
+        await neonDb.query(`
+            DELETE FROM "${tableName}" t
+            WHERE t.ctid NOT IN (
+                SELECT DISTINCT ON (${pkList}) ctid
+                FROM "${tableName}"
+                ORDER BY ${orderBy}
+            )
+        `, []);
+        console.log(`🧹 Removed duplicate rows (kept one per [${primaryKey.join(', ')}]) in ${tableName}`);
+
+        return true;
+    } catch (e: any) {
+        console.error(`❌ Cleanup for PK failed on ${tableName}: ${e.message}`);
+        return false;
     }
 }
 
@@ -773,9 +849,25 @@ async function ensurePrimaryKeyConstraint(neonDb: any, tableName: string, primar
 async function upsertAllData(neonDb: any, tableName: string, data: any[], primaryKey: string[]) {
     if (data.length === 0) return 0;
 
+    // Dedupe data lokal berdasarkan kombinasi PK. Satu statement INSERT ... ON CONFLICT
+    // tidak boleh memengaruhi baris konflik yang sama dua kali, jadi baris lokal kembar
+    // harus dibuang dulu (ambil yang terakhir). Baris dengan PK NULL dilewati.
+    const beforeDedup = data.length;
+    const dedupMap = new Map<string, any>();
+    for (const row of data) {
+        const pkVals = primaryKey.map(k => row[k]);
+        if (pkVals.some(v => v === null || v === undefined)) continue;
+        dedupMap.set(pkVals.join(''), row); // last-wins
+    }
+    data = Array.from(dedupMap.values());
+    if (data.length !== beforeDedup) {
+        console.log(`Deduped local data for ${tableName}: ${beforeDedup} -> ${data.length} rows (by [${primaryKey.join(', ')}])`);
+    }
+    if (data.length === 0) return 0;
+
     // Get current table columns from Neon
-    const structure = await neonDb.query(`SELECT column_name, data_type 
-    FROM information_schema.columns 
+    const structure = await neonDb.query(`SELECT column_name, data_type
+    FROM information_schema.columns
     WHERE table_name = $1`, [tableName]);
     
     const validColumns = structure.map((row: any) => row.column_name);

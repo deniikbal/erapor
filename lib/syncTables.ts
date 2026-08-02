@@ -21,3 +21,17 @@ export const SELECTIVE_SYNC_TABLES: readonly string[] = [
 export function isSelectiveSyncTable(tableName: string): boolean {
   return SELECTIVE_SYNC_TABLES.includes(tableName);
 }
+
+/**
+ * Override kunci primer untuk tabel yang TIDAK punya PRIMARY KEY di database
+ * lokal e-Rapor. Tanpa override ini, deteksi fallback memilih satu kolom
+ * (mis. peserta_didik_id) yang tidak unik, sehingga pembuatan unique index /
+ * PRIMARY KEY di Neon gagal dan sync jatuh ke mode record-by-record yang lambat.
+ *
+ * Kunci di sini HARUS mencerminkan kombinasi yang benar-benar unik per baris.
+ * tabel_cat_wali & tabel_kehadiran: satu baris per (siswa, semester).
+ */
+export const SYNC_PRIMARY_KEY_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
+  tabel_cat_wali: ['peserta_didik_id', 'semester_id'],
+  tabel_kehadiran: ['peserta_didik_id', 'semester_id'],
+} as const;
