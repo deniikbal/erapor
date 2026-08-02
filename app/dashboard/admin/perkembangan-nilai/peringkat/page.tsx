@@ -20,7 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Trophy, Medal, Star, Info, ChevronRight, User, Users, Filter } from 'lucide-react';
+import { Trophy, Medal, Star, Info, ChevronRight, User, Users, Filter, Copy, Check } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
@@ -62,6 +62,29 @@ export default function AdminPeringkatKelasPage() {
     const [loading, setLoading] = useState(true);
     const [loadingData, setLoadingData] = useState(false);
     const [error, setError] = useState('');
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    const handleCopyName = useCallback(async (id: string, name: string) => {
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(name);
+            } else {
+                // Fallback untuk browser tanpa Clipboard API
+                const ta = document.createElement('textarea');
+                ta.value = name;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+            setCopiedId(id);
+            setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1200);
+        } catch {
+            // abaikan error copy
+        }
+    }, []);
 
     useEffect(() => {
         const loadClasses = async () => {
@@ -387,7 +410,21 @@ export default function AdminPeringkatKelasPage() {
                                                 index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
                                             )}>
                                                 <div className="flex flex-col leading-tight">
-                                                    <span className="text-[11px] font-semibold uppercase text-slate-700 truncate max-w-[190px]">{item.nm_siswa}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleCopyName(item.peserta_didik_id, item.nm_siswa)}
+                                                        title="Klik untuk salin nama"
+                                                        className="group/copy flex items-center gap-1.5 text-left w-fit cursor-pointer select-none"
+                                                    >
+                                                        <span className="text-[11px] font-semibold uppercase text-slate-700 truncate max-w-[190px] group-hover/copy:text-blue-600 transition-colors">
+                                                            {item.nm_siswa}
+                                                        </span>
+                                                        {copiedId === item.peserta_didik_id ? (
+                                                            <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                                                        ) : (
+                                                            <Copy className="h-3 w-3 text-gray-300 group-hover/copy:text-blue-500 shrink-0 opacity-0 group-hover/copy:opacity-100 transition-opacity" />
+                                                        )}
+                                                    </button>
                                                     <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">{item.nm_kelas}</span>
                                                 </div>
                                             </TableCell>
